@@ -26,6 +26,7 @@ import (
 	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/docker"
 	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/taskgroup"
 	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"k8s.io/apiserver/pkg/features"
 	"sigs.k8s.io/kind/pkg/apis/config/v1alpha4"
 	"sigs.k8s.io/kind/pkg/cluster"
 )
@@ -155,6 +156,15 @@ func createKindCluster(p *cluster.Provider, name, kcfgPath string) error {
 					fmt.Sprintf(`[plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:%d"]
   endpoint = ["http://%s:%d"]`, docker.RegistryPort, docker.RegistryName, docker.RegistryPort),
 				},
+				// MutatingAdmissionPolicy is currently off by default at the time of writing.
+				// It is enabled so that it can be tested with Config Sync.
+				// The feature gate can be removed once MutatingAdmissionPolicy enabled by default.
+				FeatureGates: map[string]bool{
+					string(features.MutatingAdmissionPolicy): true,
+				},
+				RuntimeConfig: map[string]string{
+					"admissionregistration.k8s.io/v1beta1": "true",
+				},
 				// Enable ValidatingAdmissionWebhooks in the Kind cluster, as these
 				// are disabled by default.
 				// Also mount etcd to tmpfs for memory-backed storage.
@@ -166,7 +176,7 @@ etcd:
     dataDir: /tmp/etcd
 apiServer:
   extraArgs:
-    "enable-admission-plugins": "ValidatingAdmissionWebhook"`,
+    "enable-admission-plugins": "ValidatingAdmissionWebhook,MutatingAdmissionPolicy,ValidatingAdmissionPolicy"`,
 				},
 			}),
 			// Retain nodes for debugging logs.
