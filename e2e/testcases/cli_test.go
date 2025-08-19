@@ -1297,13 +1297,14 @@ func TestApiResourceFormatting(t *testing.T) {
 }
 
 func TestNomosMigrate(t *testing.T) {
-	nt := nomostest.New(t, nomostesting.NomosCLI, ntopts.SkipConfigSyncInstall)
+	nt := nomostest.New(t, nomostesting.NomosCLI)
 
 	nt.T.Cleanup(func() {
 		// Restore state of Config Sync installation after test
-		if err := nomostest.InstallConfigSync(nt); err != nil {
+		if err := nomostest.InstallConfigSyncFromManifest(nt); err != nil {
 			nt.T.Fatal(err)
 		}
+		nt.Must(nt.WatchForAllSyncs())
 	})
 	nt.T.Cleanup(func() {
 		cmObj := &unstructured.Unstructured{
@@ -1451,11 +1452,11 @@ func TestNomosMigrate(t *testing.T) {
 			configmanagement.RGControllerName, configmanagement.RGControllerNamespace)
 	})
 	tg.Go(func() error {
-		return nt.Watcher.WatchForNotFound(kinds.Deployment(),
+		return nt.Watcher.WatchForCurrentStatus(kinds.Deployment(),
 			core.RootReconcilerName(configsync.RootSyncName), configsync.ControllerNamespace)
 	})
 	tg.Go(func() error {
-		return nt.Watcher.WatchForNotFound(kinds.RootSyncV1Beta1(),
+		return nt.Watcher.WatchForCurrentStatus(kinds.RootSyncV1Beta1(),
 			configsync.RootSyncName, configsync.ControllerNamespace)
 	})
 	if err := tg.Wait(); err != nil {
@@ -1464,14 +1465,14 @@ func TestNomosMigrate(t *testing.T) {
 }
 
 func TestNomosMigrateMonoRepo(t *testing.T) {
-	nt := nomostest.New(t, nomostesting.NomosCLI, ntopts.SkipConfigSyncInstall)
+	nt := nomostest.New(t, nomostesting.NomosCLI)
 
 	nt.T.Cleanup(func() {
 		// Restore state of Config Sync installation after test.
-		// This also emulates upgrading to the current version after migrating
-		if err := nomostest.InstallConfigSync(nt); err != nil {
+		if err := nomostest.InstallConfigSyncFromManifest(nt); err != nil {
 			nt.T.Fatal(err)
 		}
+		nt.Must(nt.WatchForAllSyncs())
 	})
 	nt.T.Cleanup(func() {
 		crds := []string{
@@ -1707,13 +1708,14 @@ func TestNomosMigrateMonoRepo(t *testing.T) {
 // This test case validates the behavior of the uninstall script defined
 // at installation/uninstall_configmanagement.sh
 func TestACMUninstallScript(t *testing.T) {
-	nt := nomostest.New(t, nomostesting.NomosCLI, ntopts.SkipConfigSyncInstall)
+	nt := nomostest.New(t, nomostesting.NomosCLI)
 
 	nt.T.Cleanup(func() {
 		// Restore state of Config Sync installation after test
-		if err := nomostest.InstallConfigSync(nt); err != nil {
+		if err := nomostest.InstallConfigSyncFromManifest(nt); err != nil {
 			nt.T.Fatal(err)
 		}
+		nt.Must(nt.WatchForAllSyncs())
 	})
 	nt.T.Cleanup(func() {
 		cmObj := &unstructured.Unstructured{
@@ -1861,11 +1863,11 @@ func TestACMUninstallScript(t *testing.T) {
 			configmanagement.RGControllerName, configmanagement.RGControllerNamespace)
 	})
 	tg.Go(func() error {
-		return nt.Watcher.WatchForNotFound(kinds.Deployment(),
+		return nt.Watcher.WatchForCurrentStatus(kinds.Deployment(),
 			core.RootReconcilerName(configsync.RootSyncName), configsync.ControllerNamespace)
 	})
 	tg.Go(func() error {
-		return nt.Watcher.WatchForNotFound(kinds.RootSyncV1Beta1(),
+		return nt.Watcher.WatchForCurrentStatus(kinds.RootSyncV1Beta1(),
 			configsync.RootSyncName, configsync.ControllerNamespace)
 	})
 	if err := tg.Wait(); err != nil {
