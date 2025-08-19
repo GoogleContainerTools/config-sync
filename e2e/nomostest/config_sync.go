@@ -83,10 +83,11 @@ var (
 	//
 	// All paths must be relative to the test file that is running. There is probably
 	// a more elegant way to do this.
-	baseDir            = filepath.FromSlash("../..")
-	outputManifestsDir = filepath.Join(baseDir, ".output", "staging", "oss")
-	configSyncManifest = filepath.Join(outputManifestsDir, "config-sync-manifest.yaml")
-	multiConfigMaps    = filepath.Join(baseDir, "e2e", "raw-nomos", configSyncManifests, multiConfigMapsName)
+	baseDir                  = filepath.FromSlash("../..")
+	outputManifestsDir       = filepath.Join(baseDir, ".output", "staging", "oss")
+	configSyncManifest       = filepath.Join(outputManifestsDir, "config-sync-manifest.yaml")
+	admissionWebhookManifest = filepath.Join(outputManifestsDir, "admission-webhook.yaml")
+	multiConfigMaps          = filepath.Join(baseDir, "e2e", "raw-nomos", configSyncManifests, multiConfigMapsName)
 )
 
 var (
@@ -242,6 +243,34 @@ func InstallConfigSync(nt *NT) error {
 			return err
 		}
 	}
+	return nil
+}
+
+// InstallConfigSyncFromManifest installs ConfigSync on the test cluster by directly
+// applying the manifest file using kubectl client-side apply
+func InstallConfigSyncFromManifest(nt *NT) error {
+	nt.T.Log("[SETUP] Installing Config Sync directly from manifest file")
+
+	nt.T.Logf("Applying Config Sync manifest directly from %s", configSyncManifest)
+
+	out, err := nt.Shell.Kubectl("apply", "-f", configSyncManifest)
+	if err != nil {
+		return fmt.Errorf("failed to apply Config Sync manifest: %v\n%s", err, out)
+	}
+
+	nt.T.Logf("Applying multi-repo configmaps from %s", multiConfigMaps)
+	out, err = nt.Shell.Kubectl("apply", "-f", multiConfigMaps)
+	if err != nil {
+		return fmt.Errorf("failed to apply multi-repo configmaps: %v\n%s", err, out)
+	}
+
+	// Apply the admission webhook manifest
+	nt.T.Logf("Applying admission webhook manifest from %s", admissionWebhookManifest)
+	out, err = nt.Shell.Kubectl("apply", "-f", admissionWebhookManifest)
+	if err != nil {
+		return fmt.Errorf("failed to apply admission webhook manifest: %v\n%s", err, out)
+	}
+
 	return nil
 }
 
