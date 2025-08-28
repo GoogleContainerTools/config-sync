@@ -61,7 +61,7 @@ type ClusterClient struct {
 	Client client.Client
 	repos  typedv1.RepoInterface
 	// K8sClient contains the clients for groups.
-	K8sClient        *kubernetes.Clientset
+	K8sClient        kubernetes.Interface
 	ConfigManagement *util.ConfigManagementClient
 }
 
@@ -164,6 +164,9 @@ func (c *ClusterClient) clusterStatus(ctx context.Context, cluster, namespace st
 		cs.Error = c.namespaceRepoClusterStatus(ctx, cs, namespace)
 	} else if isOss || (cs.isMulti != nil && *cs.isMulti) {
 		c.multiRepoClusterStatus(ctx, cs)
+	} else {
+		cs.status = util.ErrorMsg
+		cs.Error = "This cluster is running in legacy mono-repo mode, which is no longer supported"
 	}
 	return cs
 }
