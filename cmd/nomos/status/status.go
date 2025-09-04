@@ -184,11 +184,14 @@ func printStatus(ctx context.Context, writer *tabwriter.Writer, clientMap map[st
 	// Print status for each cluster.
 	for _, name := range names {
 		state := stateMap[name]
-		if name == currentContext {
-			// Prepend an asterisk for the users' current context
-			state.Ref = "*" + name
+
+		if state != nil {
+			if name == currentContext {
+				// Prepend an asterisk for the users' current context
+				state.Ref = "*" + name
+			}
+			state.printRows(writer)
 		}
-		state.printRows(writer)
 	}
 
 	writer.Flush()
