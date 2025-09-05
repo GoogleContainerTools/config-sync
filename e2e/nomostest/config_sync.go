@@ -259,14 +259,14 @@ func InstallConfigSyncFromManifest(nt *NT) error {
 	}
 
 	nt.T.Logf("Applying multi-repo configmaps from %s", multiConfigMaps)
-	out, err = nt.Shell.Kubectl("apply", "-f", multiConfigMaps)
+	out, err = nt.Shell.Kubectl("apply", "--server-side=false", "-f", multiConfigMaps)
 	if err != nil {
 		return fmt.Errorf("failed to apply multi-repo configmaps: %v\n%s", err, out)
 	}
 
 	// Apply the admission webhook manifest
 	nt.T.Logf("Applying admission webhook manifest from %s", admissionWebhookManifest)
-	out, err = nt.Shell.Kubectl("apply", "-f", admissionWebhookManifest)
+	out, err = nt.Shell.Kubectl("apply", "--server-side=false", "-f", admissionWebhookManifest)
 	if err != nil {
 		return fmt.Errorf("failed to apply admission webhook manifest: %v\n%s", err, out)
 	}
