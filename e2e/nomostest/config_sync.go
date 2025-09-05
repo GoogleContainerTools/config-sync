@@ -253,7 +253,7 @@ func InstallConfigSyncFromManifest(nt *NT) error {
 
 	nt.T.Logf("Applying Config Sync manifest directly from %s", configSyncManifest)
 
-	out, err := nt.Shell.Kubectl("apply", "-f", configSyncManifest)
+	out, err := nt.Shell.Kubectl("apply", "--server-side=false", "-f", configSyncManifest)
 	if err != nil {
 		return fmt.Errorf("failed to apply Config Sync manifest: %v\n%s", err, out)
 	}
