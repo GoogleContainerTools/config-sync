@@ -22,7 +22,7 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/declared"
 	csmetadata "github.com/GoogleContainerTools/config-sync/pkg/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
+	"sigs.k8s.io/structured-merge-diff/v6/fieldpath"
 )
 
 // ObjectDiffer can compare two versions of an Object and report on any declared

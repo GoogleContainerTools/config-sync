@@ -563,7 +563,6 @@ func TestWorker_Refresh(t *testing.T) {
 			if !tc.wantDeleted && tc.wantErr == nil {
 				// These fields are added by unstructured conversions, but we aren't
 				// testing this behavior.
-				_ = unstructured.SetNestedField(tc.want.Object, nil, "metadata", "creationTimestamp")
 				_ = unstructured.SetNestedField(tc.want.Object, nil, "rules")
 				unstructured.RemoveNestedField(tc.want.Object, "metadata", "labels")
 			}

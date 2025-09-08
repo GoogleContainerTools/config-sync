@@ -69,6 +69,11 @@ func (e ErrorClient) Update(_ context.Context, _ client.Object, _ ...client.Upda
 	return e.error
 }
 
+// Apply implements client.Client.
+func (e ErrorClient) Apply(_ context.Context, _ runtime.ApplyConfiguration, _ ...client.ApplyOption) error {
+	return e.error
+}
+
 // Patch implements client.Client.
 func (e ErrorClient) Patch(_ context.Context, _ client.Object, _ client.Patch, _ ...client.PatchOption) error {
 	return e.error

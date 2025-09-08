@@ -69,7 +69,6 @@ func TestAsYAML(t *testing.T) {
 			expectedOutput: `apiVersion: v1
 kind: Namespace
 metadata:
-  creationTimestamp: null
   name: example
 spec: {}
 status: {}
@@ -176,7 +175,6 @@ func TestAsYAMLDiff(t *testing.T) {
 			expectedOutput: ` apiVersion: v1
  kind: Namespace
  metadata:
-   creationTimestamp: null
    labels:
 -    key1: value1
 +    key2: value2
@@ -308,7 +306,6 @@ func TestAsYAMLDiff(t *testing.T) {
 +apiVersion: v1
 +kind: Namespace
 +metadata:
-+  creationTimestamp: null
 +  name: example
 +spec: {}
 +status: {}
@@ -410,7 +407,6 @@ func TestAsYAMLDiffWithScheme(t *testing.T) {
 				buff.WriteString(" apiVersion: kpt.dev/v1alpha1\n")
 				buff.WriteString(" kind: ResourceGroup\n")
 				buff.WriteString(" metadata:\n")
-				buff.WriteString("   creationTimestamp: null\n")
 				buff.WriteString("   name: root-sync\n")
 				buff.WriteString("   namespace: config-management-system\n")
 				buff.WriteString(" spec:\n")
@@ -472,7 +468,6 @@ func TestAsYAMLDiffWithScheme(t *testing.T) {
 				buff.WriteString(" apiVersion: kpt.dev/v1alpha1\n")
 				buff.WriteString(" kind: ResourceGroup\n")
 				buff.WriteString(" metadata:\n")
-				buff.WriteString("   creationTimestamp: null\n")
 				buff.WriteString("   name: root-sync\n")
 				buff.WriteString("   namespace: config-management-system\n")
 				buff.WriteString(" spec:\n")

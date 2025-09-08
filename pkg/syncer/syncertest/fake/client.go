@@ -127,6 +127,12 @@ func (c *Client) Update(ctx context.Context, obj client.Object, opts ...client.U
 	return c.storage.Update(ctx, obj, options)
 }
 
+// Apply implements client.Client.
+func (c *Client) Apply(_ context.Context, _ runtime.ApplyConfiguration, _ ...client.ApplyOption) error {
+	// TODO: implement fake Apply method if this is needed
+	return fmt.Errorf("not implemented")
+}
+
 // Patch implements client.Client.
 func (c *Client) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 	options := &client.PatchOptions{}
