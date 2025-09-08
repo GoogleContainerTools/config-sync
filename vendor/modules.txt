@@ -262,8 +262,8 @@ github.com/google/go-containerregistry/pkg/v1/stream
 github.com/google/go-containerregistry/pkg/v1/tarball
 github.com/google/go-containerregistry/pkg/v1/types
 github.com/google/go-containerregistry/pkg/v1/validate
-# github.com/google/go-licenses/v2 v2.0.0
-## explicit; go 1.19
+# github.com/google/go-licenses/v2 v2.0.1
+## explicit; go 1.23.0
 github.com/google/go-licenses/v2
 github.com/google/go-licenses/v2/internal/third_party/pkgsite/derrors
 github.com/google/go-licenses/v2/internal/third_party/pkgsite/source
@@ -651,7 +651,7 @@ golang.org/x/text/unicode/norm
 # golang.org/x/time v0.12.0
 ## explicit; go 1.23.0
 golang.org/x/time/rate
-# golang.org/x/tools v0.35.0
+# golang.org/x/tools v0.36.0
 ## explicit; go 1.23.0
 golang.org/x/tools/go/ast/astutil
 golang.org/x/tools/go/gcexportdata
