@@ -1301,7 +1301,7 @@ func TestNomosMigrate(t *testing.T) {
 
 	nt.T.Cleanup(func() {
 		// Restore state of Config Sync installation after test
-		if err := nomostest.InstallConfigSyncFromManifest(nt); err != nil {
+		if err := nomostest.InstallConfigSync(nt, nomostest.InstallMethodUpdate); err != nil {
 			nt.T.Fatal(err)
 		}
 		nt.Must(nt.WatchForAllSyncs())
@@ -1469,7 +1469,7 @@ func TestNomosMigrateMonoRepo(t *testing.T) {
 
 	nt.T.Cleanup(func() {
 		// Restore state of Config Sync installation after test.
-		if err := nomostest.InstallConfigSyncFromManifest(nt); err != nil {
+		if err := nomostest.InstallConfigSync(nt, nomostest.InstallMethodUpdate); err != nil {
 			nt.T.Fatal(err)
 		}
 		nt.Must(nt.WatchForAllSyncs())
@@ -1712,7 +1712,7 @@ func TestACMUninstallScript(t *testing.T) {
 
 	nt.T.Cleanup(func() {
 		// Restore state of Config Sync installation after test
-		if err := nomostest.InstallConfigSyncFromManifest(nt); err != nil {
+		if err := nomostest.InstallConfigSync(nt, nomostest.InstallMethodUpdate); err != nil {
 			nt.T.Fatal(err)
 		}
 		nt.Must(nt.WatchForAllSyncs())

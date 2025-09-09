@@ -78,6 +78,18 @@ const (
 	shortSyncPollingPeriod = 5 * time.Second
 )
 
+// InstallMethod defines how Config Sync should be installed
+type InstallMethod int
+
+const (
+	// InstallMethodApply uses server-side apply (default)
+	InstallMethodApply InstallMethod = iota
+	// InstallMethodUpdate uses client-side update
+	InstallMethodUpdate
+	// InstallMethodManifest uses kubectl apply with manifest files
+	InstallMethodManifest
+)
+
 var (
 	// baseDir is the path to the Nomos repository root from test case files.
 	//
@@ -231,46 +243,24 @@ func parseConfigSyncManifests(nt *NT) ([]client.Object, error) {
 }
 
 // InstallConfigSync installs ConfigSync on the test cluster
-func InstallConfigSync(nt *NT) error {
-	nt.T.Log("[SETUP] Installing Config Sync")
+func InstallConfigSync(nt *NT, method InstallMethod) error {
+	nt.T.Log("[SETUP] Installing Config Sync using method: ", method)
 	objs, err := parseConfigSyncManifests(nt)
 	if err != nil {
 		return err
 	}
 	for _, o := range objs {
 		nt.T.Logf("installConfigSync obj: %v", core.GKNN(o))
-		if err := nt.KubeClient.Apply(o); err != nil {
-			return err
+		if method == InstallMethodApply {
+			if err := nt.KubeClient.Apply(o); err != nil {
+				return err
+			}
+		} else if method == InstallMethodUpdate {
+			if err := nt.KubeClient.Update(o); err != nil {
+				return err
+			}
 		}
 	}
-	return nil
-}
-
-// InstallConfigSyncFromManifest installs ConfigSync on the test cluster by directly
-// applying the manifest file using kubectl client-side apply
-func InstallConfigSyncFromManifest(nt *NT) error {
-	nt.T.Log("[SETUP] Installing Config Sync directly from manifest file")
-
-	nt.T.Logf("Applying Config Sync manifest directly from %s", configSyncManifest)
-
-	out, err := nt.Shell.Kubectl("apply", "--server-side=false", "-f", configSyncManifest)
-	if err != nil {
-		return fmt.Errorf("failed to apply Config Sync manifest: %v\n%s", err, out)
-	}
-
-	nt.T.Logf("Applying multi-repo configmaps from %s", multiConfigMaps)
-	out, err = nt.Shell.Kubectl("apply", "--server-side=false", "-f", multiConfigMaps)
-	if err != nil {
-		return fmt.Errorf("failed to apply multi-repo configmaps: %v\n%s", err, out)
-	}
-
-	// Apply the admission webhook manifest
-	nt.T.Logf("Applying admission webhook manifest from %s", admissionWebhookManifest)
-	out, err = nt.Shell.Kubectl("apply", "--server-side=false", "-f", admissionWebhookManifest)
-	if err != nil {
-		return fmt.Errorf("failed to apply admission webhook manifest: %v\n%s", err, out)
-	}
-
 	return nil
 }
 
