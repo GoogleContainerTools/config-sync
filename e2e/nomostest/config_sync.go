@@ -79,15 +79,13 @@ const (
 )
 
 // InstallMethod defines how Config Sync should be installed
-type InstallMethod int
+type InstallMethod string
 
 const (
 	// InstallMethodApply uses server-side apply (default)
-	InstallMethodApply InstallMethod = iota
+	InstallMethodApply InstallMethod = "apply"
 	// InstallMethodUpdate uses client-side update
-	InstallMethodUpdate
-	// InstallMethodManifest uses kubectl apply with manifest files
-	InstallMethodManifest
+	InstallMethodUpdate InstallMethod = "update"
 )
 
 var (
@@ -95,11 +93,10 @@ var (
 	//
 	// All paths must be relative to the test file that is running. There is probably
 	// a more elegant way to do this.
-	baseDir                  = filepath.FromSlash("../..")
-	outputManifestsDir       = filepath.Join(baseDir, ".output", "staging", "oss")
-	configSyncManifest       = filepath.Join(outputManifestsDir, "config-sync-manifest.yaml")
-	admissionWebhookManifest = filepath.Join(outputManifestsDir, "admission-webhook.yaml")
-	multiConfigMaps          = filepath.Join(baseDir, "e2e", "raw-nomos", configSyncManifests, multiConfigMapsName)
+	baseDir            = filepath.FromSlash("../..")
+	outputManifestsDir = filepath.Join(baseDir, ".output", "staging", "oss")
+	configSyncManifest = filepath.Join(outputManifestsDir, "config-sync-manifest.yaml")
+	multiConfigMaps    = filepath.Join(baseDir, "e2e", "raw-nomos", configSyncManifests, multiConfigMapsName)
 )
 
 var (

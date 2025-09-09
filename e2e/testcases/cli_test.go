@@ -1304,6 +1304,9 @@ func TestNomosMigrate(t *testing.T) {
 		if err := nomostest.InstallConfigSync(nt, nomostest.InstallMethodUpdate); err != nil {
 			nt.T.Fatal(err)
 		}
+		if err := installwebhook(nt); err != nil {
+			nt.T.Fatal(err)
+		}
 		nt.Must(nt.WatchForAllSyncs())
 	})
 	nt.T.Cleanup(func() {
@@ -1470,6 +1473,9 @@ func TestNomosMigrateMonoRepo(t *testing.T) {
 	nt.T.Cleanup(func() {
 		// Restore state of Config Sync installation after test.
 		if err := nomostest.InstallConfigSync(nt, nomostest.InstallMethodUpdate); err != nil {
+			nt.T.Fatal(err)
+		}
+		if err := installwebhook(nt); err != nil {
 			nt.T.Fatal(err)
 		}
 		nt.Must(nt.WatchForAllSyncs())
@@ -1713,6 +1719,9 @@ func TestACMUninstallScript(t *testing.T) {
 	nt.T.Cleanup(func() {
 		// Restore state of Config Sync installation after test
 		if err := nomostest.InstallConfigSync(nt, nomostest.InstallMethodUpdate); err != nil {
+			nt.T.Fatal(err)
+		}
+		if err := installwebhook(nt); err != nil {
 			nt.T.Fatal(err)
 		}
 		nt.Must(nt.WatchForAllSyncs())
