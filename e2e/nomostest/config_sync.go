@@ -248,13 +248,20 @@ func InstallConfigSync(nt *NT, method InstallMethod) error {
 	}
 	for _, o := range objs {
 		nt.T.Logf("installConfigSync obj: %v", core.GKNN(o))
-		if method == InstallMethodApply {
+		switch method {
+		case InstallMethodApply:
 			if err := nt.KubeClient.Apply(o); err != nil {
 				return err
 			}
-		} else if method == InstallMethodUpdate {
+		case InstallMethodUpdate:
 			if err := nt.KubeClient.Update(o); err != nil {
-				return err
+				if apierrors.IsNotFound(err) {
+					if err := nt.KubeClient.Create(o); err != nil {
+						return err
+					}
+				} else {
+					return err
+				}
 			}
 		}
 	}
