@@ -254,12 +254,19 @@ func InstallConfigSync(nt *NT, method InstallMethod) error {
 				return err
 			}
 		case InstallMethodUpdate:
-			if err := nt.KubeClient.Update(o); err != nil {
+			currentObj := o.DeepCopyObject().(client.Object)
+			if err := nt.KubeClient.Get(currentObj.GetName(), currentObj.GetNamespace(), currentObj); err != nil {
 				if apierrors.IsNotFound(err) {
 					if err := nt.KubeClient.Create(o); err != nil {
 						return err
 					}
 				} else {
+					return err
+				}
+			} else {
+				// Attach existing resourceVersion to the object
+				o.SetResourceVersion(currentObj.GetResourceVersion())
+				if err := nt.KubeClient.Update(o); err != nil {
 					return err
 				}
 			}
