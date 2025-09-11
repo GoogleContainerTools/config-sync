@@ -17,6 +17,7 @@ package status
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"sort"
@@ -35,6 +36,7 @@ import (
 	typedv1 "github.com/GoogleContainerTools/config-sync/pkg/generated/clientset/versioned/typed/configmanagement/v1"
 	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
 	"github.com/Masterminds/semver"
+	"go.uber.org/multierr"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,8 +53,16 @@ const (
 	// ACMOperatorLabelSelector is the label selector for the ACM operator Pod.
 	ACMOperatorLabelSelector = "k8s-app=config-management-operator"
 	// ACMOperatorDeployment is the name of the ACM operator Deployment.
-
 	syncingConditionSupportedVersion = "v1.10.0-rc.1"
+)
+
+var (
+	// ErrNoRootSyncsFound is the error returned when no RootSyncs are found on a cluster
+	ErrNoRootSyncsFound = errors.New("No RootSync resources found")
+	// ErrNoRepoSyncsFound is the error returned when no RepoSyncs are found on a cluster
+	ErrNoRepoSyncsFound = errors.New("No RepoSync resources found")
+	// ErrMonoRepoFound is the error returned when mono-repo mode is detected on a cluster
+	ErrMonoRepoFound = errors.New("This cluster is running in legacy mono-repo mode, which is no longer supported")
 )
 
 // ClusterClient is the client that talks to the cluster.
@@ -159,14 +169,21 @@ func (c *ClusterClient) clusterStatus(ctx context.Context, cluster, namespace st
 	}
 
 	if namespace == configsync.ControllerNamespace {
-		cs.Error = c.rootRepoClusterStatus(ctx, cs)
+		if err := c.rootRepoClusterStatus(ctx, cs); err != nil {
+			cs.Error = err.Error()
+		}
+
 	} else if namespace != "" {
-		cs.Error = c.namespaceRepoClusterStatus(ctx, cs, namespace)
+		if err := c.namespaceRepoClusterStatus(ctx, cs, namespace); err != nil {
+			cs.Error = err.Error()
+		}
 	} else if isOss || (cs.isMulti != nil && *cs.isMulti) {
-		c.multiRepoClusterStatus(ctx, cs)
+		if err := c.multiRepoClusterStatus(ctx, cs); err != nil {
+			cs.Error = err.Error()
+		}
 	} else {
 		cs.status = util.ErrorMsg
-		cs.Error = "This cluster is running in legacy mono-repo mode, which is no longer supported"
+		cs.Error = ErrMonoRepoFound.Error()
 	}
 	return cs
 }
@@ -188,51 +205,57 @@ func (c *ClusterClient) syncingConditionSupported(ctx context.Context) bool {
 
 // multiRepoClusterStatus populates the given ClusterState with the sync status of
 // the multi repos on the ClusterClient's cluster.
-func (c *ClusterClient) multiRepoClusterStatus(ctx context.Context, cs *ClusterState) {
+func (c *ClusterClient) multiRepoClusterStatus(ctx context.Context, cs *ClusterState) error {
 	// Get the status of all RootSyncs
 	rootErr := c.rootRepoClusterStatus(ctx, cs)
 
 	// Get the status of all RepoSyncs
 	repoErr := c.namespaceRepoClusterStatus(ctx, cs, "")
-	if len(rootErr) > 0 {
-		cs.Error = fmt.Sprintf("Root repo error: %s", rootErr)
+
+	isRootNotFound := errors.Is(rootErr, ErrNoRootSyncsFound)
+	isRepoNotFound := errors.Is(repoErr, ErrNoRepoSyncsFound)
+
+	if isRootNotFound && isRepoNotFound {
+		return multierr.Append(rootErr, repoErr)
 	}
-	if len(repoErr) > 0 {
-		if len(cs.Error) > 0 {
-			cs.Error += ", "
-		}
-		cs.Error += fmt.Sprintf("Namespace repo error: %s", repoErr)
+
+	var err error
+	if rootErr != nil && !isRootNotFound {
+		err = multierr.Append(err, rootErr)
 	}
+	if repoErr != nil && !isRepoNotFound {
+		err = multierr.Append(err, repoErr)
+	}
+	return err
 }
 
 // rootRepoClusterStatus populates the given ClusterState with the sync status of
 // config-management-system namespace
-func (c *ClusterClient) rootRepoClusterStatus(ctx context.Context, cs *ClusterState) (errorMsg string) {
-	var errs []string
-	var rootErr string
+func (c *ClusterClient) rootRepoClusterStatus(ctx context.Context, cs *ClusterState) error {
+	var errs error
 	syncingConditionSupported := c.syncingConditionSupported(ctx)
 
 	// Get the status of all RootSyncs
 	var rootRGs []*unstructured.Unstructured
 	rootSyncs, rootSyncNsAndNames, err := c.rootSyncs(ctx)
 	if err != nil {
-		errs = append(errs, err.Error())
+		errs = multierr.Append(errs, err)
 	} else {
 		rootRGs, err = c.resourceGroups(ctx, configsync.ControllerNamespace, rootSyncNsAndNames)
 		if err != nil {
-			errs = append(errs, err.Error())
+			errs = multierr.Append(errs, err)
 		}
 	}
 
 	if len(rootSyncs) != len(rootRGs) {
-		errs = append(errs, fmt.Sprintf("expected the number of RootSyncs and ResourceGroups to be equal, but found %d RootSyncs and %d ResourceGroups", len(rootSyncs), len(rootRGs)))
+		errs = multierr.Append(errs, errors.New(unequalRgNumErrMsg("RootSync", len(rootSyncs), len(rootRGs))))
 	} else if len(rootSyncs) != 0 {
 		var repos []*RepoState
 		for i, rs := range rootSyncs {
 			rg := rootRGs[i]
 			if rg == nil {
 				// We always expect a ResourceGroup, even if we have no managed resources.
-				errs = append(errs, rgNotFoundErrMsg(rootSyncNsAndNames[i].Name, rootSyncNsAndNames[i].Namespace))
+				errs = multierr.Append(errs, errors.New(rgNotFoundErrMsg(rootSyncNsAndNames[i].Name, rootSyncNsAndNames[i].Namespace)))
 			}
 			repos = append(repos, RootRepoStatus(rs, rg, syncingConditionSupported))
 		}
@@ -240,46 +263,43 @@ func (c *ClusterClient) rootRepoClusterStatus(ctx context.Context, cs *ClusterSt
 			return repos[i].scope < repos[j].scope || (repos[i].scope == repos[j].scope && repos[i].syncName < repos[j].syncName)
 		})
 		cs.repos = append(cs.repos, repos...)
+	} else if len(rootSyncs) == 0 {
+		errs = ErrNoRootSyncsFound
 	}
 
-	if len(errs) > 0 {
+	if errs != nil && !errors.Is(errs, ErrNoRootSyncsFound) {
 		cs.status = util.ErrorMsg
-		rootErr = strings.Join(errs, ", ")
-	} else if len(cs.repos) == 0 {
-		cs.status = util.UnknownMsg
-		rootErr = "No RootSync resources found"
 	}
 
-	return rootErr
+	return errs
 }
 
 // namespaceRepoClusterStatus populates the given ClusterState with the sync status of
 // the specified namespace repo on the ClusterClient's cluster.
-func (c *ClusterClient) namespaceRepoClusterStatus(ctx context.Context, cs *ClusterState, ns string) (errorMsg string) {
-	var errs []string
-	var repoErr string
+func (c *ClusterClient) namespaceRepoClusterStatus(ctx context.Context, cs *ClusterState, ns string) error {
+	var errs error
 	syncingConditionSupported := c.syncingConditionSupported(ctx)
 
 	var rgs []*unstructured.Unstructured
 	syncs, nsAndNames, err := c.repoSyncs(ctx, ns)
 	if err != nil {
-		errs = append(errs, err.Error())
+		errs = multierr.Append(errs, err)
 	} else {
 		rgs, err = c.resourceGroups(ctx, ns, nsAndNames)
 		if err != nil {
-			errs = append(errs, err.Error())
+			errs = multierr.Append(errs, err)
 		}
 	}
 
 	if len(syncs) != len(rgs) {
-		errs = append(errs, fmt.Sprintf("expected the number of RepoSyncs and ResourceGroups to be equal, but found %d RepoSyncs and %d ResourceGroups", len(syncs), len(rgs)))
+		errs = multierr.Append(errs, errors.New(unequalRgNumErrMsg("RepoSync", len(syncs), len(rgs))))
 	} else if len(syncs) != 0 {
 		var repos []*RepoState
 		for i, rs := range syncs {
 			rg := rgs[i]
 			if rg == nil {
 				// We always expect a ResourceGroup, even if we have no managed resources.
-				errs = append(errs, rgNotFoundErrMsg(nsAndNames[i].Name, nsAndNames[i].Namespace))
+				errs = multierr.Append(errs, errors.New(rgNotFoundErrMsg(nsAndNames[i].Name, nsAndNames[i].Namespace)))
 			}
 			repos = append(repos, namespaceRepoStatus(rs, rg, syncingConditionSupported))
 		}
@@ -287,17 +307,15 @@ func (c *ClusterClient) namespaceRepoClusterStatus(ctx context.Context, cs *Clus
 			return repos[i].scope < repos[j].scope || (repos[i].scope == repos[j].scope && repos[i].syncName < repos[j].syncName)
 		})
 		cs.repos = append(cs.repos, repos...)
+	} else if len(syncs) == 0 {
+		errs = ErrNoRepoSyncsFound
 	}
 
-	if len(errs) > 0 {
+	if errs != nil && !errors.Is(errs, ErrNoRepoSyncsFound) {
 		cs.status = util.ErrorMsg
-		repoErr = strings.Join(errs, ", ")
-	} else if len(cs.repos) == 0 {
-		cs.status = util.UnknownMsg
-		repoErr = "No RepoSync resources found"
 	}
 
-	return repoErr
+	return errs
 }
 
 // IsInstalled returns true if the ClusterClient is connected to a cluster where
@@ -534,4 +552,8 @@ func consistentOrder(nsAndNames []types.NamespacedName, resourcegroups []*unstru
 
 func rgNotFoundErrMsg(name, ns string) string {
 	return fmt.Sprintf("resourcegroups.kpt.dev %q not found in namespace %q", name, ns)
+}
+
+func unequalRgNumErrMsg(kind string, syncCount, rgCount int) string {
+	return fmt.Sprintf("expected the number of %ss and ResourceGroups to be equal, but found %d %ss and %d ResourceGroups", kind, syncCount, kind, rgCount)
 }

@@ -96,7 +96,7 @@ func newTestClusterClient(t *testing.T, k8sObjs []runtime.Object, csObjs []runti
 	}
 }
 
-func configManagementObj(enableMultiRepo bool) *unstructured.Unstructured {
+func configManagementObject(enableMultiRepo bool) *unstructured.Unstructured {
 	u := &unstructured.Unstructured{
 		Object: map[string]interface{}{},
 	}
@@ -114,7 +114,7 @@ func configManagementObj(enableMultiRepo bool) *unstructured.Unstructured {
 	return u
 }
 
-func rootSyncObj(name string) *v1beta1.RootSync {
+func rootSyncObject(name string) *v1beta1.RootSync {
 	rootSyncObj := k8sobjects.RootSyncObjectV1Beta1(name)
 	rootSyncObj.Spec.Git = &v1beta1.Git{
 		Repo:     "https://github.com/my/repo",
@@ -132,7 +132,7 @@ func rootSyncObj(name string) *v1beta1.RootSync {
 	return rootSyncObj
 }
 
-func repoSyncObj(ns, name string) *v1beta1.RepoSync {
+func repoSyncObject(ns, name string) *v1beta1.RepoSync {
 	repoSyncObj := k8sobjects.RepoSyncObjectV1Beta1(ns, name)
 	repoSyncObj.Spec.Git = &v1beta1.Git{
 		Repo:     "https://github.com/my/repo",
@@ -150,22 +150,53 @@ func repoSyncObj(ns, name string) *v1beta1.RepoSync {
 	return repoSyncObj
 }
 
+func resourceGroupObject(name, ns string) *unstructured.Unstructured {
+	rg := k8sobjects.ResourceGroupObject(core.Name(name), core.Namespace(ns))
+	resources := []interface{}{map[string]interface{}{
+		"group":     "apps",
+		"kind":      "Deployment",
+		"namespace": "bookstore",
+		"name":      "test",
+	}}
+
+	resourceStatuses := []interface{}{
+		map[string]interface{}{
+			"group":      "apps",
+			"kind":       "Deployment",
+			"namespace":  "bookstore",
+			"name":       "test",
+			"reconcile":  "Succeeded",
+			"sourceHash": "abcd123",
+			"status":     "Current",
+			"strategy":   "Apply",
+		},
+	}
+
+	_ = unstructured.SetNestedSlice(rg.Object, resources, "spec", "resources")
+	_ = unstructured.SetNestedSlice(rg.Object,
+		resourceStatuses, "status", "resourceStatuses")
+
+	return rg
+}
+
 func TestClusterStates(t *testing.T) {
 	cmNamespace := k8sobjects.NamespaceObject(configmanagement.ControllerNamespace, core.Label("configmanagement.gke.io/system", "true"))
 	operatorDeployment := k8sobjects.DeploymentObject(core.Name(util.ACMOperatorDeployment), core.Namespace(configmanagement.ControllerNamespace))
 	operatorPod := k8sobjects.PodObject("operator-pod", []corev1.Container{}, core.Namespace(configmanagement.ControllerNamespace), core.Labels(map[string]string{"k8s-app": "config-management-operator"}))
 	operatorPod.Status.Phase = corev1.PodRunning
 
-	cmObjMono := configManagementObj(false)
-	cmObjMulti := configManagementObj(true)
+	cmObjMono := configManagementObject(false)
+	cmObjMulti := configManagementObject(true)
 
-	rootSyncObj := rootSyncObj(configsync.RootSyncName)
-	rootSyncRG := k8sobjects.ResourceGroupObject(core.Namespace(configsync.ControllerNamespace), core.Name(configsync.RootSyncName))
+	rootSync := rootSyncObject(configsync.RootSyncName)
+	rootSyncRG := resourceGroupObject(configsync.RootSyncName, configsync.ControllerNamespace)
 	rootSyncCRD := &apiextensionsv1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: configsync.RootSyncCRDName,
 		},
 	}
+
+	repoSync := repoSyncObject("test-ns", configsync.RepoSyncName)
 
 	testCases := []struct {
 		name                 string
@@ -206,7 +237,7 @@ func TestClusterStates(t *testing.T) {
 			clientMap: map[string]*ClusterClient{
 				"multi-repo-cluster": newTestClusterClient(t,
 					[]runtime.Object{cmNamespace, operatorDeployment, operatorPod},
-					[]runtime.Object{rootSyncObj, rootSyncRG},
+					[]runtime.Object{rootSync, rootSyncRG},
 					cmObjMulti),
 			},
 			wantStateMap: map[string]*ClusterState{
@@ -226,6 +257,12 @@ func TestClusterStates(t *testing.T) {
 								Dir:      "acme",
 								Revision: "v1.2.3",
 							},
+							resources: []resourceState{{
+								Name: "test", Group: "apps",
+								Kind:       "Deployment",
+								Namespace:  "bookstore",
+								Status:     "Current",
+								SourceHash: "abcd123"}},
 						},
 					},
 				},
@@ -237,7 +274,7 @@ func TestClusterStates(t *testing.T) {
 			clientMap: map[string]*ClusterClient{
 				"multi-repo-cluster": newTestClusterClient(t,
 					[]runtime.Object{},
-					[]runtime.Object{rootSyncObj, rootSyncRG, rootSyncCRD},
+					[]runtime.Object{rootSync, rootSyncRG, rootSyncCRD},
 					nil),
 			},
 			wantStateMap: map[string]*ClusterState{
@@ -256,6 +293,12 @@ func TestClusterStates(t *testing.T) {
 								Dir:      "acme",
 								Revision: "v1.2.3",
 							},
+							resources: []resourceState{{
+								Name: "test", Group: "apps",
+								Kind:       "Deployment",
+								Namespace:  "bookstore",
+								Status:     "Current",
+								SourceHash: "abcd123"}},
 						},
 					},
 				},
@@ -272,9 +315,53 @@ func TestClusterStates(t *testing.T) {
 			},
 			wantStateMap: map[string]*ClusterState{
 				"multi-repo-cluster": {
+					Ref:   "multi-repo-cluster",
+					Error: "No RootSync resources found; No RepoSync resources found",
+				},
+			},
+			wantMonoRepoClusters: nil,
+		},
+		{
+			name: "multi-repo cluster with no CM object and missing RG objects",
+			clientMap: map[string]*ClusterClient{
+				"multi-repo-cluster": newTestClusterClient(t,
+					[]runtime.Object{},
+					[]runtime.Object{rootSync, rootSyncCRD, repoSync},
+					nil),
+			},
+			wantStateMap: map[string]*ClusterState{
+				"multi-repo-cluster": {
 					Ref:    "multi-repo-cluster",
-					status: util.UnknownMsg,
-					Error:  "Root repo error: No RootSync resources found, Namespace repo error: No RepoSync resources found",
+					status: util.ErrorMsg,
+					Error:  `resourcegroups.kpt.dev "root-sync" not found in namespace "config-management-system"; resourcegroups.kpt.dev "repo-sync" not found in namespace "test-ns"`,
+					repos: []*RepoState{
+						{
+							scope:             "<root>",
+							syncName:          configsync.RootSyncName,
+							status:            syncedMsg,
+							commit:            "abcdef",
+							lastSyncTimestamp: lastSyncTimestamp,
+							git: &v1beta1.Git{
+								Repo:     "https://github.com/my/repo",
+								Branch:   "main",
+								Dir:      "acme",
+								Revision: "v1.2.3",
+							},
+						},
+						{
+							scope:             "test-ns",
+							syncName:          configsync.RepoSyncName,
+							status:            syncedMsg,
+							commit:            "abcdef",
+							lastSyncTimestamp: lastSyncTimestamp,
+							git: &v1beta1.Git{
+								Repo:     "https://github.com/my/repo",
+								Branch:   "main",
+								Dir:      "acme",
+								Revision: "v1.2.3",
+							},
+						},
+					},
 				},
 			},
 			wantMonoRepoClusters: nil,
@@ -289,7 +376,7 @@ func TestClusterStates(t *testing.T) {
 					cmObjMono),
 				"multi-repo-cluster": newTestClusterClient(t,
 					[]runtime.Object{cmNamespace, operatorDeployment, operatorPod},
-					[]runtime.Object{rootSyncObj, rootSyncRG},
+					[]runtime.Object{rootSync, rootSyncRG},
 					cmObjMulti),
 			},
 			wantStateMap: map[string]*ClusterState{
@@ -316,6 +403,12 @@ func TestClusterStates(t *testing.T) {
 								Dir:      "acme",
 								Revision: "v1.2.3",
 							},
+							resources: []resourceState{{
+								Name: "test", Group: "apps",
+								Kind:       "Deployment",
+								Namespace:  "bookstore",
+								Status:     "Current",
+								SourceHash: "abcd123"}},
 						},
 					},
 				},
@@ -344,13 +437,13 @@ func TestPrintStatus(t *testing.T) {
 	operatorPod := k8sobjects.PodObject("operator-pod", []corev1.Container{}, core.Namespace(configmanagement.ControllerNamespace), core.Labels(map[string]string{"k8s-app": "config-management-operator"}))
 	operatorPod.Status.Phase = corev1.PodRunning
 
-	cmObjMono := configManagementObj(false)
-	cmObjMulti := configManagementObj(true)
+	cmObjMono := configManagementObject(false)
+	cmObjMulti := configManagementObject(true)
 
-	rootSync := rootSyncObj(configsync.RootSyncName)
-	repoSync := repoSyncObj("test-ns", configsync.RepoSyncName)
-	rootSyncRG := k8sobjects.ResourceGroupObject(core.Namespace(configsync.ControllerNamespace), core.Name(configsync.RootSyncName))
-	repoSyncRG := k8sobjects.ResourceGroupObject(core.Namespace("test-ns"), core.Name(configsync.RepoSyncName))
+	rootSync := rootSyncObject(configsync.RootSyncName)
+	repoSync := repoSyncObject("test-ns", configsync.RepoSyncName)
+	rootSyncRG := resourceGroupObject(configsync.RootSyncName, configsync.ControllerNamespace)
+	repoSyncRG := resourceGroupObject(configsync.RepoSyncName, `test-ns`)
 	rootSyncCRD := &apiextensionsv1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: configsync.RootSyncCRDName,
@@ -392,15 +485,19 @@ func TestPrintStatus(t *testing.T) {
 				"  --------------------\n" +
 				"  <root>:root-sync                           https://github.com/my/repo/acme@v1.2.3     \n" +
 				"  SYNCED @ 2022-08-15 12:00:00 +0000 UTC     abcdef                                     \n" +
+				"  Managed resources:\n" +
+				"       NAMESPACE     NAME                     STATUS      SOURCEHASH\n" +
+				"       bookstore     deployment.apps/test     Current     abcd123\n" +
 				"\nunavailable-cluster\n" +
 				"  --------------------\n" +
 				"  N/A     Failed to connect to cluster\n" +
 				"\nrepo-sync-cluster\n" +
 				"  --------------------\n" +
-				"  UNKNOWN     Root repo error: No RootSync resources found\n" +
-				"  --------------------\n" +
 				"  test-ns:repo-sync                          https://github.com/my/repo/acme@v1.2.3     \n" +
-				"  SYNCED @ 2022-08-15 12:00:00 +0000 UTC     abcdef                                     \n",
+				"  SYNCED @ 2022-08-15 12:00:00 +0000 UTC     abcdef                                     \n" +
+				"  Managed resources:\n" +
+				"       NAMESPACE     NAME                     STATUS      SOURCEHASH\n" +
+				"       bookstore     deployment.apps/test     Current     abcd123\n",
 		},
 	}
 
