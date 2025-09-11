@@ -566,7 +566,7 @@ func TestStressMemoryUsageHelm(t *testing.T) {
 
 	// Validate that the resources sync without the reconciler running out of
 	// memory, getting OOMKilled, and crash looping.
-	nt.Must(nt.WatchForAllSyncs(nomostest.WithTimeout(5 * time.Minute)))
+	nt.Must(nt.WatchForAllSyncs())
 
 	nt.T.Logf("Verify the number of Anvil objects")
 	for i := 1; i <= crdCount; i++ {
@@ -598,7 +598,7 @@ func TestStressMemoryUsageHelm(t *testing.T) {
 	})
 	// Validate that the resources sync without the reconciler running out of
 	// memory, getting OOMKilled, and crash looping.
-	nt.Must(nt.WatchForAllSyncs(nomostest.WithTimeout(5 * time.Minute)))
+	nt.Must(nt.WatchForAllSyncs())
 }
 
 func TestStressResourceGroup(t *testing.T) {
