@@ -17,6 +17,7 @@ package status
 import (
 	"bytes"
 	"context"
+	"errors"
 	"testing"
 	"text/tabwriter"
 
@@ -39,41 +40,16 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/kubernetes"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 )
 
-func newTestClusterClient(t *testing.T, k8sObjs []runtime.Object, csObjs []runtime.Object, cmObj *unstructured.Unstructured) *ClusterClient {
+func newTestClusterClient(t *testing.T, client client.Client, k8sClient kubernetes.Interface, cmObj *unstructured.Unstructured) *ClusterClient {
 	t.Helper()
-
-	var allClientObjs []client.Object
-	for _, o := range k8sObjs {
-		allClientObjs = append(allClientObjs, o.(client.Object))
-	}
-	for _, o := range csObjs {
-		allClientObjs = append(allClientObjs, o.(client.Object))
-	}
-	if cmObj != nil {
-		allClientObjs = append(allClientObjs, cmObj)
-	}
-
-	fakeClient := fake.NewClientBuilder().WithScheme(core.Scheme).WithObjects(allClientObjs...).Build()
-	k8sClient := k8sfake.NewClientset(k8sObjs...)
-
-	var dynamicObjs []runtime.Object
-	if cmObj != nil {
-		dynamicObjs = append(dynamicObjs, cmObj)
-	}
-	dynamicClient := dynamicfake.NewSimpleDynamicClient(core.Scheme, dynamicObjs...)
-	util.DynamicClient = func(_ *rest.Config) (dynamic.Interface, error) {
-		return dynamicClient, nil
-	}
-	cmClient, err := util.NewConfigManagementClient(&rest.Config{})
-	if err != nil {
-		t.Fatalf("failed to create ConfigManagementClient: %v", err)
-	}
 
 	repoObj := &v1.Repo{
 		TypeMeta: metav1.TypeMeta{APIVersion: v1.SchemeGroupVersion.String(), Kind: "Repo"},
@@ -85,15 +61,38 @@ func newTestClusterClient(t *testing.T, k8sObjs []runtime.Object, csObjs []runti
 			Sync:   v1.RepoSyncStatus{LatestToken: "abc1234"},
 		},
 	}
-
 	csClient := csfake.NewSimpleClientset(repoObj)
 
+	var dynamicObjs []runtime.Object
+	if cmObj != nil {
+		dynamicObjs = append(dynamicObjs, cmObj)
+	}
+
+	dynamicClient := dynamicfake.NewSimpleDynamicClient(core.Scheme, dynamicObjs...)
+	util.DynamicClient = func(_ *rest.Config) (dynamic.Interface, error) {
+		return dynamicClient, nil
+	}
+	cmClient, err := util.NewConfigManagementClient(&rest.Config{})
+	if err != nil {
+		t.Fatalf("failed to create ConfigManagementClient: %v", err)
+	}
+
 	return &ClusterClient{
-		Client:           fakeClient,
+		Client:           client,
 		repos:            csClient.ConfigmanagementV1().Repos(),
 		K8sClient:        k8sClient,
 		ConfigManagement: cmClient,
 	}
+}
+
+func newFakeClient(objs []client.Object, errorFuncs *interceptor.Funcs) client.Client {
+	cb := fake.NewClientBuilder().WithScheme(core.Scheme).WithObjects(objs...)
+
+	if errorFuncs != nil {
+		cb.WithInterceptorFuncs(*errorFuncs)
+	}
+
+	return cb.Build()
 }
 
 func configManagementObject(enableMultiRepo bool) *unstructured.Unstructured {
@@ -218,8 +217,8 @@ func TestClusterStates(t *testing.T) {
 			name: "mono-repo cluster",
 			clientMap: map[string]*ClusterClient{
 				"mono-repo-cluster": newTestClusterClient(t,
-					[]runtime.Object{cmNamespace, operatorDeployment, operatorPod},
-					[]runtime.Object{},
+					newFakeClient([]client.Object{}, nil),
+					k8sfake.NewClientset(cmNamespace, operatorDeployment, operatorPod),
 					cmObjMono),
 			},
 			wantStateMap: map[string]*ClusterState{
@@ -232,12 +231,37 @@ func TestClusterStates(t *testing.T) {
 			},
 			wantMonoRepoClusters: []string{"mono-repo-cluster"},
 		},
+
+		{
+			name: "multi-repo cluster with RepoSync fetch error",
+			clientMap: map[string]*ClusterClient{
+				"rootsync-error-cluster": newTestClusterClient(t,
+					newFakeClient([]client.Object{}, &interceptor.Funcs{
+						List: func(ctx context.Context, cl client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
+							if _, ok := list.(*v1beta1.RepoSyncList); ok {
+								return errors.New("generic error fetching RepoSyncs")
+							}
+							return cl.List(ctx, list, opts...)
+						},
+					}),
+					k8sfake.NewClientset(cmNamespace, operatorDeployment, operatorPod),
+					cmObjMulti),
+			},
+			wantStateMap: map[string]*ClusterState{
+				"rootsync-error-cluster": {
+					Ref:     "rootsync-error-cluster",
+					isMulti: &[]bool{true}[0],
+					status:  util.ErrorMsg,
+					Error:   "generic error fetching RepoSyncs",
+				},
+			},
+		},
 		{
 			name: "multi-repo cluster",
 			clientMap: map[string]*ClusterClient{
 				"multi-repo-cluster": newTestClusterClient(t,
-					[]runtime.Object{cmNamespace, operatorDeployment, operatorPod},
-					[]runtime.Object{rootSync, rootSyncRG},
+					newFakeClient([]client.Object{rootSync, rootSyncRG}, nil),
+					k8sfake.NewClientset(cmNamespace, operatorDeployment, operatorPod),
 					cmObjMulti),
 			},
 			wantStateMap: map[string]*ClusterState{
@@ -273,8 +297,8 @@ func TestClusterStates(t *testing.T) {
 			name: "multi-repo cluster with no CM object",
 			clientMap: map[string]*ClusterClient{
 				"multi-repo-cluster": newTestClusterClient(t,
-					[]runtime.Object{},
-					[]runtime.Object{rootSync, rootSyncRG, rootSyncCRD},
+					newFakeClient([]client.Object{rootSync, rootSyncRG, rootSyncCRD}, nil),
+					k8sfake.NewClientset(),
 					nil),
 			},
 			wantStateMap: map[string]*ClusterState{
@@ -309,8 +333,8 @@ func TestClusterStates(t *testing.T) {
 			name: "multi-repo cluster with no CM object or RSync",
 			clientMap: map[string]*ClusterClient{
 				"multi-repo-cluster": newTestClusterClient(t,
-					[]runtime.Object{},
-					[]runtime.Object{rootSyncCRD},
+					newFakeClient([]client.Object{rootSyncCRD}, nil),
+					k8sfake.NewClientset(),
 					nil),
 			},
 			wantStateMap: map[string]*ClusterState{
@@ -325,8 +349,8 @@ func TestClusterStates(t *testing.T) {
 			name: "multi-repo cluster with no CM object and missing RG objects",
 			clientMap: map[string]*ClusterClient{
 				"multi-repo-cluster": newTestClusterClient(t,
-					[]runtime.Object{},
-					[]runtime.Object{rootSync, rootSyncCRD, repoSync},
+					newFakeClient([]client.Object{rootSync, rootSyncCRD, repoSync}, nil),
+					k8sfake.NewClientset(),
 					nil),
 			},
 			wantStateMap: map[string]*ClusterState{
@@ -371,12 +395,12 @@ func TestClusterStates(t *testing.T) {
 			clientMap: map[string]*ClusterClient{
 				"unavailable-cluster": nil,
 				"mono-repo-cluster": newTestClusterClient(t,
-					[]runtime.Object{cmNamespace, operatorDeployment, operatorPod},
-					[]runtime.Object{},
+					newFakeClient([]client.Object{}, nil),
+					k8sfake.NewClientset(cmNamespace, operatorDeployment, operatorPod),
 					cmObjMono),
 				"multi-repo-cluster": newTestClusterClient(t,
-					[]runtime.Object{cmNamespace, operatorDeployment, operatorPod},
-					[]runtime.Object{rootSync, rootSyncRG},
+					newFakeClient([]client.Object{rootSync, rootSyncRG}, nil),
+					k8sfake.NewClientset(cmNamespace, operatorDeployment, operatorPod),
 					cmObjMulti),
 			},
 			wantStateMap: map[string]*ClusterState{
@@ -462,17 +486,17 @@ func TestPrintStatus(t *testing.T) {
 			clientMap: map[string]*ClusterClient{
 				"unavailable-cluster": nil,
 				"mono-repo-cluster": newTestClusterClient(t,
-					[]runtime.Object{cmNamespace, operatorDeployment, operatorPod},
-					[]runtime.Object{},
+					newFakeClient([]client.Object{}, nil),
+					k8sfake.NewClientset(cmNamespace, operatorDeployment, operatorPod),
 					cmObjMono),
 				"multi-repo-cluster": newTestClusterClient(t,
-					[]runtime.Object{cmNamespace, operatorDeployment, operatorPod},
-					[]runtime.Object{rootSync, rootSyncRG},
+					newFakeClient([]client.Object{rootSync, rootSyncRG}, nil),
+					k8sfake.NewClientset(cmNamespace, operatorDeployment, operatorPod),
 					cmObjMulti),
 				"repo-sync-cluster": newTestClusterClient(t,
-					[]runtime.Object{},
-					[]runtime.Object{repoSync, repoSyncRG, rootSyncCRD},
-					nil),
+					newFakeClient([]client.Object{repoSync, repoSyncRG, rootSyncCRD}, nil),
+					k8sfake.NewClientset(),
+					cmObjMulti),
 			},
 			names:          []string{"mono-repo-cluster", "multi-repo-cluster", "unavailable-cluster", "repo-sync-cluster"},
 			currentContext: "multi-repo-cluster",

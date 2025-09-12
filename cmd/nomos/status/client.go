@@ -206,6 +206,8 @@ func (c *ClusterClient) syncingConditionSupported(ctx context.Context) bool {
 // multiRepoClusterStatus populates the given ClusterState with the sync status of
 // the multi repos on the ClusterClient's cluster.
 func (c *ClusterClient) multiRepoClusterStatus(ctx context.Context, cs *ClusterState) error {
+	var errs []error
+
 	// Get the status of all RootSyncs
 	rootErr := c.rootRepoClusterStatus(ctx, cs)
 
@@ -219,14 +221,13 @@ func (c *ClusterClient) multiRepoClusterStatus(ctx context.Context, cs *ClusterS
 		return multierr.Append(rootErr, repoErr)
 	}
 
-	var err error
 	if rootErr != nil && !isRootNotFound {
-		err = multierr.Append(err, rootErr)
+		errs = append(errs, rootErr)
 	}
 	if repoErr != nil && !isRepoNotFound {
-		err = multierr.Append(err, repoErr)
+		errs = append(errs, repoErr)
 	}
-	return err
+	return multierr.Combine(errs...)
 }
 
 // rootRepoClusterStatus populates the given ClusterState with the sync status of
@@ -263,12 +264,12 @@ func (c *ClusterClient) rootRepoClusterStatus(ctx context.Context, cs *ClusterSt
 			return repos[i].scope < repos[j].scope || (repos[i].scope == repos[j].scope && repos[i].syncName < repos[j].syncName)
 		})
 		cs.repos = append(cs.repos, repos...)
-	} else if len(rootSyncs) == 0 {
-		errs = ErrNoRootSyncsFound
 	}
 
-	if errs != nil && !errors.Is(errs, ErrNoRootSyncsFound) {
+	if errs != nil {
 		cs.status = util.ErrorMsg
+	} else if len(rootSyncs) == 0 {
+		errs = ErrNoRootSyncsFound
 	}
 
 	return errs
@@ -307,12 +308,12 @@ func (c *ClusterClient) namespaceRepoClusterStatus(ctx context.Context, cs *Clus
 			return repos[i].scope < repos[j].scope || (repos[i].scope == repos[j].scope && repos[i].syncName < repos[j].syncName)
 		})
 		cs.repos = append(cs.repos, repos...)
-	} else if len(syncs) == 0 {
-		errs = ErrNoRepoSyncsFound
 	}
 
-	if errs != nil && !errors.Is(errs, ErrNoRepoSyncsFound) {
+	if errs != nil {
 		cs.status = util.ErrorMsg
+	} else if len(syncs) == 0 {
+		errs = ErrNoRepoSyncsFound
 	}
 
 	return errs
