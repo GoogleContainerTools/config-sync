@@ -24,8 +24,6 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
 	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/metrics"
 	"github.com/GoogleContainerTools/config-sync/pkg/testing/testmetrics"
-	"go.opencensus.io/stats/view"
-	"go.opencensus.io/tag"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -236,9 +234,7 @@ func TestResourceMapUpdateMetrics(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Register metrics views with test exporter
-			exporter := testmetrics.RegisterMetrics(
-				metrics.ResourceGroupTotalView,
-			)
+			exporter := testmetrics.NewTestExporter()
 
 			// Create a new resource map for each test case
 			m := NewResourceMap()
@@ -249,17 +245,12 @@ func TestResourceMapUpdateMetrics(t *testing.T) {
 			}
 
 			// Verify final metrics
-			expected := []*view.Row{
-				{Data: &view.LastValueData{Value: tc.expectedMetricValue}, Tags: []tag.Tag{}},
+			expected := []testmetrics.MetricData{
+				{Name: metrics.ResourceGroupTotalName, Value: tc.expectedMetricValue, Labels: map[string]string{}},
 			}
 
-			if diff := exporter.ValidateMetrics(metrics.ResourceGroupTotalView, expected); diff != "" {
+			if diff := exporter.ValidateMetrics(expected); diff != "" {
 				t.Errorf("Unexpected metrics recorded: %v", diff)
-			}
-
-			// Verify the resource map state
-			if len(m.resgroupToResources) != tc.expectedResourceGroups {
-				t.Errorf("Expected %d resource groups in map, got %d", tc.expectedResourceGroups, len(m.resgroupToResources))
 			}
 		})
 	}

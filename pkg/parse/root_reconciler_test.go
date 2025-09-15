@@ -50,8 +50,6 @@ import (
 	discoveryutil "github.com/GoogleContainerTools/config-sync/pkg/util/discovery"
 	webhookconfiguration "github.com/GoogleContainerTools/config-sync/pkg/webhook/configuration"
 	"github.com/stretchr/testify/require"
-	"go.opencensus.io/stats/view"
-	"go.opencensus.io/tag"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -657,6 +655,8 @@ func TestRootReconciler_ParseAndUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	_ = testmetrics.NewTestExporter()
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1289,7 +1289,7 @@ func TestRootReconciler_Parse_SourceErrorMetricValidation(t *testing.T) {
 		name            string
 		parseErrors     status.MultiError
 		expectedError   status.MultiError
-		expectedMetrics []*view.Row
+		expectedMetrics []testmetrics.MetricData
 	}{
 		{
 			name: "single reconciler error in source component",
@@ -1299,10 +1299,11 @@ func TestRootReconciler_Parse_SourceErrorMetricValidation(t *testing.T) {
 			expectedError: status.Wrap(
 				status.SourceError.Sprintf("source error").Build(),
 			),
-			expectedMetrics: []*view.Row{
-				{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{{Key: metrics.KeyComponent, Value: "source"}, {Key: metrics.KeyErrorClass, Value: "1xxx"}}},
-				{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{{Key: metrics.KeyComponent, Value: "source"}, {Key: metrics.KeyErrorClass, Value: "2xxx"}}},
-				{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{{Key: metrics.KeyComponent, Value: "source"}, {Key: metrics.KeyErrorClass, Value: "9xxx"}}},
+			expectedMetrics: []testmetrics.MetricData{
+				{Name: metrics.ReconcilerErrorsName, Value: 0, Labels: map[string]string{"component": "source", "errorclass": "1xxx"}},
+				{Name: metrics.ReconcilerErrorsName, Value: 1, Labels: map[string]string{"component": "source", "errorclass": "2xxx"}},
+				{Name: metrics.ReconcilerErrorsName, Value: 0, Labels: map[string]string{"component": "source", "errorclass": "9xxx"}},
+				{Name: metrics.PipelineErrorName, Value: 1, Labels: map[string]string{"component": "source", "name": "", "reconciler": "root-sync"}},
 			},
 		},
 		{
@@ -1315,10 +1316,11 @@ func TestRootReconciler_Parse_SourceErrorMetricValidation(t *testing.T) {
 				status.SourceError.Sprintf("source error").Build(),
 				status.InternalError("internal error"),
 			),
-			expectedMetrics: []*view.Row{
-				{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{{Key: metrics.KeyComponent, Value: "source"}, {Key: metrics.KeyErrorClass, Value: "1xxx"}}},
-				{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{{Key: metrics.KeyComponent, Value: "source"}, {Key: metrics.KeyErrorClass, Value: "2xxx"}}},
-				{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{{Key: metrics.KeyComponent, Value: "source"}, {Key: metrics.KeyErrorClass, Value: "9xxx"}}},
+			expectedMetrics: []testmetrics.MetricData{
+				{Name: metrics.ReconcilerErrorsName, Value: 0, Labels: map[string]string{"component": "source", "errorclass": "1xxx"}},
+				{Name: metrics.ReconcilerErrorsName, Value: 1, Labels: map[string]string{"component": "source", "errorclass": "2xxx"}},
+				{Name: metrics.ReconcilerErrorsName, Value: 1, Labels: map[string]string{"component": "source", "errorclass": "9xxx"}},
+				{Name: metrics.PipelineErrorName, Value: 1, Labels: map[string]string{"component": "source", "name": "", "reconciler": "root-sync"}},
 			},
 		},
 	}
@@ -1326,7 +1328,8 @@ func TestRootReconciler_Parse_SourceErrorMetricValidation(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			require.Error(t, tc.parseErrors)
-			m := testmetrics.RegisterMetrics(metrics.ReconcilerErrorsView)
+			testmetrics.ResetGlobalMetrics()
+			exporter := testmetrics.NewTestExporter()
 			fakeConfigParser := &fsfake.ConfigParser{
 				Outputs: []fsfake.ParserOutputs{
 					// One Parse call, with errors
@@ -1388,7 +1391,7 @@ func TestRootReconciler_Parse_SourceErrorMetricValidation(t *testing.T) {
 			errs := reconciler.parse(ctx, trigger)
 			testerrors.AssertEqual(t, tc.expectedError, errs, "expected parse errors to match")
 
-			if diff := m.ValidateMetrics(metrics.ReconcilerErrorsView, tc.expectedMetrics); diff != "" {
+			if diff := exporter.ValidateMetrics(tc.expectedMetrics); diff != "" {
 				t.Error(diff)
 			}
 		})
@@ -1400,7 +1403,7 @@ func TestRootReconciler_Update_ApplierErrorMetricValidation(t *testing.T) {
 		name            string
 		applyErrors     []status.Error
 		expectedError   status.MultiError
-		expectedMetrics []*view.Row
+		expectedMetrics []testmetrics.MetricData
 	}{
 		{
 			name: "single reconciler error in sync component",
@@ -1408,13 +1411,13 @@ func TestRootReconciler_Update_ApplierErrorMetricValidation(t *testing.T) {
 				applier.Error(errors.New("sync error")),
 			},
 			expectedError: applier.Error(errors.New("sync error")),
-			expectedMetrics: []*view.Row{
-				{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{{Key: metrics.KeyComponent, Value: "source"}, {Key: metrics.KeyErrorClass, Value: "1xxx"}}},
-				{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{{Key: metrics.KeyComponent, Value: "source"}, {Key: metrics.KeyErrorClass, Value: "2xxx"}}},
-				{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{{Key: metrics.KeyComponent, Value: "source"}, {Key: metrics.KeyErrorClass, Value: "9xxx"}}},
-				{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{{Key: metrics.KeyComponent, Value: "sync"}, {Key: metrics.KeyErrorClass, Value: "1xxx"}}},
-				{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{{Key: metrics.KeyComponent, Value: "sync"}, {Key: metrics.KeyErrorClass, Value: "2xxx"}}},
-				{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{{Key: metrics.KeyComponent, Value: "sync"}, {Key: metrics.KeyErrorClass, Value: "9xxx"}}},
+			expectedMetrics: []testmetrics.MetricData{
+				{Name: metrics.ReconcilerErrorsName, Value: 0, Labels: map[string]string{"component": "source", "errorclass": "1xxx"}},
+				{Name: metrics.ReconcilerErrorsName, Value: 0, Labels: map[string]string{"component": "source", "errorclass": "2xxx"}},
+				{Name: metrics.ReconcilerErrorsName, Value: 0, Labels: map[string]string{"component": "source", "errorclass": "9xxx"}},
+				{Name: metrics.ReconcilerErrorsName, Value: 0, Labels: map[string]string{"component": "sync", "errorclass": "1xxx"}},
+				{Name: metrics.ReconcilerErrorsName, Value: 1, Labels: map[string]string{"component": "sync", "errorclass": "2xxx"}},
+				{Name: metrics.ReconcilerErrorsName, Value: 0, Labels: map[string]string{"component": "sync", "errorclass": "9xxx"}},
 			},
 		},
 		{
@@ -1427,20 +1430,20 @@ func TestRootReconciler_Update_ApplierErrorMetricValidation(t *testing.T) {
 				applier.Error(errors.New("sync error")),
 				status.InternalError("internal error"),
 			),
-			expectedMetrics: []*view.Row{
-				{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{{Key: metrics.KeyComponent, Value: "source"}, {Key: metrics.KeyErrorClass, Value: "1xxx"}}},
-				{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{{Key: metrics.KeyComponent, Value: "source"}, {Key: metrics.KeyErrorClass, Value: "2xxx"}}},
-				{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{{Key: metrics.KeyComponent, Value: "source"}, {Key: metrics.KeyErrorClass, Value: "9xxx"}}},
-				{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{{Key: metrics.KeyComponent, Value: "sync"}, {Key: metrics.KeyErrorClass, Value: "1xxx"}}},
-				{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{{Key: metrics.KeyComponent, Value: "sync"}, {Key: metrics.KeyErrorClass, Value: "2xxx"}}},
-				{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{{Key: metrics.KeyComponent, Value: "sync"}, {Key: metrics.KeyErrorClass, Value: "9xxx"}}},
+			expectedMetrics: []testmetrics.MetricData{
+				{Name: metrics.ReconcilerErrorsName, Value: 0, Labels: map[string]string{"component": "source", "errorclass": "1xxx"}},
+				{Name: metrics.ReconcilerErrorsName, Value: 0, Labels: map[string]string{"component": "source", "errorclass": "2xxx"}},
+				{Name: metrics.ReconcilerErrorsName, Value: 0, Labels: map[string]string{"component": "source", "errorclass": "9xxx"}},
+				{Name: metrics.ReconcilerErrorsName, Value: 0, Labels: map[string]string{"component": "sync", "errorclass": "1xxx"}},
+				{Name: metrics.ReconcilerErrorsName, Value: 1, Labels: map[string]string{"component": "sync", "errorclass": "2xxx"}},
+				{Name: metrics.ReconcilerErrorsName, Value: 1, Labels: map[string]string{"component": "sync", "errorclass": "9xxx"}},
 			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			m := testmetrics.RegisterMetrics(metrics.ReconcilerErrorsView)
+			exporter := testmetrics.NewTestExporter()
 			fakeConfigParser := &fsfake.ConfigParser{
 				Outputs: []fsfake.ParserOutputs{
 					{}, // One Parse call, no errors
@@ -1503,7 +1506,7 @@ func TestRootReconciler_Update_ApplierErrorMetricValidation(t *testing.T) {
 			errs = reconciler.update(ctx, trigger)
 			testerrors.AssertEqual(t, tc.expectedError, errs, "expected update errors to match")
 
-			if diff := m.ValidateMetrics(metrics.ReconcilerErrorsView, tc.expectedMetrics); diff != "" {
+			if diff := exporter.ValidateMetrics(tc.expectedMetrics); diff != "" {
 				t.Error(diff)
 			}
 		})

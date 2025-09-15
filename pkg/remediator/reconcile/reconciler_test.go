@@ -34,8 +34,6 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/testing/testerrors"
 	"github.com/GoogleContainerTools/config-sync/pkg/testing/testmetrics"
 	"github.com/stretchr/testify/assert"
-	"go.opencensus.io/stats/view"
-	"go.opencensus.io/tag"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -391,6 +389,8 @@ func TestRemediator_Reconcile(t *testing.T) {
 		},
 	}
 
+	_ = testmetrics.NewTestExporter()
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Set up the fake client that represents the initial state of the cluster.
@@ -452,7 +452,7 @@ func TestRemediator_Reconcile_Metrics(t *testing.T) {
 		// wantError is the expected error resulting from calling Reconcile
 		wantError error
 		// wantMetrics is the expected metrics resulting from calling Reconcile
-		wantMetrics map[*view.View][]*view.Row
+		wantMetrics []testmetrics.MetricData
 	}{
 		{
 			name: "ConflictUpdateDoesNotExist",
@@ -474,13 +474,11 @@ func TestRemediator_Reconcile_Metrics(t *testing.T) {
 				apierrors.NewNotFound(schema.GroupResource{Group: "rbac", Resource: "roles"}, "example"),
 				k8sobjects.RoleObject(core.Namespace("example"), core.Name("example"))),
 			// Expect resource conflict error
-			wantMetrics: map[*view.View][]*view.Row{
-				metrics.ResourceConflictsView: {
-					{Data: &view.CountData{Value: 1}, Tags: []tag.Tag{
-						// Re-enable "type" tag, if re-enabled in RecordResourceConflict
-						// {Key: metrics.KeyType, Value: kinds.Role().Kind},
-						{Key: metrics.KeyCommit, Value: "abc123"},
-					}},
+			wantMetrics: []testmetrics.MetricData{
+				{
+					Name:   metrics.ResourceConflictsName,
+					Value:  1,
+					Labels: map[string]string{"commit": "abc123"},
 				},
 			},
 		},
@@ -503,13 +501,11 @@ func TestRemediator_Reconcile_Metrics(t *testing.T) {
 				apierrors.NewNotFound(schema.GroupResource{Group: "rbac", Resource: "roles"}, "example"),
 				k8sobjects.RoleObject(core.Namespace("example"), core.Name("example"))),
 			// Expect resource conflict error
-			wantMetrics: map[*view.View][]*view.Row{
-				metrics.ResourceConflictsView: {
-					{Data: &view.CountData{Value: 1}, Tags: []tag.Tag{
-						// Re-enable "type" tag, if re-enabled in RecordResourceConflict
-						// {Key: metrics.KeyType, Value: kinds.Role().Kind},
-						{Key: metrics.KeyCommit, Value: "abc123"},
-					}},
+			wantMetrics: []testmetrics.MetricData{
+				{
+					Name:   metrics.ResourceConflictsName,
+					Value:  1,
+					Labels: map[string]string{"commit": "abc123"},
 				},
 			},
 		},
@@ -542,13 +538,11 @@ func TestRemediator_Reconcile_Metrics(t *testing.T) {
 					core.UID("1"), core.ResourceVersion("2"), core.Generation(1)),
 				declared.ResourceManager(declared.RootScope, configsync.RootSyncName)),
 			// Expect resource conflict metric
-			wantMetrics: map[*view.View][]*view.Row{
-				metrics.ResourceConflictsView: {
-					{Data: &view.CountData{Value: 1}, Tags: []tag.Tag{
-						// Re-enable "type" tag, if re-enabled in RecordResourceConflict
-						// {Key: metrics.KeyType, Value: kinds.Role().Kind},
-						{Key: metrics.KeyCommit, Value: "abc123"},
-					}},
+			wantMetrics: []testmetrics.MetricData{
+				{
+					Name:   metrics.ResourceConflictsName,
+					Value:  1,
+					Labels: map[string]string{"commit": "abc123"},
 				},
 			},
 		},
@@ -556,6 +550,12 @@ func TestRemediator_Reconcile_Metrics(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			// Reset metrics for each test case to avoid cross-test contamination
+			testmetrics.ResetGlobalMetrics()
+
+			// Initialize metrics before any test setup
+			exporter := testmetrics.NewTestExporter()
+
 			// Set up the fake client that represents the initial state of the cluster.
 			var existingObjs []client.Object
 			if tc.actual != nil {
@@ -584,12 +584,6 @@ func TestRemediator_Reconcile_Metrics(t *testing.T) {
 				t.Fatal("at least one of actual or declared must be specified for a test")
 			}
 
-			var views []*view.View
-			for view := range tc.wantMetrics {
-				views = append(views, view)
-			}
-			m := testmetrics.RegisterMetrics(views...)
-
 			err := reconciler.Remediate(context.Background(), core.IDOf(obj), tc.actual)
 			testerrors.AssertEqual(t, tc.wantError, err)
 
@@ -599,10 +593,8 @@ func TestRemediator_Reconcile_Metrics(t *testing.T) {
 				fakeClient.Check(t, tc.want)
 			}
 
-			for view, rows := range tc.wantMetrics {
-				if diff := m.ValidateMetrics(view, rows); diff != "" {
-					t.Errorf("Unexpected metrics recorded (%s): %v", view.Name, diff)
-				}
+			if diff := exporter.ValidateMetrics(tc.wantMetrics); diff != "" {
+				t.Errorf("Unexpected metrics recorded: %v", diff)
 			}
 		})
 	}

@@ -25,8 +25,12 @@ metadata:
 data:
   otel-collector-config.yaml: |
     receivers:
-      opencensus:
-        endpoint: 0.0.0.0:55678
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
     exporters:
       prometheus:
         endpoint: 0.0.0.0:8675
@@ -35,6 +39,8 @@ data:
           enabled: true
     processors:
       batch:
+      resourcedetection:
+        detectors: [env, gcp]
     extensions:
       health_check:
         endpoint: 0.0.0.0:13133
@@ -42,8 +48,8 @@ data:
       extensions: [health_check]
       pipelines:
         metrics:
-          receivers: [opencensus]
-          processors: [batch]
+          receivers: [otlp]
+          processors: [resourcedetection, batch]
           exporters: [prometheus]
 ---
 apiVersion: v1
@@ -60,13 +66,17 @@ spec:
     app: opentelemetry
     component: otel-collector
   ports:
-  - name: opencensus # Default endpoint for OpenCensus receiver.
-    port: 55678
+  - name: otlp-grpc # OTLP gRPC receiver endpoint
+    port: 4317
     protocol: TCP
-    targetPort: 55678
-  - name: metrics-default # Default endpoint for querying metrics.
+    targetPort: 4317
+  - name: otlp-http # OTLP HTTP receiver endpoint
+    port: 4318
+    protocol: TCP
+    targetPort: 4318
+  - name: metrics-default # Default endpoint for querying metrics
     port: 8888
-  - name: metrics # Prometheus exporter metrics.
+  - name: metrics # Prometheus exporter metrics
     port: 8675
   - name: health-check
     port: 13133
@@ -113,9 +123,10 @@ spec:
             cpu: 200m
             memory: 400Mi
         ports:
-        - containerPort: 55678 # Default endpoint for OpenCensus receiver.
-        - containerPort: 8888  # Default endpoint for querying metrics.
-        - containerPort: 8675  # Prometheus exporter metrics.
+        - containerPort: 4317 # OTLP gRPC receiver
+        - containerPort: 4318 # OTLP HTTP receiver
+        - containerPort: 8888  # Default endpoint for querying metrics
+        - containerPort: 8675  # Prometheus exporter metrics
         - containerPort: 13133 # Health check
         securityContext:
           allowPrivilegeEscalation: false
@@ -129,7 +140,7 @@ spec:
         readinessProbe:
           httpGet:
             path: /
-            port: 13133 # Health Check extension default port.
+            port: 13133 # Health Check extension default port
       volumes:
       - name: otel-collector-config-vol
         projected:

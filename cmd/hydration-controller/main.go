@@ -79,19 +79,19 @@ func main() {
 	profiler.Service()
 	ctrl.SetLogger(textlogger.NewLogger(textlogger.NewConfig()))
 
-	// Register the kustomize usage metric views.
-	if err := kmetrics.RegisterKustomizeMetricsViews(); err != nil {
-		klog.Fatalf("Failed to register OpenCensus views: %v", err)
+	// Initialize the kustomize metrics
+	if err := kmetrics.InitializeOTelKustomizeMetrics(); err != nil {
+		klog.Fatalf("Failed to initialize kustomize metrics: %v", err)
 	}
 
 	// Register the OC Agent exporter
-	oce, err := kmetrics.RegisterOCAgentExporter(reconcilermanager.HydrationController)
+	oce, err := kmetrics.RegisterOTelExporter(reconcilermanager.HydrationController)
 	if err != nil {
 		klog.Fatalf("Failed to register the OC Agent exporter: %v", err)
 	}
 
 	defer func() {
-		if err := oce.Stop(); err != nil {
+		if err := oce.Shutdown(context.Background()); err != nil {
 			klog.Fatalf("Unable to stop the OC Agent exporter: %v", err)
 		}
 	}()
