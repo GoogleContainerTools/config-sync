@@ -81,13 +81,13 @@ func run() error {
 	}
 
 	// Register the OC Agent exporter
-	oce, err := ocmetrics.RegisterOCAgentExporter()
+	oce, err := ocmetrics.RegisterOTelExporter()
 	if err != nil {
 		return fmt.Errorf("failed to register the OC Agent exporter: %w", err)
 	}
 
 	defer func() {
-		if err := oce.Stop(); err != nil {
+		if err := oce.Shutdown(ctx); err != nil {
 			klog.Error(err, "Unable to stop the OC Agent exporter")
 		}
 	}()

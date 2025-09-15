@@ -308,7 +308,7 @@ func TestOtelCollectorGCMLabelAggregation(t *testing.T) {
 		nt.T.Fatal(err)
 	}
 	// retry for 2 minutes until metric is accessible from GCM
-	nt.Must(validateMetricTypes(ctx, nt, client, startTime, metricsWithCommitLabel, metricDoesNotHaveLabel(metrics.KeyCommit.Name())))
+	nt.Must(validateMetricTypes(ctx, nt, client, startTime, metricsWithCommitLabel, metricDoesNotHaveLabel(string(metrics.KeyCommit))))
 }
 
 func setupMetricsServiceAccount(nt *nomostest.NT) {

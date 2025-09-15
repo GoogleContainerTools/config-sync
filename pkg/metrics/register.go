@@ -15,53 +15,87 @@
 package metrics
 
 import (
+	"context"
 	"os"
 
-	"contrib.go.opencensus.io/exporter/ocagent"
-	"go.opencensus.io/stats/view"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
+	"go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
+	"k8s.io/klog/v2"
 )
 
-// RegisterOCAgentExporter creates the OC Agent metrics exporter.
-func RegisterOCAgentExporter(containerName string) (*ocagent.Exporter, error) {
-	// Add the k8s.container.name resource label so that the google cloud monitoring
-	// and monarch metrics exporters will use the k8s_container resource type
+// RegisterOTelExporter creates the OTLP metrics exporter.
+func RegisterOTelExporter(containerName string) (*otlpmetricgrpc.Exporter, error) {
+
+	klog.Infof("METRIC DEBUG: Registering OTLP exporter for container: %q", containerName)
 	err := os.Setenv(
-		"OC_RESOURCE_LABELS",
+		"OTEL_RESOURCE_ATTRIBUTES",
 		"k8s.container.name=\""+containerName+"\"")
 	if err != nil {
 		return nil, err
 	}
-	oce, err := ocagent.NewExporter(
-		ocagent.WithInsecure(),
+
+	res, err := resource.New(
+		context.Background(),
+		resource.WithFromEnv(),
+		resource.WithAttributes(
+			semconv.ServiceNameKey.String("config-sync"),
+			semconv.ServiceVersionKey.String("1.0.0"),
+		),
 	)
 	if err != nil {
+		klog.Errorf("METRIC DEBUG: Failed to create resource: %v", err)
 		return nil, err
 	}
 
-	view.RegisterExporter(oce)
-	return oce, nil
+	// Create OTLP exporter
+	exporter, err := otlpmetricgrpc.New(
+		context.Background(),
+		otlpmetricgrpc.WithInsecure(),
+		otlpmetricgrpc.WithEndpoint("localhost:4317"),
+	)
+	if err != nil {
+		klog.Errorf("METRIC DEBUG: Failed to create OTLP exporter: %v", err)
+		return nil, err
+	}
+	klog.Infof("METRIC DEBUG: Created OTLP exporter with endpoint: otel-collector.config-management-monitoring:4317")
+
+	// Create meter provider
+	meterProvider := metric.NewMeterProvider(
+		metric.WithReader(metric.NewPeriodicReader(exporter)),
+		metric.WithResource(res),
+	)
+	klog.Infof("METRIC DEBUG: Created meter provider with periodic reader")
+
+	// Set global meter provider
+	otel.SetMeterProvider(meterProvider)
+	klog.Infof("METRIC DEBUG: Set global meter provider")
+
+	return exporter, nil
 }
 
 // RegisterReconcilerManagerMetricsViews registers the views so that recorded metrics can be exported in the reconciler manager.
 func RegisterReconcilerManagerMetricsViews() error {
-	return view.Register(ReconcileDurationView)
+	klog.Infof("METRIC DEBUG: Registering reconciler manager metrics views")
+	err := InitializeOTelMetrics()
+	if err != nil {
+		klog.Errorf("METRIC DEBUG: Failed to register reconciler manager metrics views: %v", err)
+	} else {
+		klog.Infof("METRIC DEBUG: Successfully registered reconciler manager metrics views")
+	}
+	return err
 }
 
 // RegisterReconcilerMetricsViews registers the views so that recorded metrics can be exported in the reconcilers.
 func RegisterReconcilerMetricsViews() error {
-	return view.Register(
-		APICallDurationView,
-		ReconcilerErrorsView,
-		ParserDurationView,
-		LastApplyTimestampView,
-		LastSyncTimestampView,
-		DeclaredResourcesView,
-		ApplyOperationsView,
-		ApplyDurationView,
-		ResourceFightsView,
-		RemediateDurationView,
-		ResourceConflictsView,
-		InternalErrorsView,
-		PipelineErrorView,
-	)
+	klog.Infof("METRIC DEBUG: Registering reconciler metrics views")
+	err := InitializeOTelMetrics()
+	if err != nil {
+		klog.Errorf("METRIC DEBUG: Failed to register reconciler metrics views: %v", err)
+	} else {
+		klog.Infof("METRIC DEBUG: Successfully registered reconciler metrics views")
+	}
+	return err
 }

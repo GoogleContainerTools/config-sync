@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -146,13 +147,13 @@ func main() {
 	}
 
 	// Register the OC Agent exporter
-	oce, err := ocmetrics.RegisterOCAgentExporter(reconcilermanager.Reconciler)
+	oce, err := ocmetrics.RegisterOTelExporter(reconcilermanager.Reconciler)
 	if err != nil {
 		klog.Fatalf("Failed to register the OC Agent exporter: %v", err)
 	}
 
 	defer func() {
-		if err := oce.Stop(); err != nil {
+		if err := oce.Shutdown(context.Background()); err != nil {
 			klog.Fatalf("Unable to stop the OC Agent exporter: %v", err)
 		}
 	}()

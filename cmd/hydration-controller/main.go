@@ -85,13 +85,13 @@ func main() {
 	}
 
 	// Register the OC Agent exporter
-	oce, err := kmetrics.RegisterOCAgentExporter(reconcilermanager.HydrationController)
+	oce, err := kmetrics.RegisterOTelExporter(reconcilermanager.HydrationController)
 	if err != nil {
 		klog.Fatalf("Failed to register the OC Agent exporter: %v", err)
 	}
 
 	defer func() {
-		if err := oce.Stop(); err != nil {
+		if err := oce.Shutdown(context.Background()); err != nil {
 			klog.Fatalf("Unable to stop the OC Agent exporter: %v", err)
 		}
 	}()
