@@ -150,13 +150,12 @@ func TestOtelCollectorDeployment(t *testing.T) {
 	nt.Must(rootSyncGitRepo.CommitAndPush("Adding foo namespace"))
 	nt.Must(nt.WatchForAllSyncs())
 
-	nt.T.Log("Watch for metrics in GCM, timeout 2 minutes")
+	nt.T.Log("Watch for default metrics in GCM")
 	ctx := nt.Context
 	client, err := createGCMClient(ctx)
 	if err != nil {
 		nt.T.Fatal(err)
 	}
-	// retry for 2 minutes until metric is accessible from GCM
 	nt.Must(validateMetricTypes(ctx, nt, client, startTime, DefaultGCMMetricTypes))
 
 	nt.T.Log("Checking the otel-collector log contains no failure...")
@@ -237,10 +236,10 @@ func TestGCMMetrics(t *testing.T) {
 
 	nt.T.Log("Apply custom otel-collector ConfigMap that exports full metric list to GCM")
 	nt.MustKubectl("apply", "-f", "../testdata/otel-collector/otel-cm-full-gcm.yaml")
+	nt.Must(nt.Watcher.WatchForCurrentStatus(kinds.Deployment(), csmetrics.OtelCollectorName, configmanagement.MonitoringNamespace))
 
 	startTime := time.Now().UTC()
 
-	nt.T.Log("Watch for full list of metrics in GCM, timeout 2 minutes")
 	ctx := nt.Context
 	client, err := createGCMClient(ctx)
 	if err != nil {
@@ -308,7 +307,7 @@ func TestOtelCollectorGCMLabelAggregation(t *testing.T) {
 		nt.T.Fatal(err)
 	}
 	// retry for 2 minutes until metric is accessible from GCM
-	nt.Must(validateMetricTypes(ctx, nt, client, startTime, metricsWithCommitLabel, metricDoesNotHaveLabel(metrics.KeyCommit.Name())))
+	nt.Must(validateMetricTypes(ctx, nt, client, startTime, metricsWithCommitLabel, metricDoesNotHaveLabel(string(metrics.KeyCommit))))
 }
 
 func setupMetricsServiceAccount(nt *nomostest.NT) {
