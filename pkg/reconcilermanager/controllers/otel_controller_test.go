@@ -52,7 +52,7 @@ const (
 	// otel-collector ConfigMap.
 	// See `CollectorConfigGooglecloud` in `pkg/metrics/otel.go`
 	// Used by TestOtelReconcilerGooglecloud.
-	depAnnotationGooglecloud = "b69c46dabb96a27fbd2ea25045512953"
+	depAnnotationGooglecloud = "e18b583602a43505838010909d940071"
 	// depAnnotationGooglecloud is the expected hash of the custom
 	// otel-collector ConfigMap test artifact.
 	// Used by TestOtelReconcilerCustom.
@@ -370,8 +370,12 @@ data:
         - env
         - gcp
     receivers:
-      opencensus:
-        endpoint: 0.0.0.0:55678
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
     service:
       extensions:
       - health_check
@@ -385,7 +389,7 @@ data:
           - metricstransform/cloudmonitoring
           - resourcedetection
           receivers:
-          - opencensus
+          - otlp
         metrics/kubernetes:
           exporters:
           - googlecloud/kubernetes
@@ -395,14 +399,14 @@ data:
           - metricstransform/kubernetes
           - resourcedetection
           receivers:
-          - opencensus
+          - otlp
         metrics/prometheus:
           exporters:
           - prometheus
           processors:
           - batch
           receivers:
-          - opencensus
+          - otlp
 kind: ConfigMap
 metadata:
   labels:

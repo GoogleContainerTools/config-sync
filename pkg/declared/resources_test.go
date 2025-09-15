@@ -23,15 +23,12 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
 	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
 	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
-	"github.com/GoogleContainerTools/config-sync/pkg/metrics"
 	"github.com/GoogleContainerTools/config-sync/pkg/syncer/reconcile"
 	"github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest"
 	"github.com/GoogleContainerTools/config-sync/pkg/testing/testmetrics"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.opencensus.io/stats/view"
-	"go.opencensus.io/tag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -53,6 +50,7 @@ func TestUpdateDeclared(t *testing.T) {
 	objects := testSet
 	commit := "1"
 	expectedIDs := getIDs(objects)
+	_ = testmetrics.NewTestExporter()
 
 	newObjects, err := dr.UpdateDeclared(context.Background(), objects, commit)
 	if err != nil {
@@ -211,20 +209,27 @@ func TestGVKSet(t *testing.T) {
 }
 
 func TestResources_InternalErrorMetricValidation(t *testing.T) {
-	m := testmetrics.RegisterMetrics(metrics.InternalErrorsView)
+	testmetrics.ResetGlobalMetrics()
+	exporter := testmetrics.NewTestExporter()
 	dr := Resources{}
 	if _, err := dr.UpdateDeclared(context.Background(), nilSet, "unused"); err != nil {
 		t.Fatal(err)
 	}
-	wantMetrics := []*view.Row{
+
+	expectedMetrics := []testmetrics.MetricData{
 		{
-			Data: &view.CountData{Value: 1},
-			Tags: []tag.Tag{
-				{Key: metrics.KeyInternalErrorSource, Value: "parser"},
-			},
+			Name:   "internal_errors_total",
+			Value:  1,
+			Labels: map[string]string{"source": "parser"},
+		},
+		{
+			Name:   "declared_resources",
+			Value:  0,
+			Labels: map[string]string{"commit": "unused"},
 		},
 	}
-	if diff := m.ValidateMetrics(metrics.InternalErrorsView, wantMetrics); diff != "" {
+
+	if diff := exporter.ValidateMetrics(expectedMetrics); diff != "" {
 		t.Error(diff)
 	}
 }

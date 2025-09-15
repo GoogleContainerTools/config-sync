@@ -15,33 +15,34 @@
 package metrics
 
 import (
-	"go.opencensus.io/tag"
+	"go.opentelemetry.io/otel/attribute"
 )
 
+// Attribute keys for OpenTelemetry metrics
 var (
 	// KeyStallReason groups metrics by the stall condition reason field
-	KeyStallReason, _ = tag.NewKey("stallreason")
+	KeyStallReason = attribute.Key("stallreason")
 
 	// KeyOperation groups metrics by their operation. Possible values: create, patch, update, delete.
-	KeyOperation, _ = tag.NewKey("operation")
+	KeyOperation = attribute.Key("operation")
 
 	// KeyErrorCode groups metrics by their error code.
-	KeyErrorCode, _ = tag.NewKey("errorcode")
+	KeyErrorCode = attribute.Key("errorcode")
 
 	// KeyType groups metrics by their resource reconciler type. Possible values: root-sync, repo-sync
-	KeyType, _ = tag.NewKey("reconciler")
+	KeyType = attribute.Key("reconciler")
 
 	// KeyResourceGroup groups metrics by their resource group
-	KeyResourceGroup, _ = tag.NewKey("resourcegroup")
+	KeyResourceGroup = attribute.Key("resourcegroup")
 
 	// KeyName groups metrics by their name of reconciler.
-	KeyName, _ = tag.NewKey("name")
+	KeyName = attribute.Key("name")
 
 	// KeyComponent groups metrics by their component. Possible value: readiness
-	KeyComponent, _ = tag.NewKey("component")
+	KeyComponent = attribute.Key("component")
 
 	// ResourceKeyDeploymentName groups metrics by k8s deployment name.
-	// This metric tag is populated from the k8s.deployment.name resource
+	// This metric attribute is populated from the k8s.deployment.name resource
 	// attribute for Prometheus using the resource_to_telemetry_conversion feature.
-	ResourceKeyDeploymentName, _ = tag.NewKey("k8s_deployment_name")
+	ResourceKeyDeploymentName = attribute.Key("k8s_deployment_name")
 )

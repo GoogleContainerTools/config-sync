@@ -15,87 +15,280 @@
 package testmetrics
 
 import (
+	"context"
 	"fmt"
-	"reflect"
 	"sort"
-	"strings"
+	"sync"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/kmetrics"
+	"github.com/GoogleContainerTools/config-sync/pkg/metrics"
+	rgmetrics "github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/metrics"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"go.opencensus.io/stats/view"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
+	"go.opentelemetry.io/otel/sdk/resource"
 )
 
-// TestExporter keeps exported metric view data in memory to aid in testing.
+// MetricData represents a simple metric measurement for testing
+type MetricData struct {
+	Name   string
+	Value  float64
+	Labels map[string]string
+}
+
+// TestExporter provides a simple way to capture and validate metrics in tests
 type TestExporter struct {
-	rows []*view.Row
+	metrics []MetricData
+	reader  sdkmetric.Reader
+	mutex   sync.Mutex
 }
 
-// RowSort implements sort.Interface based on the string representation of Row.
-type RowSort []*view.Row
+// Global flag to track if metrics have been initialized for testing
+var (
+	metricsInitialized bool
+	metricsInitMutex   sync.Mutex
+)
 
-// ExportView records the view data.
-func (e *TestExporter) ExportView(data *view.Data) {
-	e.rows = data.Rows
+// initializeMetricsForTesting initializes OpenTelemetry metrics for testing
+func initializeMetricsForTesting() error {
+	metricsInitMutex.Lock()
+	defer metricsInitMutex.Unlock()
+
+	if metricsInitialized {
+		return nil // Already initialized
+	}
+
+	// Create a manual reader to capture metrics
+	globalTestReader = sdkmetric.NewManualReader()
+
+	// Set up a meter provider for testing with our reader
+	meterProvider := sdkmetric.NewMeterProvider(
+		sdkmetric.WithResource(resource.NewSchemaless()),
+		sdkmetric.WithReader(globalTestReader),
+	)
+	otel.SetMeterProvider(meterProvider)
+
+	// Call the actual metrics initialization function from the metrics package
+	if err := metrics.InitializeOTelMetrics(); err != nil {
+		return fmt.Errorf("failed to initialize OpenTelemetry metrics: %w", err)
+	}
+
+	// Initialize resourcegroup metrics
+	if err := rgmetrics.InitializeOTelResourceGroupMetrics(); err != nil {
+		return fmt.Errorf("failed to initialize OpenTelemetry resourcegroup metrics: %w", err)
+	}
+
+	// Initialize kustomize metrics
+	if err := kmetrics.InitializeOTelKustomizeMetrics(); err != nil {
+		return fmt.Errorf("failed to initialize OpenTelemetry kustomize metrics: %w", err)
+	}
+
+	metricsInitialized = true
+	return nil
 }
 
-// ValidateMetrics compares the exported view data with the expected metric data.
-func (e *TestExporter) ValidateMetrics(v *view.View, want []*view.Row) string {
-	view.Unregister(v)
-	// Need to sort first because the exported row order is non-deterministic
-	sort.Sort(RowSort(e.rows))
-	sort.Sort(RowSort(want))
-	return diff(e.rows, want)
-}
+// CollectMetrics collects all OpenTelemetry metrics and stores them in a simple format
+func (e *TestExporter) CollectMetrics() error {
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
 
-// RegisterMetrics collects data for the given views and reports data to the TestExporter.
-func RegisterMetrics(views ...*view.View) *TestExporter {
-	_ = view.Register(views...)
-	var e TestExporter
-	view.RegisterExporter(&e)
-	return &e
-}
+	if e.reader == nil {
+		return fmt.Errorf("no reader configured")
+	}
 
-// diff compares the exported rows' Tags and data Value with the expected
-// rows' Tags and data Value. It excludes the Start time field from the comparison.
-func diff(got, want []*view.Row) string {
-	for i := 0; i < len(got); i++ {
-		if i >= len(want) {
-			break
-		}
-		if got[i] == want[i] {
-			continue
-		}
-		if len(got[i].Tags) > 0 && len(want[i].Tags) > 0 && !reflect.DeepEqual(got[i].Tags, want[i].Tags) {
-			return fmt.Sprintf("Expected metric tags not found, -want, +got:\n- %s\n+ %s",
-				want[i].Tags, got[i].Tags)
-		}
-		if !cmp.Equal(got[i].Data, want[i].Data, cmpopts.IgnoreTypes(time.Time{})) {
-			return fmt.Sprintf("Expected metric value not found, -want, +got:\n- %s\n+ %s",
-				want[i].Data, got[i].Data)
+	// Clear existing metrics before collecting new ones
+	e.metrics = make([]MetricData, 0)
+
+	ctx := context.Background()
+	var rm metricdata.ResourceMetrics
+	if err := e.reader.Collect(ctx, &rm); err != nil {
+		return fmt.Errorf("failed to collect metrics: %w", err)
+	}
+
+	// Convert OpenTelemetry metrics to simple MetricData format
+	for _, sm := range rm.ScopeMetrics {
+		for _, metric := range sm.Metrics {
+			e.convertMetricToSimpleFormat(metric)
 		}
 	}
-	if len(got) > len(want) {
-		var sb strings.Builder
-		sb.WriteString("Unexpected metric(s) found:\n")
-		for _, row := range got[len(want):] {
-			sb.WriteString("+ ")
-			sb.WriteString(row.String())
+
+	return nil
+}
+
+// convertMetricToSimpleFormat converts OpenTelemetry metrics to simple MetricData
+func (e *TestExporter) convertMetricToSimpleFormat(metric metricdata.Metrics) {
+	switch data := metric.Data.(type) {
+	case metricdata.Sum[int64]:
+		for _, point := range data.DataPoints {
+			e.metrics = append(e.metrics, MetricData{
+				Name:   metric.Name,
+				Value:  float64(point.Value),
+				Labels: e.attributesToMap(point.Attributes),
+			})
 		}
-		return sb.String()
-	}
-	if len(want) > len(got) {
-		var sb strings.Builder
-		sb.WriteString("Expected metric(s) not found:\n")
-		for _, row := range want[len(got):] {
-			sb.WriteString("- ")
-			sb.WriteString(row.String())
+	case metricdata.Sum[float64]:
+		for _, point := range data.DataPoints {
+			e.metrics = append(e.metrics, MetricData{
+				Name:   metric.Name,
+				Value:  point.Value,
+				Labels: e.attributesToMap(point.Attributes),
+			})
 		}
-		return sb.String()
+	case metricdata.Gauge[int64]:
+		for _, point := range data.DataPoints {
+			e.metrics = append(e.metrics, MetricData{
+				Name:   metric.Name,
+				Value:  float64(point.Value),
+				Labels: e.attributesToMap(point.Attributes),
+			})
+		}
+	case metricdata.Gauge[float64]:
+		for _, point := range data.DataPoints {
+			e.metrics = append(e.metrics, MetricData{
+				Name:   metric.Name,
+				Value:  point.Value,
+				Labels: e.attributesToMap(point.Attributes),
+			})
+		}
+	case metricdata.Histogram[float64]:
+		for _, point := range data.DataPoints {
+			e.metrics = append(e.metrics, MetricData{
+				Name:   metric.Name,
+				Value:  point.Sum,
+				Labels: e.attributesToMap(point.Attributes),
+			})
+		}
+	case metricdata.Histogram[int64]:
+		for _, point := range data.DataPoints {
+			e.metrics = append(e.metrics, MetricData{
+				Name:   metric.Name,
+				Value:  float64(point.Sum),
+				Labels: e.attributesToMap(point.Attributes),
+			})
+		}
+	// Add more cases as needed for other metric types
+	default:
+		fmt.Printf("Warning: Unsupported metric type: %T\n", data)
 	}
+}
+
+// attributesToMap converts OpenTelemetry attributes to a simple map
+func (e *TestExporter) attributesToMap(attrs attribute.Set) map[string]string {
+	result := make(map[string]string)
+	iter := attrs.Iter()
+	for iter.Next() {
+		kv := iter.Attribute()
+		result[string(kv.Key)] = kv.Value.AsString()
+	}
+	return result
+}
+
+// Global test reader to capture metrics
+var globalTestReader sdkmetric.Reader
+
+// NewTestExporter creates a new test exporter for capturing metrics
+func NewTestExporter() *TestExporter {
+	// Initialize OpenTelemetry metrics to ensure they're available for the code being tested
+	if err := initializeMetricsForTesting(); err != nil {
+		fmt.Printf("Warning: Failed to initialize OpenTelemetry metrics for testing: %v\n", err)
+	}
+
+	// Use the global test reader that was set up during initialization
+	return &TestExporter{
+		metrics: make([]MetricData, 0),
+		reader:  globalTestReader,
+	}
+}
+
+// GetMetrics returns all collected metrics
+func (e *TestExporter) GetMetrics() []MetricData {
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+	return append([]MetricData(nil), e.metrics...)
+}
+
+// ClearMetrics clears all collected metrics for this test exporter
+func (e *TestExporter) ClearMetrics() {
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+	e.metrics = make([]MetricData, 0)
+}
+
+// ResetGlobalMetrics resets the global metrics state for testing
+func ResetGlobalMetrics() {
+	// Create a fresh manual reader to reset the metrics collection
+	globalTestReader = sdkmetric.NewManualReader()
+
+	// Set up a fresh meter provider
+	meterProvider := sdkmetric.NewMeterProvider(
+		sdkmetric.WithResource(resource.NewSchemaless()),
+		sdkmetric.WithReader(globalTestReader),
+	)
+	otel.SetMeterProvider(meterProvider)
+
+	// Re-initialize all metrics with the new meter provider
+	if err := metrics.InitializeOTelMetrics(); err != nil {
+		panic(fmt.Sprintf("Failed to initialize OTel metrics: %v", err))
+	}
+	if err := rgmetrics.InitializeOTelResourceGroupMetrics(); err != nil {
+		panic(fmt.Sprintf("Failed to initialize OTel resource group metrics: %v", err))
+	}
+	if err := kmetrics.InitializeOTelKustomizeMetrics(); err != nil {
+		panic(fmt.Sprintf("Failed to initialize OTel kustomize metrics: %v", err))
+	}
+}
+
+// ValidateMetrics compares collected metrics with expected values
+func (e *TestExporter) ValidateMetrics(expected []MetricData) string {
+	// Collect current metrics
+	if err := e.CollectMetrics(); err != nil {
+		return fmt.Sprintf("Failed to collect metrics: %v", err)
+	}
+
+	got := e.GetMetrics()
+
+	// Filter metrics to only include the ones we're testing for
+	if len(expected) > 0 {
+		expectedMetricNames := make(map[string]bool)
+		for _, expectedMetric := range expected {
+			expectedMetricNames[expectedMetric.Name] = true
+		}
+
+		var filteredGot []MetricData
+		for _, metric := range got {
+			if expectedMetricNames[metric.Name] {
+				filteredGot = append(filteredGot, metric)
+			}
+		}
+		got = filteredGot
+	}
+
+	return diffMetrics(got, expected)
+}
+
+// diffMetrics compares collected metrics with expected values
+func diffMetrics(got, want []MetricData) string {
+	// Sort both slices for consistent comparison
+	sort.Slice(got, func(i, j int) bool {
+		return got[i].Name < got[j].Name || (got[i].Name == got[j].Name && fmt.Sprintf("%v", got[i].Labels) < fmt.Sprintf("%v", got[j].Labels))
+	})
+	sort.Slice(want, func(i, j int) bool {
+		return want[i].Name < want[j].Name || (want[i].Name == want[j].Name && fmt.Sprintf("%v", want[i].Labels) < fmt.Sprintf("%v", want[j].Labels))
+	})
+
+	if len(got) != len(want) {
+		return fmt.Sprintf("Expected %d metrics, got %d", len(want), len(got))
+	}
+
+	for i := range got {
+		if !cmp.Equal(got[i], want[i], cmpopts.IgnoreTypes(time.Time{})) {
+			return fmt.Sprintf("Metric mismatch at index %d:\n- %+v\n+ %+v", i, want[i], got[i])
+		}
+	}
+
 	return ""
 }
-
-func (rs RowSort) Len() int           { return len(rs) }
-func (rs RowSort) Swap(i, j int)      { rs[i], rs[j] = rs[j], rs[i] }
-func (rs RowSort) Less(i, j int) bool { return fmt.Sprintf("%v", rs[i]) < fmt.Sprintf("%v", rs[j]) }

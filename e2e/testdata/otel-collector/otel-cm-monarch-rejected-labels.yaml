@@ -20,8 +20,12 @@ apiVersion: v1
 data:
   otel-collector-config.yaml: |-
     receivers:
-      opencensus:
-        endpoint: 0.0.0.0:55678
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
     exporters:
       prometheus:
         endpoint: 0.0.0.0:8675
@@ -75,10 +79,6 @@ data:
           enabled: false
     processors:
       batch:
-      # resourcedetection: This processor is needed to correctly mirror resource
-      # labels from OpenCensus to OpenTelemetry. We also want to keep this same
-      # processor in Otel Agent configuration as the resource labels are added from
-      # there
       resourcedetection:
         detectors: [env, gcp]
       filter/cloudmonitoring:
@@ -173,15 +173,15 @@ data:
       extensions: [health_check]
       pipelines:
         metrics/cloudmonitoring:
-          receivers: [opencensus]
+          receivers: [otlp]
           processors: [batch, filter/cloudmonitoring, resourcedetection]
           exporters: [googlecloud]
         metrics/prometheus:
-          receivers: [opencensus]
+          receivers: [otlp]
           processors: [batch]
           exporters: [prometheus]
         metrics/kubernetes:
-          receivers: [opencensus]
+          receivers: [otlp]
           processors: [batch, filter/kubernetes, metricstransform/kubernetes, resourcedetection]
           exporters: [googlecloud/kubernetes]
 kind: ConfigMap

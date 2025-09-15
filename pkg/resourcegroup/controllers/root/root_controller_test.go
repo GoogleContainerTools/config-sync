@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/typeresolver"
 	"github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest/fake"
 	"github.com/GoogleContainerTools/config-sync/pkg/testing/testcontroller"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testmetrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -50,6 +51,12 @@ func TestRootReconciler(t *testing.T) {
 	// Configure controller-manager to log to the test logger
 	testLogger := testcontroller.NewTestLogger(t)
 	controllerruntime.SetLogger(testLogger)
+
+	// Reset metrics for this test to avoid cross-test contamination
+	testmetrics.ResetGlobalMetrics()
+
+	// Initialize metrics before any test setup
+	_ = testmetrics.NewTestExporter()
 
 	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
 	// channel when it is finished.

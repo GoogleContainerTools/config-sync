@@ -20,10 +20,7 @@ import (
 
 	"github.com/GoogleContainerTools/config-sync/pkg/core"
 	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
-	"github.com/GoogleContainerTools/config-sync/pkg/metrics"
 	"github.com/GoogleContainerTools/config-sync/pkg/testing/testmetrics"
-	"go.opencensus.io/stats/view"
-	"go.opencensus.io/tag"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -63,13 +60,19 @@ func TestWasDeleted(t *testing.T) {
 }
 
 func TestDeleted_InternalErrorMetricValidation(t *testing.T) {
-	m := testmetrics.RegisterMetrics(metrics.InternalErrorsView)
+	exporter := testmetrics.NewTestExporter()
 	ctx := context.Background()
 	MarkDeleted(ctx, nil)
-	wantMetrics := []*view.Row{
-		{Data: &view.CountData{Value: 1}, Tags: []tag.Tag{{Key: metrics.KeyInternalErrorSource, Value: "remediator"}}},
+
+	expectedMetrics := []testmetrics.MetricData{
+		{
+			Name:   "internal_errors_total",
+			Value:  1,
+			Labels: map[string]string{"source": "remediator"},
+		},
 	}
-	if diff := m.ValidateMetrics(metrics.InternalErrorsView, wantMetrics); diff != "" {
+
+	if diff := exporter.ValidateMetrics(expectedMetrics); diff != "" {
 		t.Error(diff)
 	}
 }

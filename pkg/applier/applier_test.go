@@ -39,6 +39,7 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest"
 	testingfake "github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest/fake"
 	"github.com/GoogleContainerTools/config-sync/pkg/testing/testerrors"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testmetrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -85,6 +86,8 @@ func (a *fakeKptApplier) Run(_ context.Context, _ inventory.Info, objsToApply ob
 }
 
 func TestApply(t *testing.T) {
+	_ = testmetrics.NewTestExporter()
+
 	syncScope := declared.Scope("test-namespace")
 	syncName := "rs"
 	resourceManager := declared.ResourceManager(syncScope, syncName)

@@ -140,7 +140,7 @@ func (r *OtelReconciler) configureGooglecloudConfigMap(ctx context.Context) ([]b
 			metadata.SystemLabel: "true",
 			metadata.ArchLabel:   "csmr",
 		}
-		configYAML, yamlErr := metrics.CollectorConfigGooglecloudYAML()
+		configYAML, yamlErr := metrics.CollectorConfigOTLPGooglecloudYAML()
 		if yamlErr != nil {
 			return fmt.Errorf("failed to marshal otel-collector-googlecloud config to YAML: %w", yamlErr)
 		}

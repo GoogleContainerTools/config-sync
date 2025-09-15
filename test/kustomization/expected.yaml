@@ -5605,8 +5605,12 @@ apiVersion: v1
 data:
   otel-collector-config.yaml: |
     receivers:
-      opencensus:
-        endpoint: 0.0.0.0:55678
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
     exporters:
       prometheus:
         endpoint: 0.0.0.0:8675
@@ -5615,6 +5619,8 @@ data:
           enabled: true
     processors:
       batch:
+      resourcedetection:
+        detectors: [env, gcp]
     extensions:
       health_check:
         endpoint: 0.0.0.0:13133
@@ -5622,8 +5628,8 @@ data:
       extensions: [health_check]
       pipelines:
         metrics:
-          receivers: [opencensus]
-          processors: [batch]
+          receivers: [otlp]
+          processors: [resourcedetection, batch]
           exporters: [prometheus]
 kind: ConfigMap
 metadata:
@@ -5639,11 +5645,15 @@ apiVersion: v1
 data:
   otel-agent-config.yaml: |
     receivers:
-      opencensus:
-        endpoint: 0.0.0.0:55678
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
     exporters:
-      opencensus:
-        endpoint: otel-collector.config-management-monitoring:55678
+      otlp:
+        endpoint: otel-collector.config-management-monitoring:4317
         tls:
           insecure: true
     processors:
@@ -5657,9 +5667,9 @@ data:
       extensions: [health_check]
       pipelines:
         metrics:
-          receivers: [opencensus]
-          processors: [batch, resourcedetection]
-          exporters: [opencensus]
+          receivers: [otlp]
+          processors: [resourcedetection, batch]
+          exporters: [otlp]
       telemetry:
         logs:
           level: "INFO"
@@ -5677,11 +5687,15 @@ apiVersion: v1
 data:
   otel-agent-reconciler-config.yaml: |
     receivers:
-      opencensus:
-        endpoint: 0.0.0.0:55678
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
     exporters:
-      opencensus:
-        endpoint: otel-collector.config-management-monitoring:55678
+      otlp:
+        endpoint: otel-collector.config-management-monitoring:4317
         tls:
           insecure: true
     processors:
@@ -5715,9 +5729,9 @@ data:
       extensions: [health_check]
       pipelines:
         metrics:
-          receivers: [opencensus]
-          processors: [batch, resourcedetection, attributes]
-          exporters: [opencensus]
+          receivers: [otlp]
+          processors: [resourcedetection, attributes, batch]
+          exporters: [otlp]
       telemetry:
         logs:
           level: "INFO"
@@ -5898,7 +5912,9 @@ data:
                 drop:
                 - ALL
             ports:
-            - containerPort: 55678 # Default OpenCensus receiver port.
+            - containerPort: 4317 # OTLP gRPC receiver port.
+              protocol: TCP
+            - containerPort: 4318 # OTLP HTTP receiver port.
               protocol: TCP
             - containerPort: 8888  # Metrics.
               protocol: TCP
@@ -6021,11 +6037,15 @@ apiVersion: v1
 data:
   otel-agent-config.yaml: |
     receivers:
-      opencensus:
-        endpoint: 0.0.0.0:55678
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
     exporters:
-      opencensus:
-        endpoint: otel-collector.config-management-monitoring:55678
+      otlp:
+        endpoint: otel-collector.config-management-monitoring:4317
         tls:
           insecure: true
     processors:
@@ -6041,9 +6061,9 @@ data:
       extensions: [health_check]
       pipelines:
         metrics:
-          receivers: [opencensus]
-          processors: [batch, resourcedetection]
-          exporters: [opencensus]
+          receivers: [otlp]
+          processors: [resourcedetection, batch]
+          exporters: [otlp]
 kind: ConfigMap
 metadata:
   labels:
@@ -6075,10 +6095,14 @@ metadata:
   namespace: config-management-monitoring
 spec:
   ports:
-  - name: opencensus
-    port: 55678
+  - name: otlp-grpc
+    port: 4317
     protocol: TCP
-    targetPort: 55678
+    targetPort: 4317
+  - name: otlp-http
+    port: 4318
+    protocol: TCP
+    targetPort: 4318
   - name: metrics-default
     port: 8888
   - name: metrics
@@ -6154,7 +6178,8 @@ spec:
         image: gcr.io/config-management-release/otelcontribcol:placeholder
         name: otel-collector
         ports:
-        - containerPort: 55678
+        - containerPort: 4317
+        - containerPort: 4318
         - containerPort: 8888
         - containerPort: 8675
         - containerPort: 13133
@@ -6367,7 +6392,8 @@ spec:
         image: gcr.io/config-management-release/otelcontribcol:placeholder
         name: otel-agent
         ports:
-        - containerPort: 55678
+        - containerPort: 4317
+        - containerPort: 4318
         - containerPort: 8888
         - containerPort: 13133
         readinessProbe:
@@ -6491,7 +6517,8 @@ spec:
         image: gcr.io/config-management-release/otelcontribcol:placeholder
         name: otel-agent
         ports:
-        - containerPort: 55678
+        - containerPort: 4317
+        - containerPort: 4318
         - containerPort: 8888
         - containerPort: 13133
         readinessProbe:

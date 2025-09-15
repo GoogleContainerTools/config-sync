@@ -106,7 +106,7 @@ func RunKustomizeBuild(ctx context.Context, sendMetrics bool, inputDir string, f
 }
 
 // runKustomizeBuild will run `kustomize build` and also record measurements
-// about kustomize usage via OpenCensus. This assumes that there is already an OC
+// about kustomize usage via OpenTelemetry. This assumes that there is already a metric
 // agent that is sending to a collector.
 func runKustomizeBuild(ctx context.Context, sendMetrics bool, inputDir string, cmd *exec.Cmd) (string, error) {
 	var wg sync.WaitGroup
