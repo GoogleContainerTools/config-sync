@@ -15,16 +15,39 @@
 package k8sobjects
 
 import (
+	kptv1alpha1 "github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
 	"github.com/GoogleContainerTools/config-sync/pkg/core"
-	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // ResourceGroupObject initializes a ResourceGroup.
-func ResourceGroupObject(opts ...core.MetaMutator) *unstructured.Unstructured {
-	result := resourcegroup.Unstructured("", "", "")
-	defaultMutate(result)
+func ResourceGroupObject(ns, name string, opts ...core.MetaMutator) *kptv1alpha1.ResourceGroup {
+	result := &kptv1alpha1.ResourceGroup{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: ns,
+			Name:      name,
+		},
+		TypeMeta: ToTypeMeta(kinds.ResourceGroup()),
+	}
 	mutate(result, opts...)
 
 	return result
+}
+
+// WithRGResourceStatuses sets the ResourceStatuses of the ResourceGroup object.
+func WithRGResourceStatuses(rs ...kptv1alpha1.ResourceStatus) core.MetaMutator {
+	return func(o client.Object) {
+		rg := o.(*kptv1alpha1.ResourceGroup)
+		rg.Status.ResourceStatuses = append(rg.Status.ResourceStatuses, rs...)
+	}
+}
+
+// WithRGResources sets the Spec.Resources of the ResourceGroup object.
+func WithRGResources(resources ...kptv1alpha1.ObjMetadata) core.MetaMutator {
+	return func(o client.Object) {
+		rg := o.(*kptv1alpha1.ResourceGroup)
+		rg.Spec.Resources = append(rg.Spec.Resources, resources...)
+	}
 }

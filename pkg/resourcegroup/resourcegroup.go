@@ -24,6 +24,7 @@ import (
 )
 
 // Unstructured creates a ResourceGroup object
+// TODO: Replace Unstructured with kptv1alpha1.ResourceGroup
 func Unstructured(name, namespace, id string) *unstructured.Unstructured {
 	groupVersion := fmt.Sprintf("%s/%s", v1alpha1.SchemeGroupVersionKind().Group, v1alpha1.SchemeGroupVersionKind().Version)
 	inventoryObj := &unstructured.Unstructured{

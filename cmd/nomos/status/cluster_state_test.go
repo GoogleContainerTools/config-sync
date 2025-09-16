@@ -23,12 +23,10 @@ import (
 	"github.com/GoogleContainerTools/config-sync/cmd/nomos/util"
 	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
 	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
-	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	kptv1alpha1 "github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
 	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
 	"github.com/google/go-cmp/cmp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -86,7 +84,7 @@ func TestRepoState_PrintRows(t *testing.T) {
 				},
 				status:    "SYNCED",
 				commit:    "abc123",
-				resources: exampleResources("abc123"),
+				resources: exampleResourceStatuses("abc123"),
 			},
 			"  <root>:root-sync\thttps://github.com/tester/sample@master\t\n  SYNCED @ 0001-01-01 00:00:00 +0000 UTC\tabc123\t\n  Managed resources:\n  \tNAMESPACE\tNAME\tSTATUS\tSOURCEHASH\n  \tbookstore\tdeployment.apps/test\tCurrent\tabc123\n  \tbookstore\tservice/test\tFailed\tabc123\n        A detailed message explaining the current condition.\n  \tbookstore\tservice/test2\tConflict\tabc123\n        A detailed message explaining why it is in the status ownership overlap.\n",
 		},
@@ -433,7 +431,7 @@ func TestRepoState_NamespaceRepoStatus(t *testing.T) {
 		sourceStatus              v1beta1.SourceStatus
 		renderingStatus           v1beta1.RenderingStatus
 		syncStatus                v1beta1.SyncStatus
-		resourceGroup             *unstructured.Unstructured
+		resourceGroup             *kptv1alpha1.ResourceGroup
 		want                      *RepoState
 	}{
 		{
@@ -1414,7 +1412,7 @@ func TestRepoState_NamespaceRepoStatus(t *testing.T) {
 		{
 			name:          "[accurate status before syncing condition is supported] repo is synced",
 			gitSpec:       git,
-			resourceGroup: k8sobjects.ResourceGroupObject(core.Namespace("bookstore"), core.Name("repo-sync"), withResources()),
+			resourceGroup: k8sobjects.ResourceGroupObject("bookstore", "repo-sync", k8sobjects.WithRGResourceStatuses(exampleResourceStatuses("")...)),
 			conditions:    []v1beta1.RepoSyncCondition{reconciledCondition},
 			renderingStatus: v1beta1.RenderingStatus{
 				Git:     toGitStatus(git),
@@ -1438,13 +1436,13 @@ func TestRepoState_NamespaceRepoStatus(t *testing.T) {
 				status:            syncedMsg,
 				lastSyncTimestamp: lastSyncTimestamp,
 				commit:            "abc123",
-				resources:         exampleResources(""),
+				resources:         exampleResourceStatuses(""),
 			},
 		},
 		{
 			name:                      "[accurate status with syncing condition supported] repo is synced",
 			gitSpec:                   git,
-			resourceGroup:             k8sobjects.ResourceGroupObject(core.Namespace("bookstore"), core.Name("repo-sync"), withResourcesAndCommit("abc123")),
+			resourceGroup:             k8sobjects.ResourceGroupObject("bookstore", "repo-sync", k8sobjects.WithRGResourceStatuses(exampleResourceStatuses("abc123")...)),
 			syncingConditionSupported: true,
 			conditions: []v1beta1.RepoSyncCondition{
 				reconciledCondition,
@@ -1472,7 +1470,7 @@ func TestRepoState_NamespaceRepoStatus(t *testing.T) {
 				status:            syncedMsg,
 				lastSyncTimestamp: lastSyncTimestamp,
 				commit:            "abc123",
-				resources:         exampleResources("abc123"),
+				resources:         exampleResourceStatuses("abc123"),
 			},
 		},
 		{
@@ -3006,130 +3004,49 @@ gke_sample-project_europe-west1-b_cluster-2
 	}
 }
 
-func withResources() core.MetaMutator {
-	status := map[string]interface{}{
-		"resourceStatuses": []interface{}{
-			map[string]interface{}{
-				"group":     "apps",
-				"kind":      "Deployment",
-				"namespace": "bookstore",
-				"name":      "test",
-				"status":    "Current",
-			},
-			map[string]interface{}{
-				"kind":      "Service",
-				"namespace": "bookstore",
-				"name":      "test",
-				"status":    "Failed",
-				"conditions": []interface{}{
-					map[string]interface{}{
-						"type":    "Stalled",
-						"status":  "True",
-						"message": "A detailed message explaining the current condition.",
-					},
-				},
-			},
-			map[string]interface{}{
-				"kind":      "Service",
-				"namespace": "bookstore",
-				"name":      "test2",
-				"status":    "Current",
-				"conditions": []interface{}{
-					map[string]interface{}{
-						"type":    "OwnershipOverlap",
-						"status":  "True",
-						"message": "A detailed message explaining why it is in the status ownership overlap.",
-					},
-				},
-			},
-		},
-	}
-	return func(o client.Object) {
-		u := o.(*unstructured.Unstructured)
-		unstructured.SetNestedField(u.Object, status, "status") //nolint
-	}
-}
-
-func withResourcesAndCommit(commit string) core.MetaMutator {
-	status := map[string]interface{}{
-		"resourceStatuses": []interface{}{
-			map[string]interface{}{
-				"group":      "apps",
-				"kind":       "Deployment",
-				"namespace":  "bookstore",
-				"name":       "test",
-				"status":     "Current",
-				"sourceHash": commit,
-			},
-			map[string]interface{}{
-				"kind":       "Service",
-				"namespace":  "bookstore",
-				"name":       "test",
-				"status":     "Failed",
-				"sourceHash": commit,
-				"conditions": []interface{}{
-					map[string]interface{}{
-						"type":    "Stalled",
-						"status":  "True",
-						"message": "A detailed message explaining the current condition.",
-					},
-				},
-			},
-			map[string]interface{}{
-				"kind":       "Service",
-				"namespace":  "bookstore",
-				"name":       "test2",
-				"status":     "Current",
-				"sourceHash": commit,
-				"conditions": []interface{}{
-					map[string]interface{}{
-						"type":    "OwnershipOverlap",
-						"status":  "True",
-						"message": "A detailed message explaining why it is in the status ownership overlap.",
-					},
-				},
-			},
-		},
-	}
-	return func(o client.Object) {
-		u := o.(*unstructured.Unstructured)
-		unstructured.SetNestedField(u.Object, status, "status") //nolint
-	}
-}
-
-func exampleResources(commit string) []resourceState {
-	return []resourceState{
+func exampleResourceStatuses(commit string) []kptv1alpha1.ResourceStatus {
+	return []kptv1alpha1.ResourceStatus{
 		{
-			Group:      "apps",
-			Kind:       "Deployment",
-			Namespace:  "bookstore",
-			Name:       "test",
-			Status:     "Current",
+			ObjMetadata: kptv1alpha1.ObjMetadata{
+				GroupKind: kptv1alpha1.GroupKind{
+					Group: "apps",
+					Kind:  "Deployment",
+				},
+				Namespace: "bookstore",
+				Name:      "test",
+			},
+			Status:     kptv1alpha1.Current,
 			SourceHash: commit,
 		},
 		{
-			Group:      "",
-			Kind:       "Service",
-			Namespace:  "bookstore",
-			Name:       "test",
-			Status:     "Failed",
+			ObjMetadata: kptv1alpha1.ObjMetadata{
+				GroupKind: kptv1alpha1.GroupKind{
+					Kind: "Service",
+				},
+				Namespace: "bookstore",
+				Name:      "test",
+			},
+			Status:     kptv1alpha1.Failed,
 			SourceHash: commit,
-			Conditions: []Condition{{
-				Type:    "Stalled",
-				Status:  "True",
+			Conditions: []kptv1alpha1.Condition{{
+				Type:    kptv1alpha1.Stalled,
+				Status:  kptv1alpha1.TrueConditionStatus,
 				Message: "A detailed message explaining the current condition.",
 			}},
 		},
 		{
-			Group:      "",
-			Kind:       "Service",
-			Namespace:  "bookstore",
-			Name:       "test2",
+			ObjMetadata: kptv1alpha1.ObjMetadata{
+				GroupKind: kptv1alpha1.GroupKind{
+					Kind: "Service",
+				},
+				Namespace: "bookstore",
+				Name:      "test2",
+			},
 			Status:     "Conflict",
 			SourceHash: commit,
-			Conditions: []Condition{{
-				Type:    "OwnershipOverlap",
-				Status:  "True",
+			Conditions: []kptv1alpha1.Condition{{
+				Type:    kptv1alpha1.Ownership,
+				Status:  kptv1alpha1.TrueConditionStatus,
 				Message: "A detailed message explaining why it is in the status ownership overlap.",
 			}},
 		},

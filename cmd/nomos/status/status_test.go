@@ -26,6 +26,7 @@ import (
 	v1 "github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement/v1"
 	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
 	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	kptv1alpha1 "github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
 	"github.com/GoogleContainerTools/config-sync/pkg/client/restconfig"
 	"github.com/GoogleContainerTools/config-sync/pkg/core"
 	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
@@ -149,32 +150,32 @@ func repoSyncObject(ns, name string) *v1beta1.RepoSync {
 	return repoSyncObj
 }
 
-func resourceGroupObject(name, ns string) *unstructured.Unstructured {
-	rg := k8sobjects.ResourceGroupObject(core.Name(name), core.Namespace(ns))
-	resources := []interface{}{map[string]interface{}{
-		"group":     "apps",
-		"kind":      "Deployment",
-		"namespace": "bookstore",
-		"name":      "test",
-	}}
-
-	resourceStatuses := []interface{}{
-		map[string]interface{}{
-			"group":      "apps",
-			"kind":       "Deployment",
-			"namespace":  "bookstore",
-			"name":       "test",
-			"reconcile":  "Succeeded",
-			"sourceHash": "abcd123",
-			"status":     "Current",
-			"strategy":   "Apply",
+func resourceGroupObject(name, ns string) *kptv1alpha1.ResourceGroup {
+	resource := kptv1alpha1.ObjMetadata{
+		Name:      "test",
+		Namespace: "bookstore",
+		GroupKind: kptv1alpha1.GroupKind{
+			Group: "apps",
+			Kind:  "Deployment",
 		},
 	}
-
-	_ = unstructured.SetNestedSlice(rg.Object, resources, "spec", "resources")
-	_ = unstructured.SetNestedSlice(rg.Object,
-		resourceStatuses, "status", "resourceStatuses")
-
+	resourceStatus := kptv1alpha1.ResourceStatus{
+		ObjMetadata: kptv1alpha1.ObjMetadata{
+			Name:      "test",
+			Namespace: "bookstore",
+			GroupKind: kptv1alpha1.GroupKind{
+				Group: "apps",
+				Kind:  "Deployment",
+			},
+		},
+		Status:     kptv1alpha1.Current,
+		Reconcile:  kptv1alpha1.ReconcileSucceeded,
+		Strategy:   kptv1alpha1.Apply,
+		SourceHash: "abcd123",
+	}
+	rg := k8sobjects.ResourceGroupObject(ns, name,
+		k8sobjects.WithRGResourceStatuses(resourceStatus),
+		k8sobjects.WithRGResources(resource))
 	return rg
 }
 
@@ -281,12 +282,22 @@ func TestClusterStates(t *testing.T) {
 								Dir:      "acme",
 								Revision: "v1.2.3",
 							},
-							resources: []resourceState{{
-								Name: "test", Group: "apps",
-								Kind:       "Deployment",
-								Namespace:  "bookstore",
-								Status:     "Current",
-								SourceHash: "abcd123"}},
+							resources: []kptv1alpha1.ResourceStatus{
+								{
+									ObjMetadata: kptv1alpha1.ObjMetadata{
+										Name:      "test",
+										Namespace: "bookstore",
+										GroupKind: kptv1alpha1.GroupKind{
+											Group: "apps",
+											Kind:  "Deployment",
+										},
+									},
+									Status:     kptv1alpha1.Current,
+									SourceHash: "abcd123",
+									Strategy:   kptv1alpha1.Apply,
+									Reconcile:  kptv1alpha1.ReconcileSucceeded,
+								},
+							},
 						},
 					},
 				},
@@ -317,12 +328,22 @@ func TestClusterStates(t *testing.T) {
 								Dir:      "acme",
 								Revision: "v1.2.3",
 							},
-							resources: []resourceState{{
-								Name: "test", Group: "apps",
-								Kind:       "Deployment",
-								Namespace:  "bookstore",
-								Status:     "Current",
-								SourceHash: "abcd123"}},
+							resources: []kptv1alpha1.ResourceStatus{
+								{
+									ObjMetadata: kptv1alpha1.ObjMetadata{
+										Name:      "test",
+										Namespace: "bookstore",
+										GroupKind: kptv1alpha1.GroupKind{
+											Group: "apps",
+											Kind:  "Deployment",
+										},
+									},
+									Status:     kptv1alpha1.Current,
+									SourceHash: "abcd123",
+									Strategy:   kptv1alpha1.Apply,
+									Reconcile:  kptv1alpha1.ReconcileSucceeded,
+								},
+							},
 						},
 					},
 				},
@@ -427,12 +448,22 @@ func TestClusterStates(t *testing.T) {
 								Dir:      "acme",
 								Revision: "v1.2.3",
 							},
-							resources: []resourceState{{
-								Name: "test", Group: "apps",
-								Kind:       "Deployment",
-								Namespace:  "bookstore",
-								Status:     "Current",
-								SourceHash: "abcd123"}},
+							resources: []kptv1alpha1.ResourceStatus{
+								{
+									ObjMetadata: kptv1alpha1.ObjMetadata{
+										Name:      "test",
+										Namespace: "bookstore",
+										GroupKind: kptv1alpha1.GroupKind{
+											Group: "apps",
+											Kind:  "Deployment",
+										},
+									},
+									Status:     kptv1alpha1.Current,
+									SourceHash: "abcd123",
+									Strategy:   kptv1alpha1.Apply,
+									Reconcile:  kptv1alpha1.ReconcileSucceeded,
+								},
+							},
 						},
 					},
 				},

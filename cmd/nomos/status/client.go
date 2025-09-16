@@ -29,18 +29,16 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
 	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
 	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
-	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
+	kptv1alpha1 "github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
 	"github.com/GoogleContainerTools/config-sync/pkg/client/restconfig"
 	"github.com/GoogleContainerTools/config-sync/pkg/core"
 	"github.com/GoogleContainerTools/config-sync/pkg/generated/clientset/versioned"
 	typedv1 "github.com/GoogleContainerTools/config-sync/pkg/generated/clientset/versioned/typed/configmanagement/v1"
-	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
 	"github.com/Masterminds/semver"
 	"go.uber.org/multierr"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -122,8 +120,8 @@ func (c *ClusterClient) repoSyncs(ctx context.Context, ns string) ([]*v1beta1.Re
 	return repoSyncs, repoSyncNsAndNames, nil
 }
 
-func (c *ClusterClient) resourceGroups(ctx context.Context, ns string, nsAndNames []types.NamespacedName) ([]*unstructured.Unstructured, error) {
-	rgl := kinds.NewUnstructuredListForItemGVK(v1alpha1.SchemeGroupVersionKind())
+func (c *ClusterClient) resourceGroups(ctx context.Context, ns string, nsAndNames []types.NamespacedName) ([]*kptv1alpha1.ResourceGroup, error) {
+	rgl := &kptv1alpha1.ResourceGroupList{}
 	if ns == "" {
 		if err := c.Client.List(ctx, rgl); err != nil {
 			return nil, err
@@ -134,7 +132,7 @@ func (c *ClusterClient) resourceGroups(ctx context.Context, ns string, nsAndName
 		}
 	}
 
-	var resourceGroups []*unstructured.Unstructured
+	var resourceGroups []*kptv1alpha1.ResourceGroup
 	for _, rg := range rgl.Items {
 		localRG := rg
 		resourceGroups = append(resourceGroups, &localRG)
@@ -237,7 +235,7 @@ func (c *ClusterClient) rootRepoClusterStatus(ctx context.Context, cs *ClusterSt
 	syncingConditionSupported := c.syncingConditionSupported(ctx)
 
 	// Get the status of all RootSyncs
-	var rootRGs []*unstructured.Unstructured
+	var rootRGs []*kptv1alpha1.ResourceGroup
 	rootSyncs, rootSyncNsAndNames, err := c.rootSyncs(ctx)
 	if err != nil {
 		errs = multierr.Append(errs, err)
@@ -281,7 +279,7 @@ func (c *ClusterClient) namespaceRepoClusterStatus(ctx context.Context, cs *Clus
 	var errs error
 	syncingConditionSupported := c.syncingConditionSupported(ctx)
 
-	var rgs []*unstructured.Unstructured
+	var rgs []*kptv1alpha1.ResourceGroup
 	syncs, nsAndNames, err := c.repoSyncs(ctx, ns)
 	if err != nil {
 		errs = multierr.Append(errs, err)
@@ -532,16 +530,16 @@ func isReachable(ctx context.Context, clientset *versioned.Clientset, cluster st
 // in a specific namespace, or RepoSyncs in all namespaces.
 // For a RepoSync CR, the corresponding ResourceGroup CR may not exist in the cluster.
 // We assign it to nil in this case.
-func consistentOrder(nsAndNames []types.NamespacedName, resourcegroups []*unstructured.Unstructured) []*unstructured.Unstructured {
+func consistentOrder(nsAndNames []types.NamespacedName, resourcegroups []*kptv1alpha1.ResourceGroup) []*kptv1alpha1.ResourceGroup {
 	indexMap := map[types.NamespacedName]int{}
 	for i, r := range resourcegroups {
 		nn := types.NamespacedName{
-			Namespace: r.GetNamespace(),
-			Name:      r.GetName(),
+			Namespace: r.Namespace,
+			Name:      r.Name,
 		}
 		indexMap[nn] = i
 	}
-	rgs := make([]*unstructured.Unstructured, len(nsAndNames))
+	rgs := make([]*kptv1alpha1.ResourceGroup, len(nsAndNames))
 	for i, nn := range nsAndNames {
 		idx, found := indexMap[nn]
 		if found {

@@ -24,10 +24,10 @@ import (
 	"github.com/GoogleContainerTools/config-sync/cmd/nomos/util"
 	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
 	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	kptv1alpha1 "github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
 	"github.com/GoogleContainerTools/config-sync/pkg/reposync"
 	"github.com/GoogleContainerTools/config-sync/pkg/rootsync"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 const (
@@ -85,7 +85,7 @@ type RepoState struct {
 	errors            []string
 	// errorSummary summarizes the `errors` field.
 	errorSummary *v1beta1.ErrorSummary
-	resources    []resourceState
+	resources    []kptv1alpha1.ResourceStatus
 }
 
 func (r *RepoState) printRows(writer io.Writer) {
@@ -120,9 +120,9 @@ func (r *RepoState) printRows(writer io.Writer) {
 		}
 		for _, r := range r.resources {
 			if !hasSourceHash {
-				util.MustFprintf(writer, "%s\t%s\t%s\t%s\n", util.Indent, r.Namespace, r.String(), r.Status)
+				util.MustFprintf(writer, "%s\t%s\t%v\t%s\n", util.Indent, r.Namespace, resourceStatusToString(r), r.Status)
 			} else {
-				util.MustFprintf(writer, "%s\t%s\t%s\t%s\t%s\n", util.Indent, r.Namespace, r.String(), r.Status, r.SourceHash)
+				util.MustFprintf(writer, "%s\t%s\t%s\t%s\t%s\n", util.Indent, r.Namespace, resourceStatusToString(r), r.Status, r.SourceHash)
 			}
 			if len(r.Conditions) > 0 {
 				for _, condition := range r.Conditions {
@@ -197,7 +197,7 @@ func helmString(helm *v1beta1.HelmBase) string {
 }
 
 // namespaceRepoStatus converts the given RepoSync into a RepoState.
-func namespaceRepoStatus(rs *v1beta1.RepoSync, rg *unstructured.Unstructured, syncingConditionSupported bool) *RepoState {
+func namespaceRepoStatus(rs *v1beta1.RepoSync, rg *kptv1alpha1.ResourceGroup, syncingConditionSupported bool) *RepoState {
 	repostate := &RepoState{
 		scope:      rs.Namespace,
 		syncName:   rs.Name,
@@ -246,7 +246,7 @@ func namespaceRepoStatus(rs *v1beta1.RepoSync, rg *unstructured.Unstructured, sy
 					ErrorCountAfterTruncation: totalErrorCount,
 				}
 			}
-			resources, _ := resourceLevelStatus(rg)
+			resources := resourceLevelStatus(rg)
 			repostate.resources = resources
 		}
 	case syncingCondition.Status == metav1.ConditionTrue:
@@ -274,7 +274,7 @@ func namespaceRepoStatus(rs *v1beta1.RepoSync, rg *unstructured.Unstructured, sy
 			repostate.lastSyncTimestamp = rs.Status.Sync.LastUpdate
 		}
 		repostate.commit = syncingCondition.Commit
-		resources, _ := resourceLevelStatus(rg)
+		resources := resourceLevelStatus(rg)
 		repostate.resources = resources
 	default:
 		// The sync step finished with errors.
@@ -299,7 +299,7 @@ func namespaceRepoStatus(rs *v1beta1.RepoSync, rg *unstructured.Unstructured, sy
 }
 
 // RootRepoStatus converts the given RootSync into a RepoState.
-func RootRepoStatus(rs *v1beta1.RootSync, rg *unstructured.Unstructured, syncingConditionSupported bool) *RepoState {
+func RootRepoStatus(rs *v1beta1.RootSync, rg *kptv1alpha1.ResourceGroup, syncingConditionSupported bool) *RepoState {
 	repostate := &RepoState{
 		scope:      "<root>",
 		syncName:   rs.Name,
@@ -347,7 +347,7 @@ func RootRepoStatus(rs *v1beta1.RootSync, rg *unstructured.Unstructured, syncing
 					ErrorCountAfterTruncation: totalErrorCount,
 				}
 			}
-			resources, _ := resourceLevelStatus(rg)
+			resources := resourceLevelStatus(rg)
 			repostate.resources = resources
 		}
 	case syncingCondition.Status == metav1.ConditionTrue:
@@ -375,7 +375,7 @@ func RootRepoStatus(rs *v1beta1.RootSync, rg *unstructured.Unstructured, syncing
 			repostate.lastSyncTimestamp = rs.Status.Sync.LastUpdate
 		}
 		repostate.commit = syncingCondition.Commit
-		resources, _ := resourceLevelStatus(rg)
+		resources := resourceLevelStatus(rg)
 		repostate.resources = resources
 	default:
 		// The sync step finished with errors.

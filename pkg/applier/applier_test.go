@@ -759,32 +759,32 @@ func TestUpdateStatusMode(t *testing.T) {
 		},
 		"ResourceGroup unchanged from enabled": {
 			rgObj: k8sobjects.ResourceGroupObject(
-				core.Name(syncName),
-				core.Namespace(syncNamespace),
+				syncNamespace,
+				syncName,
 				core.Annotation(metadata.StatusModeAnnotationKey, metadata.StatusEnabled.String()),
 			),
 			newStatusMode: metadata.StatusEnabled,
 		},
 		"ResourceGroup unchanged from disabled": {
 			rgObj: k8sobjects.ResourceGroupObject(
-				core.Name(syncName),
-				core.Namespace(syncNamespace),
+				syncNamespace,
+				syncName,
 				core.Annotation(metadata.StatusModeAnnotationKey, metadata.StatusDisabled.String()),
 			),
 			newStatusMode: metadata.StatusDisabled,
 		},
 		"ResourceGroup switching from status enabled to disabled": {
 			rgObj: k8sobjects.ResourceGroupObject(
-				core.Name(syncName),
-				core.Namespace(syncNamespace),
+				syncNamespace,
+				syncName,
 				core.Annotation(metadata.StatusModeAnnotationKey, metadata.StatusEnabled.String()),
 			),
 			newStatusMode: metadata.StatusDisabled,
 		},
 		"ResourceGroup switching from status disabled to enabled": {
 			rgObj: k8sobjects.ResourceGroupObject(
-				core.Name(syncName),
-				core.Namespace(syncNamespace),
+				syncNamespace,
+				syncName,
 				core.Annotation(metadata.StatusModeAnnotationKey, metadata.StatusDisabled.String()),
 			),
 			newStatusMode: metadata.StatusEnabled,
@@ -815,7 +815,7 @@ func TestUpdateStatusMode(t *testing.T) {
 				Name:      syncName,
 				Namespace: syncScope.SyncNamespace(),
 			}
-			rg := k8sobjects.ResourceGroupObject()
+			rg := k8sobjects.ResourceGroupObject("test-ns", "name")
 			err = fakeClient.Get(context.Background(), key, rg)
 			if tc.rgObj == nil {
 				if !apierrors.IsNotFound(err) {
