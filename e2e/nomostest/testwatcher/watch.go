@@ -52,6 +52,7 @@ type watchSpec struct {
 	ctx          context.Context
 	unstructured bool
 	predicates   []testpredicates.Predicate
+	logDiff      bool
 }
 
 // WatchTimeout provides the timeout option to Watch.
@@ -80,6 +81,13 @@ func WatchUnstructured() WatchOption {
 func WatchPredicates(predicates ...testpredicates.Predicate) WatchOption {
 	return func(options *watchSpec) {
 		options.predicates = append(options.predicates, predicates...)
+	}
+}
+
+// AlwaysLogDiff always logs diffs (instead of only when debug is enabled).
+func AlwaysLogDiff() WatchOption {
+	return func(options *watchSpec) {
+		options.logDiff = true
 	}
 }
 
@@ -190,6 +198,11 @@ func (w *Watcher) WatchObject(gvk schema.GroupVersionKind, name, namespace strin
 		return fmt.Errorf("%s: %w", errPrefix, err)
 	}
 
+	logDiffFn := w.logger.Debugf
+	if spec.logDiff {
+		logDiffFn = w.logger.Infof
+	}
+
 	// precondition runs after the informer is synced.
 	// This means the initial list has completed and the cache is primed.
 	precondition := func(store cache.Store) (bool, error) {
@@ -214,7 +227,7 @@ func (w *Watcher) WatchObject(gvk schema.GroupVersionKind, name, namespace strin
 			// Log the initial/current state as a diff to make it easy to compare with update diffs.
 			// Use diff.Diff because it doesn't truncate like cmp.Diff does.
 			// Use log.AsYAMLWithScheme to get the full scheme-consistent YAML with GVK.
-			w.logger.Debugf("%s GET Diff (+ Current):\n%s",
+			logDiffFn("%s GET Diff (+ Current):\n%s",
 				errPrefix, log.AsYAMLDiffWithScheme(prevObj, cObj, w.scheme))
 		}
 
@@ -270,7 +283,7 @@ func (w *Watcher) WatchObject(gvk schema.GroupVersionKind, name, namespace strin
 				cObj = nil
 			}
 
-			w.logger.Debugf("%s %s Diff (- Removed, + Added):\n%s",
+			logDiffFn("%s %s Diff (- Removed, + Added):\n%s",
 				errPrefix, eType,
 				log.AsYAMLDiffWithScheme(prevObj, cObj, w.scheme))
 

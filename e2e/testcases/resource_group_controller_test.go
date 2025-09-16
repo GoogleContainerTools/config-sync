@@ -543,7 +543,9 @@ func TestResourceGroupApplyStatus(t *testing.T) {
 	err := nt.Watcher.WatchObject(kinds.ResourceGroup(), rgNN.Name, rgNN.Namespace,
 		testwatcher.WatchPredicates(
 			testpredicates.ResourceVersionNotEquals(nt.Scheme, resourceVersion),
-		), testwatcher.WatchTimeout(60*time.Second))
+		),
+		testwatcher.WatchTimeout(60*time.Second),
+		testwatcher.AlwaysLogDiff()) // Always log diff since no updates are expected. This helps with debugging.
 	if err == nil {
 		nt.T.Fatal("expected ResourceGroup ResourceVersion to not change")
 	}
