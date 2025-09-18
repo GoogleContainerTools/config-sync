@@ -21,6 +21,8 @@ const (
 	GoogleContainerRegistryHost = "gcr.io"
 	// CSRHost is the host address of the Cloud Source Repositories
 	CSRHost = "https://source.developers.google.com"
+	// GCSHost is the host address of Google Cloud Storage
+	GCSHost = "https://storage.googleapis.com"
 
 	// SSMInstanceID is the ID of the Secure Source Manager instance to be used by SSM tests
 	SSMInstanceID = "configsync-test"
@@ -31,6 +33,8 @@ const (
 	TestInfraArtifactRepositoryPath = "kpt-config-sync-ci-artifacts/test-infra"
 	// ConfigSyncTestPublicRepositoryPath is the Config Sync config-sync-test-public repository path
 	ConfigSyncTestPublicRepositoryPath = "kpt-config-sync-ci-artifacts/config-sync-test-public"
+	// ConfigSyncTestHelmChartsBucket is the Config Sync GCS bucket name
+	ConfigSyncTestHelmChartsBucket = "kpt-config-sync-ci-test-helm-charts"
 
 	// TestInfraContainerRepositoryAddress is the Config Sync test-infra repository hosted on GCR
 	TestInfraContainerRepositoryAddress = GoogleContainerRegistryHost + "/" + TestInfraContainerRepositoryPath
@@ -38,6 +42,8 @@ const (
 	TestInfraArtifactRepositoryAddress = ArtifactRegistryHost + "/" + TestInfraArtifactRepositoryPath
 	// ConfigSyncTestPublicRepositoryAddress is the Config Sync config-sync-test-public repository hosted on GAR
 	ConfigSyncTestPublicRepositoryAddress = ArtifactRegistryHost + "/" + ConfigSyncTestPublicRepositoryPath
+	// ConfigSyncTestHelmChartsAddress is the Config Sync GCS bucket address
+	ConfigSyncTestHelmChartsAddress = GCSHost + "/" + ConfigSyncTestHelmChartsBucket
 
 	// HTTPDImage is the httpd image used by on-cluster test components
 	HTTPDImage = "httpd:2"
