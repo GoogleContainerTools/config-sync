@@ -1,4 +1,4 @@
-# Copyright 2022 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,20 +13,10 @@
 # limitations under the License.
 
 helmCharts:
-- name: coredns
-  releaseName: my-coredns
-  namespace: coredns
-  valuesFile: https://raw.githubusercontent.com/config-sync-examples/helm-components/main/coredns-values.yaml
-- name: wordpress
-  releaseName: my-wordpress
-  namespace: wordpress
-  valuesInline:
-    image:
-      registry: docker.io
-      repository: bitnamilegacy/wordpress
-      tag: "6.1.1-debian-11-r34"
-    service:
-      type: ClusterIP
+- name: simple-ns-chart
+  releaseName: my-simple-ns
+  namespace: simple-ns
+  valuesFile: https://raw.githubusercontent.com/config-sync-test-resources/helm/main/simple-ns-chart/values.yaml
 
 labels:
 - includeSelectors: true

@@ -1,4 +1,4 @@
-# Copyright 2022 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,24 +13,12 @@
 # limitations under the License.
 
 helmCharts:
-- name: coredns
-  releaseName: my-coredns
-  namespace: coredns
-- name: wordpress
-  releaseName: my-wordpress
-  namespace: wordpress
+- name: simple-ns-chart
+  releaseName: my-simple-ns
+  namespace: simple-ns
   valuesInline:
-    wordpressPassword: abcdefg
-    mariadb:
-      auth:
-        rootPassword: abcdefg
-        password: abcdefg
-    image:
-      registry: docker.io
-      repository: bitnamilegacy/wordpress
-      tag: "6.1.1-debian-11-r34"
-    service:
-      type: ClusterIP
+    annotations:
+      foo: baz
 
 labels:
 - includeSelectors: true
