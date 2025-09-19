@@ -1,0 +1,32 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    config.kubernetes.io/origin: |
+      configuredIn: kustomization.yaml
+      configuredBy:
+        apiVersion: builtin
+        kind: HelmChartInflationGenerator
+    foo: baz
+  labels:
+    app: foo
+    test-case: hydration
+    version: 1.0.0
+  name: simple-pause
+  namespace: simple-ns
+spec:
+  selector:
+    matchLabels:
+      app: foo
+      test-case: hydration
+  template:
+    metadata:
+      labels:
+        app: foo
+        test-case: hydration
+    spec:
+      containers:
+      - image: registry.k8s.io/pause:3.10
+        imagePullPolicy: IfNotPresent
+        name: pause

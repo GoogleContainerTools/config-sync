@@ -13,24 +13,15 @@
 # limitations under the License.
 
 helmCharts:
-- name: coredns
-  releaseName: my-coredns
-  namespace: coredns
-- name: wordpress
-  releaseName: my-wordpress
-  namespace: wordpress
+- name: simple-ns-chart
+  releaseName: my-simple-ns
+  namespace: simple-ns
   valuesInline:
-    wordpressPassword: abcdefg
-    mariadb:
-      auth:
-        rootPassword: abcdefg
-        password: abcdefg
-    image:
-      registry: docker.io
-      repository: bitnamilegacy/wordpress
-      tag: "6.1.1-debian-11-r34"
-    service:
-      type: ClusterIP
+    annotations:
+      foo: baz
+    data:
+      image:
+        imagePullPolicy: IfNotPresent
 
 labels:
 - includeSelectors: true
