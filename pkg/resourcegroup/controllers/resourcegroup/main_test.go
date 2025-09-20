@@ -21,6 +21,7 @@ import (
 
 	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
 	"github.com/GoogleContainerTools/config-sync/pkg/testing/testcontroller"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testmetrics"
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -37,6 +38,11 @@ var testEnv *envtest.Environment
 func TestMain(m *testing.M) {
 	setup := func() error {
 		klog.InitFlags(nil)
+
+		// Initialize metrics for all tests in this package
+		testmetrics.ResetGlobalMetrics()
+		_ = testmetrics.NewTestExporter()
+
 		testEnv = &envtest.Environment{
 			CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "..", "manifests")},
 		}

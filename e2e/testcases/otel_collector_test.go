@@ -50,7 +50,7 @@ const (
 	MonitorGSA                    = "e2e-test-metric-writer"
 	MetricExportErrorCaption      = "One or more TimeSeries could not be written"
 	UnrecognizedLabelErrorCaption = "unrecognized metric labels"
-	GCMMetricPrefix               = "custom.googleapis.com/opencensus/config_sync"
+	GCMMetricPrefix               = "custom.googleapis.com/opentelemetry/config_sync"
 )
 
 // The default list of exported metrics according to otel.go filter/cloudmonitoring
@@ -150,13 +150,12 @@ func TestOtelCollectorDeployment(t *testing.T) {
 	nt.Must(rootSyncGitRepo.CommitAndPush("Adding foo namespace"))
 	nt.Must(nt.WatchForAllSyncs())
 
-	nt.T.Log("Watch for metrics in GCM, timeout 2 minutes")
+	nt.T.Log("Watch for default metrics in GCM")
 	ctx := nt.Context
 	client, err := createGCMClient(ctx)
 	if err != nil {
 		nt.T.Fatal(err)
 	}
-	// retry for 2 minutes until metric is accessible from GCM
 	nt.Must(validateMetricTypes(ctx, nt, client, startTime, DefaultGCMMetricTypes))
 
 	nt.T.Log("Checking the otel-collector log contains no failure...")
@@ -237,10 +236,10 @@ func TestGCMMetrics(t *testing.T) {
 
 	nt.T.Log("Apply custom otel-collector ConfigMap that exports full metric list to GCM")
 	nt.MustKubectl("apply", "-f", "../testdata/otel-collector/otel-cm-full-gcm.yaml")
+	nt.Must(nt.Watcher.WatchForCurrentStatus(kinds.Deployment(), csmetrics.OtelCollectorName, configmanagement.MonitoringNamespace))
 
 	startTime := time.Now().UTC()
 
-	nt.T.Log("Watch for full list of metrics in GCM, timeout 2 minutes")
 	ctx := nt.Context
 	client, err := createGCMClient(ctx)
 	if err != nil {
@@ -390,7 +389,7 @@ func createGCMClient(ctx context.Context) (*monitoringv2.MetricClient, error) {
 // Make a ListTimeSeries request of a specific metric to GCM with specified
 // metricType.
 // Note: metricType in this context is the metric descriptor name, for example
-// "custom.googleapis.com/opencensus/config_sync/apply_operations_total".
+// "custom.googleapis.com/opentemeletry/config_sync/apply_operations_total".
 func listMetricInGCM(ctx context.Context, nt *nomostest.NT, client *monitoringv2.MetricClient, startTime time.Time, metricType string) *monitoringv2.TimeSeriesIterator {
 	endTime := time.Now().UTC()
 	req := &monitoringpb.ListTimeSeriesRequest{

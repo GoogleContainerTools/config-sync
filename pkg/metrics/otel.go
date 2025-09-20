@@ -53,7 +53,7 @@ func CollectorConfigGooglecloudYAML() (string, error) {
 			},
 			"googlecloud": map[string]interface{}{
 				"metric": map[string]interface{}{
-					"prefix": "custom.googleapis.com/opencensus/config_sync/",
+					"prefix": "custom.googleapis.com/opentelemetry/config_sync/",
 					// The exporter would always fail at sending metric descriptor. Skipping
 					// creation of metric descriptors until the error from upstream is resolved
 					// The metric streaming data is not affected

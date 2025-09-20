@@ -190,12 +190,18 @@ func RecordRemediateDuration(ctx context.Context, status string, startTime time.
 
 // RecordResourceConflict produces measurements for the ResourceConflicts view.
 func RecordResourceConflict(ctx context.Context, commit string) {
+	attrs := []attribute.KeyValue{
+		KeyCommit.String(commit),
+	}
 	klog.Infof("METRIC DEBUG: Recording ResourceConflict: commit=%s", commit)
-	ResourceConflicts.Add(ctx, 1)
+	ResourceConflicts.Add(ctx, 1, metric.WithAttributes(attrs...))
 }
 
 // RecordInternalError produces measurements for the InternalErrors view.
 func RecordInternalError(ctx context.Context, source string) {
+	attrs := []attribute.KeyValue{
+		KeyInternalErrorSource.String(source),
+	}
 	klog.Infof("METRIC DEBUG: Recording InternalError: source=%s", source)
-	InternalErrors.Add(ctx, 1)
+	InternalErrors.Add(ctx, 1, metric.WithAttributes(attrs...))
 }

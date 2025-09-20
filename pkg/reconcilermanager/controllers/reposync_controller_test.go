@@ -38,6 +38,7 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/reposync"
 	syncerFake "github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest/fake"
 	"github.com/GoogleContainerTools/config-sync/pkg/testing/testerrors"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testmetrics"
 	"github.com/GoogleContainerTools/config-sync/pkg/util"
 	"github.com/GoogleContainerTools/config-sync/pkg/validate/rsync/validate"
 	webhookconfiguration "github.com/GoogleContainerTools/config-sync/pkg/webhook/configuration"
@@ -360,6 +361,7 @@ func setupNSReconciler(t *testing.T, objs ...client.Object) (*syncerFake.Client,
 func TestCreateAndUpdateNamespaceReconcilerWithOverride(t *testing.T) {
 	// Mock out parseDeployment for testing.
 	parseDeployment = parsedDeployment
+	_ = testmetrics.NewTestExporter()
 
 	overrideReconcilerAndGitSyncResourceLimits := []v1beta1.ContainerResourcesSpec{
 		{

@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testmetrics"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -52,6 +53,12 @@ func TestResourceMapReconcile(t *testing.T) {
 	}
 
 	gk := res1.GK()
+
+	// Reset metrics for this test to avoid cross-test contamination
+	testmetrics.ResetGlobalMetrics()
+
+	// Initialize metrics before any test setup
+	_ = testmetrics.NewTestExporter()
 
 	resourceMap := NewResourceMap()
 	assert.True(t, resourceMap.IsEmpty())

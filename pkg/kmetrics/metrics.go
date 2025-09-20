@@ -169,11 +169,6 @@ func InitializeOTelKustomizeMetrics() error {
 
 // RecordKustomizeFieldCountData records all data relevant to the kustomization's field counts
 func RecordKustomizeFieldCountData(ctx context.Context, fieldCountData *KustomizeFieldMetrics) {
-	// Check if metric is initialized
-	if KustomizeFieldCount == nil {
-		klog.Errorf("KustomizeFieldCount metric is not initialized!")
-		return
-	}
 
 	klog.Infof("METRIC DEBUG: Recording KustomizeFieldCountData - FieldCount: %d, DeprecationMetrics: %d, SimplMetrics: %d",
 		len(fieldCountData.FieldCount), len(fieldCountData.DeprecationMetrics), len(fieldCountData.SimplMetrics))
