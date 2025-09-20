@@ -527,17 +527,20 @@ func TestResourceGroupApplyStatus(t *testing.T) {
 	rg = &v1alpha1.ResourceGroup{}
 	nt.Must(nt.KubeClient.Get(rgNN.Name, rgNN.Namespace, rg))
 	rg.Status.ResourceStatuses = nil
+	// track resourceVersion to make sure the watch doesn't accept a stale object
+	resourceVersion := rg.ResourceVersion
 	nt.Must(nt.KubeClient.UpdateStatus(rg))
 
 	nt.T.Log("Wait for the ResourceGroup controller to update the ResourceGroup status")
 	nt.Must(nt.Watcher.WatchObject(kinds.ResourceGroup(), rgNN.Name, rgNN.Namespace,
 		testwatcher.WatchPredicates(
 			testpredicates.ResourceGroupStatusEquals(expectedStatus),
+			testpredicates.ResourceVersionNotEquals(nt.Scheme, resourceVersion),
 		)))
 
 	rg = &v1alpha1.ResourceGroup{}
 	nt.Must(nt.KubeClient.Get(rgNN.Name, rgNN.Namespace, rg))
-	resourceVersion := rg.ResourceVersion
+	resourceVersion = rg.ResourceVersion
 
 	nt.T.Log("Wait 60s to validate that the ResourceGroup controller doesn't make any more updates (no resourceVersion change)")
 	err := nt.Watcher.WatchObject(kinds.ResourceGroup(), rgNN.Name, rgNN.Namespace,
