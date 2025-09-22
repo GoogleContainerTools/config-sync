@@ -18,6 +18,23 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+const (
+	// OpenTelemetry is the app label for all otel resources.
+	OpenTelemetry = "opentelemetry"
+
+	// OtelAgentName is the name of the OpenTelemetry Agent.
+	OtelAgentName = "otel-agent"
+
+	// OtelCollectorName is the name of the OpenTelemetry Collector.
+	OtelCollectorName = "otel-collector"
+
+	// OtelCollectorGooglecloud is the name of the OpenTelemetry Collector ConfigMap that contains Googlecloud exporter.
+	OtelCollectorGooglecloud = "otel-collector-googlecloud"
+
+	// OtelCollectorCustomCM is the name of the custom OpenTelemetry Collector ConfigMap.
+	OtelCollectorCustomCM = "otel-collector-custom"
+)
+
 // CollectorConfigOTLPGooglecloudYAML returns the otel-collector-googlecloud config as YAML using OTLP.
 func CollectorConfigOTLPGooglecloudYAML() (string, error) {
 	cfg := map[string]interface{}{

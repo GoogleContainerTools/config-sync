@@ -5912,9 +5912,9 @@ data:
                 drop:
                 - ALL
             ports:
-            - containerPort: 4317 # Default OpenCensus receiver port.
+            - containerPort: 4317 # Default OTLP gRPC receiver port.
               protocol: TCP
-            - containerPort: 4318 # OTLP HTTP receiver port.
+            - containerPort: 4318 # Default OTLP HTTP receiver port.
               protocol: TCP
             - containerPort: 8888  # Metrics.
               protocol: TCP

@@ -391,7 +391,7 @@ spec:
             drop:
             - NET_RAW
         ports:
-        - containerPort: 55678 # Default OpenCensus receiver port.
+        - containerPort: 4317 # Default OTLP gRPC receiver port.
           protocol: TCP
         - containerPort: 8888  # Metrics.
           protocol: TCP
@@ -471,7 +471,7 @@ spec:
             drop:
             - NET_RAW
         ports:
-        - containerPort: 55678 # Default OpenCensus receiver port.
+        - containerPort: 4317 # Default OTLP gRPC receiver port.
           protocol: TCP
         - containerPort: 8888  # Metrics.
           protocol: TCP

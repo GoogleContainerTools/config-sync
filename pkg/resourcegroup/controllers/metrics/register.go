@@ -68,8 +68,3 @@ func RegisterOTelExporter() (*otlpmetricgrpc.Exporter, error) {
 
 	return exporter, nil
 }
-
-// RegisterReconcilerMetricsViews registers the views so that recorded metrics can be exported in the reconcilers.
-func RegisterReconcilerMetricsViews() error {
-	return InitializeOTelResourceGroupMetrics()
-}

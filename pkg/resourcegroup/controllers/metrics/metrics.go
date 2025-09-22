@@ -177,7 +177,7 @@ func InitializeOTelResourceGroupMetrics() error {
 // RecordReconcileDuration produces a measurement for the ReconcileDuration view.
 func RecordReconcileDuration(ctx context.Context, stallStatus string, startTime time.Time) {
 	attrs := []attribute.KeyValue{
-		attribute.String("stallreason", stallStatus),
+		KeyStallReason.String(stallStatus),
 	}
 	duration := time.Since(startTime).Seconds()
 	ReconcileDuration.Record(ctx, duration, metric.WithAttributes(attrs...))
@@ -186,7 +186,7 @@ func RecordReconcileDuration(ctx context.Context, stallStatus string, startTime 
 // RecordReadyResourceCount produces a measurement for the ReadyResourceCount view.
 func RecordReadyResourceCount(ctx context.Context, nn types.NamespacedName, count int64) {
 	attrs := []attribute.KeyValue{
-		attribute.String("resourcegroup", nn.String()),
+		KeyResourceGroup.String(nn.String()),
 	}
 	ReadyResourceCount.Record(ctx, count, metric.WithAttributes(attrs...))
 }
@@ -194,7 +194,7 @@ func RecordReadyResourceCount(ctx context.Context, nn types.NamespacedName, coun
 // RecordKCCResourceCount produces a measurement for the KCCResourceCount view.
 func RecordKCCResourceCount(ctx context.Context, nn types.NamespacedName, count int64) {
 	attrs := []attribute.KeyValue{
-		attribute.String("resourcegroup", nn.String()),
+		KeyResourceGroup.String(nn.String()),
 	}
 	KCCResourceCount.Record(ctx, count, metric.WithAttributes(attrs...))
 }
@@ -202,7 +202,7 @@ func RecordKCCResourceCount(ctx context.Context, nn types.NamespacedName, count 
 // RecordResourceCount produces a measurement for the ResourceCount view.
 func RecordResourceCount(ctx context.Context, nn types.NamespacedName, count int64) {
 	attrs := []attribute.KeyValue{
-		attribute.String("resourcegroup", nn.String()),
+		KeyResourceGroup.String(nn.String()),
 	}
 	ResourceCount.Record(ctx, count, metric.WithAttributes(attrs...))
 }
@@ -215,7 +215,7 @@ func RecordResourceGroupTotal(ctx context.Context, count int64) {
 // RecordNamespaceCount produces a measurement for the NamespaceCount view.
 func RecordNamespaceCount(ctx context.Context, nn types.NamespacedName, count int64) {
 	attrs := []attribute.KeyValue{
-		attribute.String("resourcegroup", nn.String()),
+		KeyResourceGroup.String(nn.String()),
 	}
 	NamespaceCount.Record(ctx, count, metric.WithAttributes(attrs...))
 }
@@ -223,7 +223,7 @@ func RecordNamespaceCount(ctx context.Context, nn types.NamespacedName, count in
 // RecordClusterScopedResourceCount produces a measurement for ClusterScopedResourceCount view
 func RecordClusterScopedResourceCount(ctx context.Context, nn types.NamespacedName, count int64) {
 	attrs := []attribute.KeyValue{
-		attribute.String("resourcegroup", nn.String()),
+		KeyResourceGroup.String(nn.String()),
 	}
 	ClusterScopedResourceCount.Record(ctx, count, metric.WithAttributes(attrs...))
 }
@@ -231,7 +231,7 @@ func RecordClusterScopedResourceCount(ctx context.Context, nn types.NamespacedNa
 // RecordCRDCount produces a measurement for RecordCRDCount view
 func RecordCRDCount(ctx context.Context, nn types.NamespacedName, count int64) {
 	attrs := []attribute.KeyValue{
-		attribute.String("resourcegroup", nn.String()),
+		KeyResourceGroup.String(nn.String()),
 	}
 	CRDCount.Record(ctx, count, metric.WithAttributes(attrs...))
 }
@@ -240,9 +240,9 @@ func RecordCRDCount(ctx context.Context, nn types.NamespacedName, count int64) {
 func RecordPipelineError(ctx context.Context, nn types.NamespacedName, component string, hasErr bool) {
 	reconcilerName, reconcilerType := ComputeReconcilerNameType(nn)
 	attrs := []attribute.KeyValue{
-		attribute.String("component", component),
-		attribute.String("name", reconcilerName),
-		attribute.String("reconciler", reconcilerType),
+		KeyComponent.String(component),
+		KeyName.String(reconcilerName),
+		KeyType.String(reconcilerType),
 	}
 	var metricVal int64
 	if hasErr {

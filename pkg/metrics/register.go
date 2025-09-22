@@ -29,7 +29,7 @@ import (
 // RegisterOTelExporter creates the OTLP metrics exporter.
 func RegisterOTelExporter(containerName string) (*otlpmetricgrpc.Exporter, error) {
 
-	klog.Infof("METRIC DEBUG: Registering OTLP exporter for container: %q", containerName)
+	klog.V(5).Infof("METRIC DEBUG: Registering OTLP exporter for container: %q", containerName)
 	err := os.Setenv(
 		"OTEL_RESOURCE_ATTRIBUTES",
 		"k8s.container.name=\""+containerName+"\"")
@@ -46,7 +46,7 @@ func RegisterOTelExporter(containerName string) (*otlpmetricgrpc.Exporter, error
 		),
 	)
 	if err != nil {
-		klog.Errorf("METRIC DEBUG: Failed to create resource: %v", err)
+		klog.V(5).ErrorS(err, "METRIC DEBUG: Failed to create resource")
 		return nil, err
 	}
 
@@ -57,45 +57,21 @@ func RegisterOTelExporter(containerName string) (*otlpmetricgrpc.Exporter, error
 		otlpmetricgrpc.WithEndpoint("localhost:4317"),
 	)
 	if err != nil {
-		klog.Errorf("METRIC DEBUG: Failed to create OTLP exporter: %v", err)
+		klog.V(5).ErrorS(err, "METRIC DEBUG: Failed to create OTLP exporter")
 		return nil, err
 	}
-	klog.Infof("METRIC DEBUG: Created OTLP exporter with endpoint: otel-collector.config-management-monitoring:4317")
+	klog.V(5).Infof("METRIC DEBUG: Created OTLP exporter with endpoint: otel-collector.config-management-monitoring:4317")
 
 	// Create meter provider
 	meterProvider := metric.NewMeterProvider(
 		metric.WithReader(metric.NewPeriodicReader(exporter)),
 		metric.WithResource(res),
 	)
-	klog.Infof("METRIC DEBUG: Created meter provider with periodic reader")
+	klog.V(5).Infof("METRIC DEBUG: Created meter provider with periodic reader")
 
 	// Set global meter provider
 	otel.SetMeterProvider(meterProvider)
-	klog.Infof("METRIC DEBUG: Set global meter provider")
+	klog.V(5).Infof("METRIC DEBUG: Set global meter provider")
 
 	return exporter, nil
-}
-
-// RegisterReconcilerManagerMetricsViews registers the views so that recorded metrics can be exported in the reconciler manager.
-func RegisterReconcilerManagerMetricsViews() error {
-	klog.Infof("METRIC DEBUG: Registering reconciler manager metrics views")
-	err := InitializeOTelMetrics()
-	if err != nil {
-		klog.Errorf("METRIC DEBUG: Failed to register reconciler manager metrics views: %v", err)
-	} else {
-		klog.Infof("METRIC DEBUG: Successfully registered reconciler manager metrics views")
-	}
-	return err
-}
-
-// RegisterReconcilerMetricsViews registers the views so that recorded metrics can be exported in the reconcilers.
-func RegisterReconcilerMetricsViews() error {
-	klog.Infof("METRIC DEBUG: Registering reconciler metrics views")
-	err := InitializeOTelMetrics()
-	if err != nil {
-		klog.Errorf("METRIC DEBUG: Failed to register reconciler metrics views: %v", err)
-	} else {
-		klog.Infof("METRIC DEBUG: Successfully registered reconciler metrics views")
-	}
-	return err
 }

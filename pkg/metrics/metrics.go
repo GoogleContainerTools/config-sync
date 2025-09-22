@@ -100,10 +100,10 @@ var (
 
 // InitializeOTelMetrics initializes OpenTelemetry metrics instruments
 func InitializeOTelMetrics() error {
-	klog.Infof("METRIC DEBUG: Initializing OpenTelemetry metrics instruments")
+	klog.V(5).Infof("METRIC DEBUG: Initializing OpenTelemetry metrics instruments")
 
 	meter := otel.Meter("config-sync")
-	klog.Infof("METRIC DEBUG: Created meter: config-sync")
+	klog.V(5).Infof("METRIC DEBUG: Created meter: config-sync")
 
 	var err error
 
@@ -114,10 +114,10 @@ func InitializeOTelMetrics() error {
 		metric.WithUnit("s"),
 	)
 	if err != nil {
-		klog.Errorf("METRIC DEBUG: Failed to create APICallDuration histogram: %v", err)
+		klog.V(5).ErrorS(err, "METRIC DEBUG: Failed to create APICallDuration histogram")
 		return err
 	}
-	klog.Infof("METRIC DEBUG: Created APICallDuration histogram: %s", APICallDurationName)
+	klog.V(5).Infof("METRIC DEBUG: Created APICallDuration histogram: %s", APICallDurationName)
 
 	ReconcileDuration, err = meter.Float64Histogram(
 		ReconcileDurationName,
@@ -226,11 +226,11 @@ func InitializeOTelMetrics() error {
 		metric.WithDescription("The number of internal errors triggered by Config Sync"),
 	)
 	if err != nil {
-		klog.Errorf("METRIC DEBUG: Failed to create InternalErrors counter: %v", err)
+		klog.V(5).ErrorS(err, "METRIC DEBUG: Failed to create InternalErrors counter")
 		return err
 	}
-	klog.Infof("METRIC DEBUG: Created InternalErrors counter: %s", InternalErrorsName)
+	klog.V(5).Infof("METRIC DEBUG: Created InternalErrors counter: %s", InternalErrorsName)
 
-	klog.Infof("METRIC DEBUG: Successfully initialized all OpenTelemetry metrics instruments")
+	klog.V(5).Infof("METRIC DEBUG: Successfully initialized all OpenTelemetry metrics instruments")
 	return nil
 }

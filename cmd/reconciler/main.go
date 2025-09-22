@@ -141,9 +141,9 @@ func main() {
 		status.EnablePanicOnMisuse()
 	}
 
-	// Register the OpenCensus views
-	if err := ocmetrics.RegisterReconcilerMetricsViews(); err != nil {
-		klog.Fatalf("Failed to register OpenCensus views: %v", err)
+	// Initialize the metrics
+	if err := ocmetrics.InitializeOTelMetrics(); err != nil {
+		klog.Fatalf("Failed to initialize metrics: %v", err)
 	}
 
 	// Register the OC Agent exporter

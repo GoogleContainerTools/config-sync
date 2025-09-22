@@ -23,7 +23,6 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
-	"k8s.io/klog/v2"
 )
 
 // RegisterOTelExporter creates the OTLP metrics exporter.
@@ -68,16 +67,4 @@ func RegisterOTelExporter(containerName string) (*otlpmetricgrpc.Exporter, error
 	otel.SetMeterProvider(meterProvider)
 
 	return exporter, nil
-}
-
-// RegisterKustomizeMetricsViews registers the views so that recorded metrics can be exported.
-func RegisterKustomizeMetricsViews() error {
-	klog.Infof("METRIC DEBUG: Registering kustomize metrics views")
-	err := InitializeOTelKustomizeMetrics()
-	if err != nil {
-		klog.Errorf("METRIC DEBUG: Failed to register kustomize metrics views: %v", err)
-	} else {
-		klog.Infof("METRIC DEBUG: Successfully registered kustomize metrics views")
-	}
-	return err
 }

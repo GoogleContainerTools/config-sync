@@ -79,9 +79,9 @@ func main() {
 	profiler.Service()
 	ctrl.SetLogger(textlogger.NewLogger(textlogger.NewConfig()))
 
-	// Register the kustomize usage metric views.
-	if err := kmetrics.RegisterKustomizeMetricsViews(); err != nil {
-		klog.Fatalf("Failed to register OpenCensus views: %v", err)
+	// Initialize the kustomize metrics
+	if err := kmetrics.InitializeOTelKustomizeMetrics(); err != nil {
+		klog.Fatalf("Failed to initialize kustomize metrics: %v", err)
 	}
 
 	// Register the OC Agent exporter

@@ -182,9 +182,9 @@ func main() {
 	}
 	setupLog.Info("OtelSA controller registration successful")
 
-	// Register the OpenCensus views
-	if err := metrics.RegisterReconcilerManagerMetricsViews(); err != nil {
-		setupLog.Error(err, "failed to register OpenCensus views")
+	// Initialize the metrics
+	if err := metrics.InitializeOTelMetrics(); err != nil {
+		setupLog.Error(err, "failed to initialize metrics")
 	}
 
 	// Register the OC Agent exporter

@@ -43,7 +43,7 @@ func RecordAPICallDuration(ctx context.Context, operation, status string, startT
 
 	APICallDuration.Record(ctx, duration, metric.WithAttributes(attrs...))
 
-	klog.Infof("METRIC DEBUG: Recorded APICallDuration - Name: %q, Value: %f, Operation: %q, Status: %q",
+	klog.V(5).Infof("METRIC DEBUG: Recorded APICallDuration - Name: %q, Value: %f, Operation: %q, Status: %q",
 		APICallDurationName, duration, operation, status)
 }
 
@@ -58,7 +58,7 @@ func RecordReconcilerErrors(ctx context.Context, component string, errs []v1beta
 	errorCountByClass := status.CountErrorByClass(errs)
 	var supportedErrorClasses = []string{"1xxx", "2xxx", "9xxx"}
 
-	klog.Infof("METRIC DEBUG: Recording ReconcilerErrors - Component: %q, Total errors: %d", component, len(errs))
+	klog.V(5).Infof("METRIC DEBUG: Recording ReconcilerErrors - Component: %q, Total errors: %d", component, len(errs))
 
 	for _, errorclass := range supportedErrorClasses {
 		var errorCount int64
@@ -71,7 +71,7 @@ func RecordReconcilerErrors(ctx context.Context, component string, errs []v1beta
 		}
 		ReconcilerErrors.Record(ctx, errorCount, metric.WithAttributes(attrs...))
 
-		klog.Infof("METRIC DEBUG: Recorded ReconcilerErrors - Component: %q, ErrorClass: %q, Count: %d",
+		klog.V(5).Infof("METRIC DEBUG: Recorded ReconcilerErrors - Component: %q, ErrorClass: %q, Count: %d",
 			component, errorclass, errorCount)
 	}
 }
@@ -98,7 +98,7 @@ func RecordPipelineError(ctx context.Context, reconcilerType, component string, 
 	}
 	PipelineError.Record(ctx, metricVal, metric.WithAttributes(attrs...))
 
-	klog.Infof("METRIC DEBUG: Recorded PipelineError - ReconcilerType: %q, Component: %q, ReconcilerName: %q, ErrorLen: %d, Value: %d",
+	klog.V(5).Infof("METRIC DEBUG: Recorded PipelineError - ReconcilerType: %q, Component: %q, ReconcilerName: %q, ErrorLen: %d, Value: %d",
 		reconcilerType, component, reconcilerName, errLen, metricVal)
 }
 
@@ -108,7 +108,7 @@ func RecordReconcileDuration(ctx context.Context, status string, startTime time.
 		KeyStatus.String(status),
 	}
 	duration := time.Since(startTime).Seconds()
-	klog.Infof("METRIC DEBUG: Recording ReconcileDuration: status=%s, duration=%.3fs", status, duration)
+	klog.V(5).Infof("METRIC DEBUG: Recording ReconcileDuration: status=%s, duration=%.3fs", status, duration)
 	ReconcileDuration.Record(ctx, duration, metric.WithAttributes(attrs...))
 }
 
@@ -120,7 +120,7 @@ func RecordParserDuration(ctx context.Context, trigger, source, status string, s
 		KeyParserSource.String(source),
 	}
 	duration := time.Since(startTime).Seconds()
-	klog.Infof("METRIC DEBUG: Recording ParserDuration: trigger=%s, source=%s, status=%s, duration=%.3fs", trigger, source, status, duration)
+	klog.V(5).Infof("METRIC DEBUG: Recording ParserDuration: trigger=%s, source=%s, status=%s, duration=%.3fs", trigger, source, status, duration)
 	ParserDuration.Record(ctx, duration, metric.WithAttributes(attrs...))
 }
 
@@ -130,7 +130,7 @@ func RecordLastSync(ctx context.Context, status, commit string, timestamp time.T
 		KeyStatus.String(status),
 		KeyCommit.String(commit),
 	}
-	klog.Infof("METRIC DEBUG: Recording LastSync: status=%s, commit=%s, timestamp=%d", status, commit, timestamp.Unix())
+	klog.V(5).Infof("METRIC DEBUG: Recording LastSync: status=%s, commit=%s, timestamp=%d", status, commit, timestamp.Unix())
 	LastSync.Record(ctx, timestamp.Unix(), metric.WithAttributes(attrs...))
 }
 
@@ -139,7 +139,7 @@ func RecordDeclaredResources(ctx context.Context, commit string, numResources in
 	attrs := []attribute.KeyValue{
 		KeyCommit.String(commit),
 	}
-	klog.Infof("METRIC DEBUG: Recording DeclaredResources: commit=%s, numResources=%d", commit, numResources)
+	klog.V(5).Infof("METRIC DEBUG: Recording DeclaredResources: commit=%s, numResources=%d", commit, numResources)
 	DeclaredResources.Record(ctx, int64(numResources), metric.WithAttributes(attrs...))
 }
 
@@ -150,7 +150,7 @@ func RecordApplyOperation(ctx context.Context, controller, operation, status str
 		KeyController.String(controller),
 		KeyStatus.String(status),
 	}
-	klog.Infof("METRIC DEBUG: Recording ApplyOperation: controller=%s, operation=%s, status=%s", controller, operation, status)
+	klog.V(5).Infof("METRIC DEBUG: Recording ApplyOperation: controller=%s, operation=%s, status=%s", controller, operation, status)
 	ApplyOperations.Add(ctx, 1, metric.WithAttributes(attrs...))
 }
 
@@ -167,14 +167,14 @@ func RecordApplyDuration(ctx context.Context, status, commit string, startTime t
 	}
 
 	duration := now.Sub(startTime).Seconds()
-	klog.Infof("METRIC DEBUG: Recording ApplyDuration: status=%s, commit=%s, duration=%.3fs", status, commit, duration)
+	klog.V(5).Infof("METRIC DEBUG: Recording ApplyDuration: status=%s, commit=%s, duration=%.3fs", status, commit, duration)
 	ApplyDuration.Record(ctx, duration, metric.WithAttributes(attrs...))
 	LastApply.Record(ctx, now.Unix(), metric.WithAttributes(attrs...))
 }
 
 // RecordResourceFight produces measurements for the ResourceFights view.
 func RecordResourceFight(ctx context.Context, _ string) {
-	klog.Infof("METRIC DEBUG: Recording ResourceFight")
+	klog.V(5).Infof("METRIC DEBUG: Recording ResourceFight")
 	ResourceFights.Add(ctx, 1)
 }
 
@@ -184,7 +184,7 @@ func RecordRemediateDuration(ctx context.Context, status string, startTime time.
 		KeyStatus.String(status),
 	}
 	duration := time.Since(startTime).Seconds()
-	klog.Infof("METRIC DEBUG: Recording RemediateDuration: status=%s, duration=%.3fs", status, duration)
+	klog.V(5).Infof("METRIC DEBUG: Recording RemediateDuration: status=%s, duration=%.3fs", status, duration)
 	RemediateDuration.Record(ctx, duration, metric.WithAttributes(attrs...))
 }
 
@@ -193,7 +193,7 @@ func RecordResourceConflict(ctx context.Context, commit string) {
 	attrs := []attribute.KeyValue{
 		KeyCommit.String(commit),
 	}
-	klog.Infof("METRIC DEBUG: Recording ResourceConflict: commit=%s", commit)
+	klog.V(5).Infof("METRIC DEBUG: Recording ResourceConflict: commit=%s", commit)
 	ResourceConflicts.Add(ctx, 1, metric.WithAttributes(attrs...))
 }
 
@@ -202,6 +202,6 @@ func RecordInternalError(ctx context.Context, source string) {
 	attrs := []attribute.KeyValue{
 		KeyInternalErrorSource.String(source),
 	}
-	klog.Infof("METRIC DEBUG: Recording InternalError: source=%s", source)
+	klog.V(5).Infof("METRIC DEBUG: Recording InternalError: source=%s", source)
 	InternalErrors.Add(ctx, 1, metric.WithAttributes(attrs...))
 }

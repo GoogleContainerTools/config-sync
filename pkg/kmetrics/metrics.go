@@ -71,10 +71,10 @@ var (
 
 // InitializeOTelKustomizeMetrics initializes OpenTelemetry Kustomize metrics instruments
 func InitializeOTelKustomizeMetrics() error {
-	klog.Infof("METRIC DEBUG: Initializing OpenTelemetry kustomize metrics instruments")
+	klog.V(5).Infof("METRIC DEBUG: Initializing OpenTelemetry kustomize metrics instruments")
 
 	meter := otel.Meter("config-sync-kmetric")
-	klog.Infof("METRIC DEBUG: Created kustomize meter: config-sync-kmetric")
+	klog.V(5).Infof("METRIC DEBUG: Created kustomize meter: config-sync-kmetric")
 
 	var err error
 
@@ -158,19 +158,19 @@ func InitializeOTelKustomizeMetrics() error {
 		metric.WithUnit("ms"),
 	)
 	if err != nil {
-		klog.Errorf("METRIC DEBUG: Failed to create KustomizeExecutionTime histogram: %v", err)
+		klog.V(5).ErrorS(err, "METRIC DEBUG: Failed to create KustomizeExecutionTime histogram")
 		return err
 	}
-	klog.Infof("METRIC DEBUG: Created KustomizeExecutionTime histogram")
+	klog.V(5).Infof("METRIC DEBUG: Created KustomizeExecutionTime histogram")
 
-	klog.Infof("METRIC DEBUG: Successfully initialized all OpenTelemetry kustomize metrics instruments")
+	klog.V(5).Infof("METRIC DEBUG: Successfully initialized all OpenTelemetry kustomize metrics instruments")
 	return nil
 }
 
 // RecordKustomizeFieldCountData records all data relevant to the kustomization's field counts
 func RecordKustomizeFieldCountData(ctx context.Context, fieldCountData *KustomizeFieldMetrics) {
 
-	klog.Infof("METRIC DEBUG: Recording KustomizeFieldCountData - FieldCount: %d, DeprecationMetrics: %d, SimplMetrics: %d",
+	klog.V(5).Infof("METRIC DEBUG: Recording KustomizeFieldCountData - FieldCount: %d, DeprecationMetrics: %d, SimplMetrics: %d",
 		len(fieldCountData.FieldCount), len(fieldCountData.DeprecationMetrics), len(fieldCountData.SimplMetrics))
 
 	recordKustomizeFieldCount(ctx, fieldCountData.FieldCount)
@@ -185,13 +185,13 @@ func RecordKustomizeFieldCountData(ctx context.Context, fieldCountData *Kustomiz
 
 // RecordKustomizeResourceCount produces measurement for KustomizeResourceCount view
 func RecordKustomizeResourceCount(ctx context.Context, resourceCount int) {
-	klog.V(2).Infof("METRIC DEBUG: Recording KustomizeResourceCount: resourceCount=%d", resourceCount)
+	klog.V(5).Infof("METRIC DEBUG: Recording KustomizeResourceCount: resourceCount=%d", resourceCount)
 	KustomizeResourceCount.Record(ctx, int64(resourceCount))
 }
 
 // RecordKustomizeExecutionTime produces measurement for KustomizeExecutionTime view
 func RecordKustomizeExecutionTime(ctx context.Context, executionTime float64) {
-	klog.V(2).Infof("METRIC DEBUG: Recording KustomizeExecutionTime: executionTime=%.3fs", executionTime)
+	klog.V(5).Infof("METRIC DEBUG: Recording KustomizeExecutionTime: executionTime=%.3fs", executionTime)
 	KustomizeExecutionTime.Record(ctx, executionTime)
 }
 
