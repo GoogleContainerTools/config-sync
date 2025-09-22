@@ -1,0 +1,5 @@
+annotations:
+  foo: remote-baz
+data:
+  image:
+    imagePullPolicy: Always
