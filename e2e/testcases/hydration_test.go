@@ -228,7 +228,7 @@ func TestHydrateHelmComponents(t *testing.T) {
 	)
 	rootSyncGitRepo := nt.SyncSourceGitReadWriteRepository(rootSyncID)
 
-	nt.T.Log("Add the helm components root directory")
+	nt.T.Log("Add the helm-components root directory")
 	nt.Must(rootSyncGitRepo.Copy("../testdata/hydration/helm-components", "."))
 	nt.Must(rootSyncGitRepo.CommitAndPush("add DRY configs to the repository"))
 
@@ -250,21 +250,12 @@ func TestHydrateHelmComponents(t *testing.T) {
 		parse.RenderingSucceeded)
 
 	nt.T.Log("Validate resources are synced")
-	tg := taskgroup.New()
-	tg.Go(func() error {
-		return nt.Validate("my-coredns-coredns", "coredns", &appsv1.Deployment{},
-			testpredicates.DeploymentContainerPullPolicyEquals("coredns", "IfNotPresent"),
-			testpredicates.HasAnnotation(metadata.KustomizeOrigin, expectedBuiltinOrigin),
-			testpredicates.HasAnnotation(metadata.ResourceManagerKey, string(declared.RootScope)))
-	})
-	tg.Go(func() error {
-		return nt.Validate("my-wordpress", "wordpress",
-			&appsv1.Deployment{},
-			testpredicates.DeploymentContainerPullPolicyEquals("wordpress", "IfNotPresent"),
-			testpredicates.HasAnnotation(metadata.KustomizeOrigin, expectedBuiltinOrigin),
-			testpredicates.HasAnnotation(metadata.ResourceManagerKey, string(declared.RootScope)))
-	})
-	nt.Must(tg.Wait())
+	nt.Must(nt.Validate("simple-pause", "simple-ns", &appsv1.Deployment{},
+		testpredicates.HasAnnotation(metadata.KustomizeOrigin, expectedBuiltinOrigin),
+		testpredicates.HasAnnotation(metadata.ResourceManagerKey, string(declared.RootScope)),
+		testpredicates.HasAnnotation("foo", "baz"),
+		testpredicates.DeploymentContainerPullPolicyEquals("pause", "IfNotPresent"),
+	))
 
 	nt.T.Log("Use a remote values.yaml file from a public repo")
 	nt.Must(rootSyncGitRepo.Copy("../testdata/hydration/helm-components-remote-values-kustomization.yaml", "./helm-components/kustomization.yaml"))
@@ -277,10 +268,13 @@ func TestHydrateHelmComponents(t *testing.T) {
 		rootSyncGitRepo.MustHash(nt.T),
 		parse.RenderingSucceeded)
 
-	nt.Must(nt.Validate("my-coredns-coredns", "coredns", &appsv1.Deployment{},
-		testpredicates.DeploymentContainerPullPolicyEquals("coredns", "Always"),
-		testpredicates.DeploymentContainerImageEquals("coredns", "coredns/coredns:1.8.4"),
-		testpredicates.HasAnnotation(metadata.KustomizeOrigin, expectedBuiltinOrigin)))
+	nt.T.Log("Validate resources are synced")
+	nt.Must(nt.Validate("simple-pause", "simple-ns", &appsv1.Deployment{},
+		testpredicates.HasAnnotation(metadata.KustomizeOrigin, expectedBuiltinOrigin),
+		testpredicates.HasAnnotation(metadata.ResourceManagerKey, string(declared.RootScope)),
+		testpredicates.HasAnnotation("foo", "remote-baz"),
+		testpredicates.DeploymentContainerPullPolicyEquals("pause", "Always"),
+	))
 }
 
 func TestHydrateHelmOverlay(t *testing.T) {
