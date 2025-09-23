@@ -7,6 +7,7 @@
 package graph
 
 import (
+	"slices"
 	"sort"
 
 	"sigs.k8s.io/cli-utils/pkg/object"
@@ -101,12 +102,7 @@ func (g *Graph) isAdjacent(from object.ObjMetadata, to object.ObjMetadata) bool 
 		return false
 	}
 	// Iterate through adjacency list to see if "to" vertex is adjacent.
-	for _, vertex := range g.edges[from] {
-		if vertex == to {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(g.edges[from], to)
 }
 
 // Size returns the number of vertices in the graph.

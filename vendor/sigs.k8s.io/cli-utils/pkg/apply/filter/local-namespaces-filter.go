@@ -21,7 +21,7 @@ var (
 // that are currently in use. Used to ensure we do not delete
 // namespaces with currently applied objects in them.
 type LocalNamespacesFilter struct {
-	LocalNamespaces sets.String // nolint:staticcheck
+	LocalNamespaces sets.Set[string] // nolint:staticcheck
 }
 
 // Name returns a filter identifier for logging.
