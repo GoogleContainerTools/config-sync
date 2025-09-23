@@ -14,7 +14,11 @@
 
 package metrics
 
-import "go.opencensus.io/stats"
+import (
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric"
+	"k8s.io/klog/v2"
+)
 
 const (
 	// APICallDurationName is the name of API duration metric
@@ -49,89 +53,184 @@ const (
 
 var (
 	// APICallDuration metric measures the latency of API server calls.
-	APICallDuration = stats.Float64(
-		APICallDurationName,
-		"The duration of API server calls in seconds",
-		stats.UnitSeconds)
+	APICallDuration metric.Float64Histogram
 
 	// ReconcilerErrors metric measures the number of errors in the reconciler.
-	ReconcilerErrors = stats.Int64(
-		ReconcilerErrorsName,
-		"The number of errors in the reconciler",
-		stats.UnitDimensionless)
+	ReconcilerErrors metric.Int64Gauge
 
 	// PipelineError metric measures the error by components when syncing a commit.
 	// Definition here must exactly match the definition in the resource-group
 	// controller, or the Prometheus exporter will error. b/247516388
 	// https://github.com/GoogleContainerTools/kpt-resource-group/blob/main/controllers/metrics/metrics.go#L88
-	PipelineError = stats.Int64(
-		PipelineErrorName,
-		"A boolean value indicates if error happened at readiness stage when syncing a commit",
-		stats.UnitDimensionless)
+	PipelineError metric.Int64Gauge
 
 	// ReconcileDuration metric measures the latency of reconcile events.
-	ReconcileDuration = stats.Float64(
-		ReconcileDurationName,
-		"The duration of reconcile events in seconds",
-		stats.UnitSeconds)
+	ReconcileDuration metric.Float64Histogram
 
 	// ParserDuration metric measures the latency of the parse-apply-watch loop.
-	ParserDuration = stats.Float64(
-		ParserDurationName,
-		"The duration of the parse-apply-watch loop in seconds",
-		stats.UnitSeconds)
+	ParserDuration metric.Float64Histogram
 
 	// LastSync metric measures the timestamp of the latest Git sync.
-	LastSync = stats.Int64(
-		LastSyncName,
-		"The timestamp of the most recent sync from Git",
-		stats.UnitDimensionless)
+	LastSync metric.Int64Gauge
 
 	// DeclaredResources metric measures the number of declared resources parsed from Git.
-	DeclaredResources = stats.Int64(
-		DeclaredResourcesName,
-		"The number of declared resources parsed from Git",
-		stats.UnitDimensionless)
+	DeclaredResources metric.Int64Gauge
 
 	// ApplyOperations metric measures the number of applier apply events.
-	ApplyOperations = stats.Int64(
-		ApplyOperationsName,
-		"The number of operations that have been performed to sync resources to source of truth",
-		stats.UnitDimensionless)
+	ApplyOperations metric.Int64Counter
 
 	// ApplyDuration metric measures the latency of applier apply events.
-	ApplyDuration = stats.Float64(
-		ApplyDurationName,
-		"The duration of applier events in seconds",
-		stats.UnitSeconds)
+	ApplyDuration metric.Float64Histogram
 
 	// ResourceFights metric measures the number of resource fights.
-	ResourceFights = stats.Int64(
-		ResourceFightsName,
-		"The number of resources that are being synced too frequently",
-		stats.UnitDimensionless)
+	ResourceFights metric.Int64Counter
 
 	// RemediateDuration metric measures the latency of remediator reconciliation events.
-	RemediateDuration = stats.Float64(
-		RemediateDurationName,
-		"The duration of remediator reconciliation events",
-		stats.UnitSeconds)
+	RemediateDuration metric.Float64Histogram
 
 	// LastApply metric measures the timestamp of the most recent applier apply event.
-	LastApply = stats.Int64(
-		LastApplyName,
-		"The timestamp of the most recent applier event",
-		stats.UnitDimensionless)
+	LastApply metric.Int64Gauge
 
 	// ResourceConflicts metric measures the number of resource conflicts.
-	ResourceConflicts = stats.Int64(
-		ResourceConflictsName,
-		"The number of resource conflicts resulting from a mismatch between the cached resources and cluster resources",
-		stats.UnitDimensionless)
+	ResourceConflicts metric.Int64Counter
 
 	// InternalErrors metric measures the number of unexpected internal errors triggered by defensive checks in Config Sync.
-	InternalErrors = stats.Int64(
-		InternalErrorsName,
-		"The number of internal errors triggered by Config Sync",
-		stats.UnitDimensionless)
+	InternalErrors metric.Int64Counter
 )
+
+// InitializeOTelMetrics initializes OpenTelemetry metrics instruments
+func InitializeOTelMetrics() error {
+	klog.V(5).Infof("METRIC DEBUG: Initializing OpenTelemetry metrics instruments")
+
+	meter := otel.Meter("config-sync")
+	klog.V(5).Infof("METRIC DEBUG: Created meter: config-sync")
+
+	var err error
+
+	// Initialize histogram instruments
+	APICallDuration, err = meter.Float64Histogram(
+		APICallDurationName,
+		metric.WithDescription("The duration of API server calls in seconds"),
+		metric.WithUnit("s"),
+	)
+	if err != nil {
+		klog.V(5).ErrorS(err, "METRIC DEBUG: Failed to create APICallDuration histogram")
+		return err
+	}
+	klog.V(5).Infof("METRIC DEBUG: Created APICallDuration histogram: %s", APICallDurationName)
+
+	ReconcileDuration, err = meter.Float64Histogram(
+		ReconcileDurationName,
+		metric.WithDescription("The duration of reconcile events in seconds"),
+		metric.WithUnit("s"),
+	)
+	if err != nil {
+		return err
+	}
+
+	ParserDuration, err = meter.Float64Histogram(
+		ParserDurationName,
+		metric.WithDescription("The duration of the parse-apply-watch loop in seconds"),
+		metric.WithUnit("s"),
+	)
+	if err != nil {
+		return err
+	}
+
+	ApplyDuration, err = meter.Float64Histogram(
+		ApplyDurationName,
+		metric.WithDescription("The duration of applier events in seconds"),
+		metric.WithUnit("s"),
+	)
+	if err != nil {
+		return err
+	}
+
+	RemediateDuration, err = meter.Float64Histogram(
+		RemediateDurationName,
+		metric.WithDescription("The duration of remediator reconciliation events"),
+		metric.WithUnit("s"),
+	)
+	if err != nil {
+		return err
+	}
+
+	// Initialize gauge instruments
+	ReconcilerErrors, err = meter.Int64Gauge(
+		ReconcilerErrorsName,
+		metric.WithDescription("The number of errors in the reconciler"),
+	)
+	if err != nil {
+		return err
+	}
+
+	PipelineError, err = meter.Int64Gauge(
+		PipelineErrorName,
+		metric.WithDescription("A boolean value indicates if error happened at readiness stage when syncing a commit"),
+	)
+	if err != nil {
+		return err
+	}
+
+	LastSync, err = meter.Int64Gauge(
+		LastSyncName,
+		metric.WithDescription("The timestamp of the most recent sync from Git"),
+	)
+	if err != nil {
+		return err
+	}
+
+	DeclaredResources, err = meter.Int64Gauge(
+		DeclaredResourcesName,
+		metric.WithDescription("The number of declared resources parsed from Git"),
+	)
+	if err != nil {
+		return err
+	}
+
+	LastApply, err = meter.Int64Gauge(
+		LastApplyName,
+		metric.WithDescription("The timestamp of the most recent applier event"),
+	)
+	if err != nil {
+		return err
+	}
+
+	// Initialize counter instruments
+	ApplyOperations, err = meter.Int64Counter(
+		ApplyOperationsName,
+		metric.WithDescription("The number of operations that have been performed to sync resources to source of truth"),
+	)
+	if err != nil {
+		return err
+	}
+
+	ResourceFights, err = meter.Int64Counter(
+		ResourceFightsName,
+		metric.WithDescription("The number of resources that are being synced too frequently"),
+	)
+	if err != nil {
+		return err
+	}
+
+	ResourceConflicts, err = meter.Int64Counter(
+		ResourceConflictsName,
+		metric.WithDescription("The number of resource conflicts resulting from a mismatch between the cached resources and cluster resources"),
+	)
+	if err != nil {
+		return err
+	}
+
+	InternalErrors, err = meter.Int64Counter(
+		InternalErrorsName,
+		metric.WithDescription("The number of internal errors triggered by Config Sync"),
+	)
+	if err != nil {
+		klog.V(5).ErrorS(err, "METRIC DEBUG: Failed to create InternalErrors counter")
+		return err
+	}
+	klog.V(5).Infof("METRIC DEBUG: Created InternalErrors counter: %s", InternalErrorsName)
+
+	klog.V(5).Infof("METRIC DEBUG: Successfully initialized all OpenTelemetry metrics instruments")
+	return nil
+}

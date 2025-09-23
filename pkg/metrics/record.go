@@ -22,151 +22,186 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
 	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
 	"github.com/GoogleContainerTools/config-sync/pkg/status"
-	"go.opencensus.io/stats"
-	"go.opencensus.io/tag"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"k8s.io/klog/v2"
 )
 
-func record(ctx context.Context, ms ...stats.Measurement) {
-	stats.Record(ctx, ms...)
-	if klog.V(5).Enabled() {
-		for _, m := range ms {
-			klog.Infof("Metric recorded: { \"Name\": %q, \"Value\": %#v, \"Tags\": %s }", m.Measure().Name(), m.Value(), tag.FromContext(ctx))
-		}
-	}
-}
-
 // RecordAPICallDuration produces a measurement for the APICallDuration view.
 func RecordAPICallDuration(ctx context.Context, operation, status string, startTime time.Time) {
-	tagCtx, _ := tag.New(ctx,
-		tag.Upsert(KeyOperation, operation),
-		tag.Upsert(KeyStatus, status))
-	measurement := APICallDuration.M(time.Since(startTime).Seconds())
-	record(tagCtx, measurement)
+	attrs := []attribute.KeyValue{
+		KeyOperation.String(operation),
+		KeyStatus.String(status),
+	}
+	duration := time.Since(startTime).Seconds()
+
+	// Check if metric is initialized
+	if APICallDuration == nil {
+		klog.Errorf("APICallDuration metric is not initialized!")
+		return
+	}
+
+	APICallDuration.Record(ctx, duration, metric.WithAttributes(attrs...))
+
+	klog.V(5).Infof("METRIC DEBUG: Recorded APICallDuration - Name: %q, Value: %f, Operation: %q, Status: %q",
+		APICallDurationName, duration, operation, status)
 }
 
 // RecordReconcilerErrors produces a measurement for the ReconcilerErrors view.
 func RecordReconcilerErrors(ctx context.Context, component string, errs []v1beta1.ConfigSyncError) {
+	// Check if metric is initialized
+	if ReconcilerErrors == nil {
+		klog.Errorf("ReconcilerErrors metric is not initialized!")
+		return
+	}
+
 	errorCountByClass := status.CountErrorByClass(errs)
 	var supportedErrorClasses = []string{"1xxx", "2xxx", "9xxx"}
+
+	klog.V(5).Infof("METRIC DEBUG: Recording ReconcilerErrors - Component: %q, Total errors: %d", component, len(errs))
+
 	for _, errorclass := range supportedErrorClasses {
 		var errorCount int64
 		if v, ok := errorCountByClass[errorclass]; ok {
 			errorCount = v
 		}
-		tagCtx, _ := tag.New(ctx,
-			tag.Upsert(KeyComponent, component),
-			tag.Upsert(KeyErrorClass, errorclass),
-		)
-		measurement := ReconcilerErrors.M(errorCount)
-		record(tagCtx, measurement)
+		attrs := []attribute.KeyValue{
+			KeyComponent.String(component),
+			KeyErrorClass.String(errorclass),
+		}
+		ReconcilerErrors.Record(ctx, errorCount, metric.WithAttributes(attrs...))
+
+		klog.V(5).Infof("METRIC DEBUG: Recorded ReconcilerErrors - Component: %q, ErrorClass: %q, Count: %d",
+			component, errorclass, errorCount)
 	}
 }
 
 // RecordPipelineError produces a measurement for the PipelineError view
 func RecordPipelineError(ctx context.Context, reconcilerType, component string, errLen int) {
-	reconcilerName := os.Getenv(reconcilermanager.ReconcilerNameKey)
-	tagCtx, _ := tag.New(ctx,
-		tag.Upsert(KeyName, reconcilerName),
-		tag.Upsert(KeyReconcilerType, reconcilerType),
-		tag.Upsert(KeyComponent, component))
-	if errLen > 0 {
-		record(tagCtx, PipelineError.M(1))
-	} else {
-		record(tagCtx, PipelineError.M(0))
+	// Check if metric is initialized
+	if PipelineError == nil {
+		klog.Errorf("PipelineError metric is not initialized!")
+		return
 	}
+
+	reconcilerName := os.Getenv(reconcilermanager.ReconcilerNameKey)
+	attrs := []attribute.KeyValue{
+		KeyName.String(reconcilerName),
+		KeyReconcilerType.String(reconcilerType),
+		KeyComponent.String(component),
+	}
+	var metricVal int64
+	if errLen > 0 {
+		metricVal = 1
+	} else {
+		metricVal = 0
+	}
+	PipelineError.Record(ctx, metricVal, metric.WithAttributes(attrs...))
+
+	klog.V(5).Infof("METRIC DEBUG: Recorded PipelineError - ReconcilerType: %q, Component: %q, ReconcilerName: %q, ErrorLen: %d, Value: %d",
+		reconcilerType, component, reconcilerName, errLen, metricVal)
 }
 
 // RecordReconcileDuration produces a measurement for the ReconcileDuration view.
 func RecordReconcileDuration(ctx context.Context, status string, startTime time.Time) {
-	tagCtx, _ := tag.New(ctx, tag.Upsert(KeyStatus, status))
-	measurement := ReconcileDuration.M(time.Since(startTime).Seconds())
-	record(tagCtx, measurement)
+	attrs := []attribute.KeyValue{
+		KeyStatus.String(status),
+	}
+	duration := time.Since(startTime).Seconds()
+	klog.V(5).Infof("METRIC DEBUG: Recording ReconcileDuration: status=%s, duration=%.3fs", status, duration)
+	ReconcileDuration.Record(ctx, duration, metric.WithAttributes(attrs...))
 }
 
 // RecordParserDuration produces a measurement for the ParserDuration view.
 func RecordParserDuration(ctx context.Context, trigger, source, status string, startTime time.Time) {
-	tagCtx, _ := tag.New(ctx, tag.Upsert(KeyStatus, status), tag.Upsert(KeyTrigger, trigger), tag.Upsert(KeyParserSource, source))
-	measurement := ParserDuration.M(time.Since(startTime).Seconds())
-	record(tagCtx, measurement)
+	attrs := []attribute.KeyValue{
+		KeyStatus.String(status),
+		KeyTrigger.String(trigger),
+		KeyParserSource.String(source),
+	}
+	duration := time.Since(startTime).Seconds()
+	klog.V(5).Infof("METRIC DEBUG: Recording ParserDuration: trigger=%s, source=%s, status=%s, duration=%.3fs", trigger, source, status, duration)
+	ParserDuration.Record(ctx, duration, metric.WithAttributes(attrs...))
 }
 
 // RecordLastSync produces a measurement for the LastSync view.
 func RecordLastSync(ctx context.Context, status, commit string, timestamp time.Time) {
-	tagCtx, _ := tag.New(ctx,
-		tag.Upsert(KeyStatus, status),
-		tag.Upsert(KeyCommit, commit))
-	measurement := LastSync.M(timestamp.Unix())
-	record(tagCtx, measurement)
+	attrs := []attribute.KeyValue{
+		KeyStatus.String(status),
+		KeyCommit.String(commit),
+	}
+	klog.V(5).Infof("METRIC DEBUG: Recording LastSync: status=%s, commit=%s, timestamp=%d", status, commit, timestamp.Unix())
+	LastSync.Record(ctx, timestamp.Unix(), metric.WithAttributes(attrs...))
 }
 
 // RecordDeclaredResources produces a measurement for the DeclaredResources view.
 func RecordDeclaredResources(ctx context.Context, commit string, numResources int) {
-	tagCtx, _ := tag.New(ctx,
-		tag.Upsert(KeyCommit, commit))
-	measurement := DeclaredResources.M(int64(numResources))
-	record(tagCtx, measurement)
+	attrs := []attribute.KeyValue{
+		KeyCommit.String(commit),
+	}
+	klog.V(5).Infof("METRIC DEBUG: Recording DeclaredResources: commit=%s, numResources=%d", commit, numResources)
+	DeclaredResources.Record(ctx, int64(numResources), metric.WithAttributes(attrs...))
 }
 
 // RecordApplyOperation produces a measurement for the ApplyOperations view.
 func RecordApplyOperation(ctx context.Context, controller, operation, status string) {
-	tagCtx, _ := tag.New(ctx,
-		//tag.Upsert(KeyName, GetResourceLabels()),
-		tag.Upsert(KeyOperation, operation),
-		tag.Upsert(KeyController, controller),
-		tag.Upsert(KeyStatus, status))
-	measurement := ApplyOperations.M(1)
-	record(tagCtx, measurement)
+	attrs := []attribute.KeyValue{
+		KeyOperation.String(operation),
+		KeyController.String(controller),
+		KeyStatus.String(status),
+	}
+	klog.V(5).Infof("METRIC DEBUG: Recording ApplyOperation: controller=%s, operation=%s, status=%s", controller, operation, status)
+	ApplyOperations.Add(ctx, 1, metric.WithAttributes(attrs...))
 }
 
 // RecordApplyDuration produces measurements for the ApplyDuration and LastApplyTimestamp views.
 func RecordApplyDuration(ctx context.Context, status, commit string, startTime time.Time) {
 	if commit == "" {
 		// TODO: Remove default value when otel-collector supports empty tag values correctly.
-		commit = CommitNone
+		commit = "NONE"
 	}
 	now := time.Now()
-	tagCtx, _ := tag.New(ctx,
-		tag.Upsert(KeyStatus, status),
-		tag.Upsert(KeyCommit, commit),
-	)
-	durationMeasurement := ApplyDuration.M(now.Sub(startTime).Seconds())
-	lastApplyMeasurement := LastApply.M(now.Unix())
-	record(tagCtx, durationMeasurement, lastApplyMeasurement)
+	attrs := []attribute.KeyValue{
+		KeyStatus.String(status),
+		KeyCommit.String(commit),
+	}
+
+	duration := now.Sub(startTime).Seconds()
+	klog.V(5).Infof("METRIC DEBUG: Recording ApplyDuration: status=%s, commit=%s, duration=%.3fs", status, commit, duration)
+	ApplyDuration.Record(ctx, duration, metric.WithAttributes(attrs...))
+	LastApply.Record(ctx, now.Unix(), metric.WithAttributes(attrs...))
 }
 
 // RecordResourceFight produces measurements for the ResourceFights view.
 func RecordResourceFight(ctx context.Context, _ string) {
-	//tagCtx, _ := tag.New(ctx,
-	//tag.Upsert(KeyName, GetResourceLabels()),
-	//tag.Upsert(KeyOperation, operation),
-	//)
-	measurement := ResourceFights.M(1)
-	record(ctx, measurement)
+	klog.V(5).Infof("METRIC DEBUG: Recording ResourceFight")
+	ResourceFights.Add(ctx, 1)
 }
 
 // RecordRemediateDuration produces measurements for the RemediateDuration view.
 func RecordRemediateDuration(ctx context.Context, status string, startTime time.Time) {
-	tagCtx, _ := tag.New(ctx,
-		tag.Upsert(KeyStatus, status),
-	)
-	measurement := RemediateDuration.M(time.Since(startTime).Seconds())
-	record(tagCtx, measurement)
+	attrs := []attribute.KeyValue{
+		KeyStatus.String(status),
+	}
+	duration := time.Since(startTime).Seconds()
+	klog.V(5).Infof("METRIC DEBUG: Recording RemediateDuration: status=%s, duration=%.3fs", status, duration)
+	RemediateDuration.Record(ctx, duration, metric.WithAttributes(attrs...))
 }
 
 // RecordResourceConflict produces measurements for the ResourceConflicts view.
 func RecordResourceConflict(ctx context.Context, commit string) {
-	tagCtx, _ := tag.New(ctx,
-		// tag.Upsert(KeyName, GetResourceLabels()),
-		tag.Upsert(KeyCommit, commit),
-	)
-	measurement := ResourceConflicts.M(1)
-	record(tagCtx, measurement)
+	attrs := []attribute.KeyValue{
+		KeyCommit.String(commit),
+	}
+	klog.V(5).Infof("METRIC DEBUG: Recording ResourceConflict: commit=%s", commit)
+	ResourceConflicts.Add(ctx, 1, metric.WithAttributes(attrs...))
 }
 
 // RecordInternalError produces measurements for the InternalErrors view.
 func RecordInternalError(ctx context.Context, source string) {
-	tagCtx, _ := tag.New(ctx, tag.Upsert(KeyInternalErrorSource, source))
-	measurement := InternalErrors.M(1)
-	record(tagCtx, measurement)
+	attrs := []attribute.KeyValue{
+		KeyInternalErrorSource.String(source),
+	}
+	klog.V(5).Infof("METRIC DEBUG: Recording InternalError: source=%s", source)
+	InternalErrors.Add(ctx, 1, metric.WithAttributes(attrs...))
 }

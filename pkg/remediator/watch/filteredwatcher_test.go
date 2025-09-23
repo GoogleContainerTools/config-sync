@@ -31,6 +31,7 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/syncer/reconcile"
 	"github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest"
 	testfake "github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest/fake"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testmetrics"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -373,6 +374,8 @@ func TestFilteredWatcher(t *testing.T) {
 			},
 		},
 	}
+
+	_ = testmetrics.NewTestExporter()
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
