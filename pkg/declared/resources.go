@@ -21,7 +21,6 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/core"
 	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
 	"github.com/GoogleContainerTools/config-sync/pkg/metrics"
-	"github.com/GoogleContainerTools/config-sync/pkg/remediator/queue"
 	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	"github.com/GoogleContainerTools/config-sync/pkg/syncer/reconcile"
 	"github.com/GoogleContainerTools/config-sync/pkg/util/clusterconfig"
@@ -45,77 +44,10 @@ type Resources struct {
 	// this reference; it should be treated as read-only from then on.
 	declaredObjectsMap *orderedmap.OrderedMap[core.ID, *unstructured.Unstructured]
 
-	// mutationIgnoredObjectsMap is a map of object IDs to the cluster-state of mutation-ignored objects.
-	// The cluster-state is initialized by the applier and updated by the remediator.
-	mutationIgnoredObjectsMap *orderedmap.OrderedMap[core.ID, client.Object]
-
 	// commit of the source in which the resources were declared
 	commit string
 	// previousCommit is the preceding commit to the commit
 	previousCommit string
-}
-
-// UpdateIgnored performs an atomic update on the resource ignore mutation set.
-func (r *Resources) UpdateIgnored(objs ...client.Object) {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-	if r.mutationIgnoredObjectsMap == nil {
-		r.mutationIgnoredObjectsMap = orderedmap.NewOrderedMap[core.ID, client.Object]()
-	}
-
-	for _, o := range objs {
-		if _, wasDeleted := o.(*queue.Deleted); wasDeleted {
-			r.mutationIgnoredObjectsMap.Set(core.IDOf(o), o)
-		} else {
-			u, _ := reconcile.AsUnstructuredSanitized(o)
-			r.mutationIgnoredObjectsMap.Set(core.IDOf(u), u)
-		}
-	}
-
-}
-
-// GetIgnored returns a copy of a declared object that has the ignore mutation annotation
-func (r *Resources) GetIgnored(id core.ID) (client.Object, bool) {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
-	if r.mutationIgnoredObjectsMap == nil || r.mutationIgnoredObjectsMap.Len() == 0 {
-		return nil, false
-	}
-
-	o, found := r.mutationIgnoredObjectsMap.Get(id)
-
-	if found {
-		oCopy := o.DeepCopyObject().(client.Object)
-		return oCopy, found
-	}
-
-	return o, found
-}
-
-// IgnoredObjects returns a slice with a copy of all ignore-mutation objects in the ignoredObjsMap
-func (r *Resources) IgnoredObjects() []client.Object {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
-	if r.mutationIgnoredObjectsMap == nil || r.mutationIgnoredObjectsMap.Len() == 0 {
-		return nil
-	}
-
-	var objects []client.Object
-	for pair := r.mutationIgnoredObjectsMap.Front(); pair != nil; pair = pair.Next() {
-		objects = append(objects, pair.Value.DeepCopyObject().(client.Object))
-	}
-	return objects
-}
-
-// DeleteIgnored deletes an ignore-mutation object from the ignored cache
-func (r *Resources) DeleteIgnored(id core.ID) bool {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-	if r.mutationIgnoredObjectsMap == nil || r.mutationIgnoredObjectsMap.Len() == 0 {
-		return false
-	}
-
-	return r.mutationIgnoredObjectsMap.Delete(id)
 }
 
 // UpdateDeclared performs an atomic update on the resource declaration set.

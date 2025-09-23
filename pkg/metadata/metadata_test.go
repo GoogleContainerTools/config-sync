@@ -231,6 +231,7 @@ func TestUpdateConfigSyncMetadata(t *testing.T) {
 		fromObj     client.Object
 		toObj       client.Object
 		expectedObj client.Object
+		updated     bool
 	}{
 		{
 			name:        "fromObj + toObj don't have CS metadata",
@@ -243,18 +244,21 @@ func TestUpdateConfigSyncMetadata(t *testing.T) {
 			fromObj:     k8sobjects.NamespaceObject("test-ns", syncertest.IgnoreMutationAnnotation, syncertest.ManagementEnabled),
 			toObj:       k8sobjects.NamespaceObject("test-ns"),
 			expectedObj: k8sobjects.NamespaceObject("test-ns", syncertest.IgnoreMutationAnnotation, syncertest.ManagementEnabled),
+			updated:     true,
 		},
 		{
 			name:        "fromObj doesn't have the ignore mutation annotation but toObj does",
 			fromObj:     k8sobjects.NamespaceObject("test-ns", syncertest.ManagementEnabled),
 			toObj:       k8sobjects.NamespaceObject("test-ns", syncertest.IgnoreMutationAnnotation),
 			expectedObj: k8sobjects.NamespaceObject("test-ns", syncertest.ManagementEnabled, syncertest.IgnoreMutationAnnotation),
+			updated:     true,
 		},
 		{
 			name:        "fromObj doesn't have a non-CS annotation but toObj does",
 			fromObj:     k8sobjects.NamespaceObject("test-ns", syncertest.ManagementEnabled),
 			toObj:       k8sobjects.NamespaceObject("test-ns", syncertest.IgnoreMutationAnnotation, core.Annotation("foo", "bar")),
 			expectedObj: k8sobjects.NamespaceObject("test-ns", syncertest.ManagementEnabled, syncertest.IgnoreMutationAnnotation, core.Annotation("foo", "bar")),
+			updated:     true,
 		},
 	}
 
@@ -262,8 +266,9 @@ func TestUpdateConfigSyncMetadata(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			toObj, err := kinds.ObjectAsClientObject(tc.toObj.DeepCopyObject())
 			require.NoError(t, err)
-			metadata.UpdateConfigSyncMetadata(tc.fromObj, toObj)
+			updated := metadata.UpdateConfigSyncMetadata(tc.fromObj, toObj)
 			testutil.AssertEqual(t, tc.expectedObj, toObj)
+			require.Equal(t, tc.updated, updated)
 		})
 	}
 }
