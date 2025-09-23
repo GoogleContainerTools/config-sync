@@ -24,15 +24,19 @@ import (
 	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/taskgroup"
 	nomostesting "github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
 	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testpredicates"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testresourcegroup"
 	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testwatcher"
 	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
 	"github.com/GoogleContainerTools/config-sync/pkg/core"
 	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
 	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
 	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
 	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	kstatus "sigs.k8s.io/cli-utils/pkg/kstatus/status"
 )
 
@@ -250,6 +254,10 @@ func TestMutationIgnoredObjectPruned(t *testing.T) {
 func TestAnnotationDrift(t *testing.T) {
 	nt := nomostest.New(t, nomostesting.DriftControl, ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured))
 	rootSyncGitRepo := nt.SyncSourceGitReadWriteRepository(nomostest.DefaultRootSyncID)
+	rgNN := types.NamespacedName{
+		Name:      nomostest.DefaultRootSyncID.Name,
+		Namespace: nomostest.DefaultRootSyncID.Namespace,
+	}
 
 	nt.T.Log("Adding namespace to Git")
 	namespace := k8sobjects.NamespaceObject("bookstore",
@@ -287,9 +295,77 @@ func TestAnnotationDrift(t *testing.T) {
 	nsObj2 := k8sobjects.NamespaceObject("new-ns")
 	nt.Must(rootSyncGitRepo.Add("acme/ns2.yaml", nsObj2))
 	nt.Must(rootSyncGitRepo.CommitAndPush("add another namespace"))
-	nt.Must(nt.WatchForAllSyncs())
-	secondCommitHash := rootSyncGitRepo.MustHash(nt.T)
+	nt.Must(nt.WatchForAllSyncs(nomostest.SkipAllResourceGroupChecks()))
+	// Explicitly verify ResourceGroup status. The mutation-ignored object should
+	// have "Skipped" actuation status
+	shortCommit := resourcegroup.TruncateSourceHash(rootSyncGitRepo.MustHash(nt.T))
+	expectedStatus := testresourcegroup.EmptyStatus()
+	expectedStatus.ObservedGeneration = 6
+	expectedStatus.ResourceStatuses = []v1alpha1.ResourceStatus{
+		{
+			ObjMetadata: v1alpha1.ObjMetadata{
+				Name: "safety-config-management-system-root-sync",
+				GroupKind: v1alpha1.GroupKind{
+					Kind: "Namespace",
+				},
+			},
+			Status:     v1alpha1.Current,
+			Strategy:   v1alpha1.Apply,
+			Actuation:  v1alpha1.ActuationSucceeded,
+			Reconcile:  v1alpha1.ReconcileSucceeded,
+			SourceHash: shortCommit,
+			Conditions: nil,
+		},
+		{
+			ObjMetadata: v1alpha1.ObjMetadata{
+				Name: "new-ns",
+				GroupKind: v1alpha1.GroupKind{
+					Kind: "Namespace",
+				},
+			},
+			Status:     v1alpha1.Current,
+			Strategy:   v1alpha1.Apply,
+			Actuation:  v1alpha1.ActuationSucceeded,
+			Reconcile:  v1alpha1.ReconcileSucceeded,
+			SourceHash: shortCommit,
+			Conditions: nil,
+		},
+		{
+			ObjMetadata: v1alpha1.ObjMetadata{
+				Name: "safety-config-management-system-root-sync",
+				GroupKind: v1alpha1.GroupKind{
+					Kind:  "ClusterRole",
+					Group: "rbac.authorization.k8s.io",
+				},
+			},
+			Status:     v1alpha1.Current,
+			Strategy:   v1alpha1.Apply,
+			Actuation:  v1alpha1.ActuationSucceeded,
+			Reconcile:  v1alpha1.ReconcileSucceeded,
+			SourceHash: shortCommit,
+			Conditions: nil,
+		},
+		{
+			ObjMetadata: v1alpha1.ObjMetadata{
+				Name: "bookstore",
+				GroupKind: v1alpha1.GroupKind{
+					Kind: "Namespace",
+				},
+			},
+			Status:     v1alpha1.Current,
+			Strategy:   v1alpha1.Apply,
+			Actuation:  v1alpha1.ActuationSkipped, // ActuationSkipped for ignore-mutation object
+			Reconcile:  v1alpha1.ReconcileSucceeded,
+			SourceHash: shortCommit,
+			Conditions: nil,
+		},
+	}
+	nt.Must(nt.Watcher.WatchObject(kinds.ResourceGroup(), rgNN.Name, rgNN.Namespace,
+		testwatcher.WatchPredicates(
+			testpredicates.ResourceGroupStatusEquals(expectedStatus),
+		)))
 
+	secondCommitHash := rootSyncGitRepo.MustHash(nt.T)
 	nt.Must(nt.Watcher.WatchObject(kinds.Namespace(), nsObj.Name, "",
 		testwatcher.WatchPredicates(
 			testpredicates.HasAnnotation(metadata.SyncTokenAnnotationKey, secondCommitHash),

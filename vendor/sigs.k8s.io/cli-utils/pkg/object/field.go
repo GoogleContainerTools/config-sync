@@ -13,8 +13,8 @@ import (
 
 // NestedField gets a value from a KRM map, if it exists, otherwise nil.
 // Fields can be string (map key) or int (array index).
-func NestedField(obj map[string]interface{}, fields ...interface{}) (interface{}, bool, error) {
-	var val interface{} = obj
+func NestedField(obj map[string]any, fields ...any) (any, bool, error) {
+	var val any = obj
 
 	for i, field := range fields {
 		if val == nil {
@@ -22,7 +22,7 @@ func NestedField(obj map[string]interface{}, fields ...interface{}) (interface{}
 		}
 		switch typedField := field.(type) {
 		case string:
-			if m, ok := val.(map[string]interface{}); ok {
+			if m, ok := val.(map[string]any); ok {
 				val, ok = m[typedField]
 				if !ok {
 					// not in map
@@ -32,7 +32,7 @@ func NestedField(obj map[string]interface{}, fields ...interface{}) (interface{}
 				return nil, false, InvalidType(fields[:i+1], val, "map[string]interface{}")
 			}
 		case int:
-			if s, ok := val.([]interface{}); ok {
+			if s, ok := val.([]any); ok {
 				if typedField >= len(s) {
 					// index out of range
 					return nil, false, nil
@@ -50,14 +50,14 @@ func NestedField(obj map[string]interface{}, fields ...interface{}) (interface{}
 
 // InvalidType returns a *Error indicating "invalid value type".  This is used
 // to report malformed values (e.g. found int, expected string).
-func InvalidType(fieldPath []interface{}, value interface{}, validTypes string) *field.Error {
+func InvalidType(fieldPath []any, value any, validTypes string) *field.Error {
 	return Invalid(fieldPath, value,
 		fmt.Sprintf("found type %T, expected %s", value, validTypes))
 }
 
 // Invalid returns a *Error indicating "invalid value".  This is used
 // to report malformed values (e.g. failed regex match, too long, out of bounds).
-func Invalid(fieldPath []interface{}, value interface{}, detail string) *field.Error {
+func Invalid(fieldPath []any, value any, detail string) *field.Error {
 	return &field.Error{
 		Type:     field.ErrorTypeInvalid,
 		Field:    FieldPath(fieldPath),
@@ -68,7 +68,7 @@ func Invalid(fieldPath []interface{}, value interface{}, detail string) *field.E
 
 // NotFound returns a *Error indicating "value not found".  This is
 // used to report failure to find a requested value (e.g. looking up an ID).
-func NotFound(fieldPath []interface{}, value interface{}) *field.Error {
+func NotFound(fieldPath []any, value any) *field.Error {
 	return &field.Error{
 		Type:     field.ErrorTypeNotFound,
 		Field:    FieldPath(fieldPath),
@@ -83,7 +83,7 @@ func NotFound(fieldPath []interface{}, value interface{}) *field.Error {
 // Complex strings will be wrapped with square brackets and double quotes.
 // Integers will be wrapped with square brackets.
 // All other types will be formatted best-effort within square brackets.
-func FieldPath(fieldPath []interface{}) string {
+func FieldPath(fieldPath []any) string {
 	var sb strings.Builder
 	for _, field := range fieldPath {
 		switch typedField := field.(type) {
