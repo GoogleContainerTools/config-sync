@@ -1,0 +1,48 @@
+{
+	"apiVersion": "v1",
+	"items": [
+		{
+			"apiVersion": "apps/v1",
+			"kind": "Deployment",
+			"metadata": {
+				"annotations": {
+					"config.kubernetes.io/origin": "configuredIn: kustomization.yaml\nconfiguredBy:\n  apiVersion: builtin\n  kind: HelmChartInflationGenerator\n",
+					"foo": "baz"
+				},
+				"labels": {
+					"app": "foo",
+					"test-case": "hydration",
+					"version": "1.0.0"
+				},
+				"name": "simple-pause",
+				"namespace": "simple-ns"
+			},
+			"spec": {
+				"selector": {
+					"matchLabels": {
+						"app": "foo",
+						"test-case": "hydration"
+					}
+				},
+				"template": {
+					"metadata": {
+						"labels": {
+							"app": "foo",
+							"test-case": "hydration"
+						}
+					},
+					"spec": {
+						"containers": [
+							{
+								"image": "registry.k8s.io/pause:3.10",
+								"imagePullPolicy": "IfNotPresent",
+								"name": "pause"
+							}
+						]
+					}
+				}
+			}
+		}
+	],
+	"kind": "List"
+}
