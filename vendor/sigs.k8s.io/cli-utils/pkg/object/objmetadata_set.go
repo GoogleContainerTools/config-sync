@@ -6,6 +6,7 @@ package object
 
 import (
 	"hash/fnv"
+	"slices"
 	"sort"
 	"strconv"
 )
@@ -54,12 +55,7 @@ func (setA ObjMetadataSet) Equal(setB ObjMetadataSet) bool {
 
 // Contains checks if the provided ObjMetadata exists in the set.
 func (setA ObjMetadataSet) Contains(id ObjMetadata) bool {
-	for _, om := range setA {
-		if om == id {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(setA, id)
 }
 
 // Remove the object from the set and return the updated set.
@@ -75,13 +71,7 @@ func (setA ObjMetadataSet) Remove(obj ObjMetadata) ObjMetadataSet {
 
 // Intersection returns the set of unique objects in both set A and set B.
 func (setA ObjMetadataSet) Intersection(setB ObjMetadataSet) ObjMetadataSet {
-	var maxlen int
-	if len(setA) > len(setB) {
-		maxlen = len(setA)
-	} else {
-		maxlen = len(setB)
-	}
-	mapI := make(map[ObjMetadata]struct{}, maxlen)
+	mapI := make(map[ObjMetadata]struct{}, max(len(setA), len(setB)))
 	mapB := setB.ToMap()
 	for _, a := range setA {
 		if _, ok := mapB[a]; ok {

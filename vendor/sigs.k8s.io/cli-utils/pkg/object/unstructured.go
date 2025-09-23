@@ -132,14 +132,14 @@ func LookupResourceScope(u *unstructured.Unstructured, crds []*unstructured.Unst
 			return nil, err
 		}
 		if !found || group == "" {
-			return nil, NotFound([]interface{}{"spec", "group"}, group)
+			return nil, NotFound([]any{"spec", "group"}, group)
 		}
 		kind, found, err := NestedField(crd.Object, "spec", "names", "kind")
 		if err != nil {
 			return nil, err
 		}
 		if !found || kind == "" {
-			return nil, NotFound([]interface{}{"spec", "kind"}, group)
+			return nil, NotFound([]any{"spec", "kind"}, group)
 		}
 		if gvk.Kind != kind || gvk.Group != group {
 			continue
@@ -163,7 +163,7 @@ func LookupResourceScope(u *unstructured.Unstructured, crds []*unstructured.Unst
 		case "Cluster":
 			return meta.RESTScopeRoot, nil
 		default:
-			return nil, Invalid([]interface{}{"spec", "scope"}, scopeName,
+			return nil, Invalid([]any{"spec", "scope"}, scopeName,
 				"expected Namespaced or Cluster")
 		}
 	}
@@ -178,14 +178,14 @@ func crdDefinesVersion(crd *unstructured.Unstructured, version string) (bool, er
 		return false, err
 	}
 	if !found {
-		return false, NotFound([]interface{}{"spec", "versions"}, versions)
+		return false, NotFound([]any{"spec", "versions"}, versions)
 	}
-	versionsSlice, ok := versions.([]interface{})
+	versionsSlice, ok := versions.([]any)
 	if !ok {
-		return false, InvalidType([]interface{}{"spec", "versions"}, versions, "[]interface{}")
+		return false, InvalidType([]any{"spec", "versions"}, versions, "[]interface{}")
 	}
 	if len(versionsSlice) == 0 {
-		return false, Invalid([]interface{}{"spec", "versions"}, versionsSlice, "must not be empty")
+		return false, Invalid([]any{"spec", "versions"}, versionsSlice, "must not be empty")
 	}
 	for i := range versionsSlice {
 		name, found, err := NestedField(crd.Object, "spec", "versions", i, "name")
@@ -193,7 +193,7 @@ func crdDefinesVersion(crd *unstructured.Unstructured, version string) (bool, er
 			return false, err
 		}
 		if !found {
-			return false, NotFound([]interface{}{"spec", "versions", i, "name"}, name)
+			return false, NotFound([]any{"spec", "versions", i, "name"}, name)
 		}
 		if name == version {
 			return true, nil

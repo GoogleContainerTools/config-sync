@@ -11,7 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/cli-utils/pkg/inventory"
 	"sigs.k8s.io/cli-utils/pkg/object"
 )
@@ -20,7 +20,7 @@ import (
 // if an object should be applied based on the cluster object's inventory id,
 // the id for the inventory object, and the inventory policy.
 type InventoryPolicyApplyFilter struct {
-	Client    dynamic.Interface
+	Client    metadata.Interface
 	Mapper    meta.RESTMapper
 	Inv       inventory.Info
 	InvPolicy inventory.Policy
@@ -55,7 +55,7 @@ func (ipaf InventoryPolicyApplyFilter) Filter(ctx context.Context, obj *unstruct
 }
 
 // getObject retrieves the passed object from the cluster, or an error if one occurred.
-func (ipaf InventoryPolicyApplyFilter) getObject(ctx context.Context, id object.ObjMetadata) (*unstructured.Unstructured, error) {
+func (ipaf InventoryPolicyApplyFilter) getObject(ctx context.Context, id object.ObjMetadata) (*metav1.PartialObjectMetadata, error) {
 	mapping, err := ipaf.Mapper.RESTMapping(id.GroupKind)
 	if err != nil {
 		return nil, err

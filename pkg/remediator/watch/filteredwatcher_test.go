@@ -32,7 +32,6 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest"
 	testfake "github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest/fake"
 	"github.com/google/go-cmp/cmp"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -388,10 +387,6 @@ func TestFilteredWatcher(t *testing.T) {
 				t.Fatalf("unexpected error %v", err)
 			}
 
-			if tc.ignored != nil {
-				dr.UpdateIgnored(tc.ignored...)
-			}
-
 			watches := make(chan watch.Interface) // TODO: test startWatch errors
 			q := queue.New("test")
 			cfg := watcherConfig{
@@ -444,8 +439,6 @@ func TestFilteredWatcher(t *testing.T) {
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("did not get desired object IDs: %v", diff)
 			}
-
-			assert.Equal(t, tc.expectedCachedIgnored, dr.IgnoredObjects())
 		})
 	}
 }

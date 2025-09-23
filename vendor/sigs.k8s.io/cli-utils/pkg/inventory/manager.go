@@ -117,13 +117,13 @@ func (tc *Manager) AppliedResourceUID(id object.ObjMetadata) (types.UID, bool) {
 
 // AppliedResourceUIDs returns a set with the UIDs of all the
 // successfully applied resources.
-func (tc *Manager) AppliedResourceUIDs() sets.String { // nolint:staticcheck
-	uids := sets.NewString()
+func (tc *Manager) AppliedResourceUIDs() sets.Set[types.UID] { // nolint:staticcheck
+	uids := sets.New[types.UID]()
 	for _, objStatus := range tc.inventory.ObjectStatuses {
 		if objStatus.Strategy == actuation.ActuationStrategyApply &&
 			objStatus.Actuation == actuation.ActuationSucceeded {
 			if objStatus.UID != "" {
-				uids.Insert(string(objStatus.UID))
+				uids.Insert(objStatus.UID)
 			}
 		}
 	}

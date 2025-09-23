@@ -21,28 +21,21 @@ import (
 
 	"github.com/GoogleContainerTools/config-sync/pkg/core"
 	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
-	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
-	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
 	"github.com/GoogleContainerTools/config-sync/pkg/metrics"
 	"github.com/GoogleContainerTools/config-sync/pkg/syncer/reconcile"
-	"github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest"
 	"github.com/GoogleContainerTools/config-sync/pkg/testing/testmetrics"
 	"github.com/google/go-cmp/cmp"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/cli-utils/pkg/testutil"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
-	obj1       = k8sobjects.CustomResourceDefinitionV1Beta1Object()
-	obj2       = k8sobjects.ResourceQuotaObject()
-	ignoredObj = createIgnoredObj()
+	obj1 = k8sobjects.CustomResourceDefinitionV1Beta1Object()
+	obj2 = k8sobjects.ResourceQuotaObject()
 
 	testSet = []client.Object{obj1, obj2}
 	nilSet  = []client.Object{nil}
@@ -235,80 +228,4 @@ func getIDs(objects []client.Object) []core.ID {
 		IDs = append(IDs, core.IDOf(obj))
 	}
 	return IDs
-}
-
-func TestGetIgnored(t *testing.T) {
-	id := core.IDOf(ignoredObj)
-	dr := Resources{}
-
-	o, found := dr.GetIgnored(id)
-	assert.Nil(t, o)
-	assert.False(t, found)
-
-	dr.UpdateIgnored(ignoredObj)
-	o, found = dr.GetIgnored(id)
-
-	expectedO := o.DeepCopyObject().(client.Object)
-	expectedO, _ = reconcile.AsUnstructuredSanitized(expectedO)
-
-	assert.True(t, found)
-	testutil.AssertEqual(t, expectedO, o)
-}
-
-func TestUpdateIgnored(t *testing.T) {
-	dr := Resources{}
-	id := core.IDOf(ignoredObj)
-
-	dr.UpdateIgnored(ignoredObj)
-	o, found := dr.GetIgnored(id)
-	assert.True(t, found)
-
-	o.SetName("new-name")
-	assert.NotEqual(t, "new-name", obj1.Name)
-}
-
-func TestIgnoredObjects(t *testing.T) {
-	dr := Resources{}
-
-	ignoredObjs := dr.IgnoredObjects()
-	assert.Nil(t, ignoredObjs)
-
-	dr.UpdateIgnored(ignoredObj)
-	ignoredObjs = dr.IgnoredObjects()
-
-	cachedIgnoredObj := asUnstructured(t, ignoredObj.DeepCopy())
-	assert.Contains(t, ignoredObjs, cachedIgnoredObj)
-
-	foundObj := ignoredObjs[0]
-	foundObj.SetName("foo")
-	foundObj = asUnstructured(t, foundObj)
-
-	ignoredObjs = dr.IgnoredObjects()
-
-	assert.NotContains(t, ignoredObjs, foundObj, "foundObj shouldn't have been modified in mutationIgnoredObjectsMap")
-}
-
-func TestDeleteIgnored(t *testing.T) {
-	id := core.IDOf(ignoredObj)
-	dr := Resources{}
-	deleted := dr.DeleteIgnored(id)
-	ignored := dr.IgnoredObjects()
-
-	assert.False(t, deleted)
-	assert.NotContains(t, ignored, ignoredObj)
-
-	dr.UpdateIgnored(ignoredObj)
-	deleted = dr.DeleteIgnored(id)
-	assert.True(t, deleted)
-	assert.NotContains(t, ignored, ignoredObj)
-}
-
-func createIgnoredObj() *unstructured.Unstructured {
-	o := k8sobjects.NamespaceObject("test-ns", syncertest.IgnoreMutationAnnotation) //&corev1.Namespace{TypeMeta: k8sobjects.ToTypeMeta(kinds.Namespace())}
-	o.SetManagedFields([]metav1.ManagedFieldsEntry{{Manager: "foo"}})
-	core.SetAnnotation(o, metadata.LifecycleMutationAnnotation, metadata.IgnoreMutation)
-
-	u, _ := kinds.ToUnstructured(o, core.Scheme)
-	return u
-
 }

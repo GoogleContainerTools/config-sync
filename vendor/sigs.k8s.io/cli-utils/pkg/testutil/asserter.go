@@ -30,7 +30,7 @@ var DefaultAsserter = NewAsserter(cmpopts.EquateErrors())
 
 // EqualMatcher returns a new EqualMatcher with the Asserter's options and the
 // specified expected value.
-func (a *Asserter) EqualMatcher(expected interface{}) *EqualMatcher {
+func (a *Asserter) EqualMatcher(expected any) *EqualMatcher {
 	return &EqualMatcher{
 		Expected: expected,
 		Options:  a.Options,
@@ -39,7 +39,7 @@ func (a *Asserter) EqualMatcher(expected interface{}) *EqualMatcher {
 
 // Equal fails the test if the actual value does not deeply equal the
 // expected value. Prints a diff on failure.
-func (a *Asserter) Equal(t *testing.T, expected, actual interface{}, msgAndArgs ...interface{}) {
+func (a *Asserter) Equal(t *testing.T, expected, actual any, msgAndArgs ...any) {
 	t.Helper() // print the caller's file:line, instead of this func, on failure
 	matcher := a.EqualMatcher(expected)
 	match, err := matcher.Match(actual)
@@ -54,14 +54,14 @@ func (a *Asserter) Equal(t *testing.T, expected, actual interface{}, msgAndArgs 
 
 // AssertEqual fails the test if the actual value does not deeply equal the
 // expected value. Prints a diff on failure.
-func AssertEqual(t *testing.T, expected, actual interface{}, msgAndArgs ...interface{}) {
+func AssertEqual(t *testing.T, expected, actual any, msgAndArgs ...any) {
 	t.Helper() // print the caller's file:line, instead of this func, on failure
 	DefaultAsserter.Equal(t, expected, actual, msgAndArgs...)
 }
 
 // NotEqual fails the test if the actual value deeply equals the
 // expected value. Prints a diff on failure.
-func (a *Asserter) NotEqual(t *testing.T, expected, actual interface{}, msgAndArgs ...interface{}) {
+func (a *Asserter) NotEqual(t *testing.T, expected, actual any, msgAndArgs ...any) {
 	t.Helper() // print the caller's file:line, instead of this func, on failure
 	matcher := a.EqualMatcher(expected)
 	match, err := matcher.Match(actual)
@@ -76,7 +76,7 @@ func (a *Asserter) NotEqual(t *testing.T, expected, actual interface{}, msgAndAr
 
 // AssertNotEqual fails the test if the actual value deeply equals the
 // expected value. Prints a diff on failure.
-func AssertNotEqual(t *testing.T, expected, actual interface{}, msgAndArgs ...interface{}) {
+func AssertNotEqual(t *testing.T, expected, actual any, msgAndArgs ...any) {
 	t.Helper() // print the caller's file:line, instead of this func, on failure
 	DefaultAsserter.NotEqual(t, expected, actual, msgAndArgs...)
 }

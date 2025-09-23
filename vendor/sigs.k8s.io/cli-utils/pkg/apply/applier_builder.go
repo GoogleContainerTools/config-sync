@@ -8,6 +8,7 @@ import (
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/metadata"
 	"k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/cmd/util"
 	"sigs.k8s.io/cli-utils/pkg/apply/info"
@@ -38,12 +39,13 @@ func (b *ApplierBuilder) Build() (*Applier, error) {
 			Client:    bx.client,
 			Mapper:    bx.mapper,
 		},
-		statusWatcher: bx.statusWatcher,
-		invClient:     bx.invClient,
-		client:        bx.client,
-		openAPIGetter: bx.discoClient,
-		mapper:        bx.mapper,
-		infoHelper:    info.NewHelper(bx.mapper, bx.unstructuredClientForMapping),
+		statusWatcher:  bx.statusWatcher,
+		invClient:      bx.invClient,
+		client:         bx.client,
+		metadataClient: bx.metadataClient,
+		openAPIGetter:  bx.discoClient,
+		mapper:         bx.mapper,
+		infoHelper:     info.NewHelper(bx.mapper, bx.unstructuredClientForMapping),
 	}, nil
 }
 
@@ -59,6 +61,11 @@ func (b *ApplierBuilder) WithInventoryClient(invClient inventory.Client) *Applie
 
 func (b *ApplierBuilder) WithDynamicClient(client dynamic.Interface) *ApplierBuilder {
 	b.client = client
+	return b
+}
+
+func (b *ApplierBuilder) WithMetadataClient(client metadata.Interface) *ApplierBuilder {
+	b.metadataClient = client
 	return b
 }
 

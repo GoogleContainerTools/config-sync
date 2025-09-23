@@ -11,6 +11,7 @@ import (
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/metadata"
 	"k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/cmd/util"
 	"sigs.k8s.io/cli-utils/pkg/inventory"
@@ -21,6 +22,7 @@ type commonBuilder struct {
 	// factory is only used to retrieve things that have not been provided explicitly.
 	factory                      util.Factory
 	invClient                    inventory.Client
+	metadataClient               metadata.Interface
 	client                       dynamic.Interface
 	discoClient                  discovery.CachedDiscoveryInterface
 	mapper                       meta.RESTMapper
@@ -70,6 +72,12 @@ func (cb *commonBuilder) finalize() (*commonBuilder, error) {
 		cx.restConfig, err = cx.factory.ToRESTConfig()
 		if err != nil {
 			return nil, fmt.Errorf("error getting rest config: %v", err)
+		}
+	}
+	if cx.metadataClient == nil {
+		cx.metadataClient, err = metadata.NewForConfig(cx.restConfig)
+		if err != nil {
+			return nil, fmt.Errorf("error getting metadata client: %v", err)
 		}
 	}
 	if cx.unstructuredClientForMapping == nil {

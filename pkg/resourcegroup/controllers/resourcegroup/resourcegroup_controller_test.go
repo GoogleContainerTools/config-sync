@@ -482,10 +482,11 @@ func TestReconcileTimeout(t *testing.T) {
 func TestUpdateReconcileStatusToReflectKstatus(t *testing.T) {
 	// Define test cases using a table-driven approach
 	testCases := []struct {
-		name          string
-		status        v1alpha1.ResourceStatus
-		expected      v1alpha1.Reconcile
-		expectedError error
+		name           string
+		status         v1alpha1.ResourceStatus
+		ignoreMutation bool
+		expected       v1alpha1.Reconcile
+		expectedError  error
 	}{
 		// Apply Strategy tests
 		{
@@ -568,6 +569,67 @@ func TestUpdateReconcileStatusToReflectKstatus(t *testing.T) {
 				Actuation: v1alpha1.ActuationSkipped,
 			},
 			expected: v1alpha1.ReconcileSkipped,
+		},
+		{
+			name: "Apply_Skipped_IgnoreMutation_Current",
+			status: v1alpha1.ResourceStatus{
+				Strategy:  v1alpha1.Apply,
+				Actuation: v1alpha1.ActuationSkipped,
+				Status:    v1alpha1.Current,
+			},
+			ignoreMutation: true,
+			expected:       v1alpha1.ReconcileSucceeded,
+		},
+		{
+			name: "Apply_Skipped_IgnoreMutation_InProgress",
+			status: v1alpha1.ResourceStatus{
+				Strategy:  v1alpha1.Apply,
+				Actuation: v1alpha1.ActuationSkipped,
+				Status:    v1alpha1.InProgress,
+			},
+			ignoreMutation: true,
+			expected:       v1alpha1.ReconcilePending,
+		},
+		{
+			name: "Apply_Skipped_IgnoreMutation_Failed",
+			status: v1alpha1.ResourceStatus{
+				Strategy:  v1alpha1.Apply,
+				Actuation: v1alpha1.ActuationSkipped,
+				Status:    v1alpha1.Failed,
+			},
+			ignoreMutation: true,
+			expected:       v1alpha1.ReconcileFailed,
+		},
+		{
+			name: "Apply_Skipped_IgnoreMutation_Terminating",
+			status: v1alpha1.ResourceStatus{
+				Strategy:  v1alpha1.Apply,
+				Actuation: v1alpha1.ActuationSkipped,
+				Status:    v1alpha1.Terminating,
+			},
+			ignoreMutation: true,
+			expected:       v1alpha1.ReconcileFailed,
+		},
+		{
+			name: "Apply_Skipped_IgnoreMutation_NotFound",
+			status: v1alpha1.ResourceStatus{
+				Strategy:  v1alpha1.Apply,
+				Actuation: v1alpha1.ActuationSkipped,
+				Status:    v1alpha1.NotFound,
+			},
+			ignoreMutation: true,
+			expected:       v1alpha1.ReconcileFailed,
+		},
+		{
+			name: "Apply_Skipped_IgnoreMutation_Unknown",
+			status: v1alpha1.ResourceStatus{
+				Strategy:  v1alpha1.Apply,
+				Actuation: v1alpha1.ActuationSkipped,
+				Status:    v1alpha1.Unknown,
+				Reconcile: v1alpha1.ReconcilePending, // Simulate previous reconcile status
+			},
+			ignoreMutation: true,
+			expected:       v1alpha1.ReconcilePending,
 		},
 		{
 			name: "Apply_Failed",
@@ -692,7 +754,7 @@ func TestUpdateReconcileStatusToReflectKstatus(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Call the function under test
-			actual, err := UpdateReconcileStatusToReflectKstatus(tc.status)
+			actual, err := UpdateReconcileStatusToReflectKstatus(tc.status, tc.ignoreMutation)
 			assert.Equal(t, tc.expected, actual)
 			testerrors.AssertEqual(t, tc.expectedError, err)
 		})

@@ -407,7 +407,7 @@ github.com/munnerz/goautoneg
 # github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f
 ## explicit
 github.com/mxk/go-flowrate/flowrate
-# github.com/onsi/gomega v1.38.0
+# github.com/onsi/gomega v1.38.2
 ## explicit; go 1.23.0
 github.com/onsi/gomega/format
 # github.com/open-policy-agent/cert-controller v0.14.0
@@ -1534,7 +1534,7 @@ k8s.io/kubernetes/pkg/apis/rbac/v1
 k8s.io/kubernetes/pkg/apis/rbac/v1beta1
 k8s.io/kubernetes/pkg/features
 k8s.io/kubernetes/pkg/util/parsers
-# k8s.io/utils v0.0.0-20250604170112-4c0f3b243397
+# k8s.io/utils v0.0.0-20250820121507-0af2bda4dd1d
 ## explicit; go 1.18
 k8s.io/utils/buffer
 k8s.io/utils/clock
@@ -1546,8 +1546,8 @@ k8s.io/utils/lru
 k8s.io/utils/net
 k8s.io/utils/ptr
 k8s.io/utils/trace
-# sigs.k8s.io/cli-utils v0.37.3-0.20250410211241-63a8e151c476
-## explicit; go 1.23.0
+# sigs.k8s.io/cli-utils v0.37.3-0.20251021150641-5895ad6c17dd
+## explicit; go 1.24.0
 sigs.k8s.io/cli-utils/pkg/apis/actuation
 sigs.k8s.io/cli-utils/pkg/apply
 sigs.k8s.io/cli-utils/pkg/apply/cache

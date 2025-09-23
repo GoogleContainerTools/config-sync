@@ -22,10 +22,8 @@ import (
 
 	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
 	"github.com/GoogleContainerTools/config-sync/pkg/core"
-	"github.com/GoogleContainerTools/config-sync/pkg/declared"
 	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
 	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
-	"github.com/GoogleContainerTools/config-sync/pkg/remediator/queue"
 	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	syncerreconcile "github.com/GoogleContainerTools/config-sync/pkg/syncer/reconcile"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -47,27 +45,6 @@ func partitionObjs(objs []client.Object) ([]client.Object, []client.Object) {
 		}
 	}
 	return enabled, disabled
-}
-
-// handleIgnoredObjects gets the cached cluster state of all mutation-ignored objects that are declared and applies the CS metadata on top of them
-// prior to sending them to the applier
-// Returns all objects that will be applied
-func handleIgnoredObjects(enabled []client.Object, resources *declared.Resources) []client.Object {
-	var allObjs []client.Object
-
-	for _, dObj := range enabled {
-		cachedObj, found := resources.GetIgnored(core.IDOf(dObj))
-		_, deleted := cachedObj.(*queue.Deleted)
-
-		if found && !deleted {
-			metadata.UpdateConfigSyncMetadata(dObj, cachedObj)
-			allObjs = append(allObjs, cachedObj)
-		} else {
-			allObjs = append(allObjs, dObj)
-		}
-	}
-
-	return allObjs
 }
 
 func toUnstructured(objs []client.Object) ([]*unstructured.Unstructured, status.MultiError) {

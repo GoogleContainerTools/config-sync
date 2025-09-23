@@ -76,7 +76,7 @@ type BasicCondition struct {
 }
 
 // GetObjectWithConditions return typed object
-func GetObjectWithConditions(in map[string]interface{}) (*ObjWithConditions, error) {
+func GetObjectWithConditions(in map[string]any) (*ObjWithConditions, error) {
 	var out = new(ObjWithConditions)
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(in, out)
 	if err != nil {
@@ -100,7 +100,7 @@ func getConditionWithStatus(conditions []BasicCondition, conditionType string, s
 }
 
 // GetStringField return field as string defaulting to value if not found
-func GetStringField(obj map[string]interface{}, fieldPath string, defaultValue string) string {
+func GetStringField(obj map[string]any, fieldPath string, defaultValue string) string {
 	var rv = defaultValue
 
 	fields := strings.Split(fieldPath, ".")
@@ -119,8 +119,10 @@ func GetStringField(obj map[string]interface{}, fieldPath string, defaultValue s
 	return rv
 }
 
-// GetIntField return field as string defaulting to value if not found
-func GetIntField(obj map[string]interface{}, fieldPath string, defaultValue int) int {
+// GetIntField return field as int defaulting to value if not found
+func GetIntField(obj map[string]any, fieldPath string, defaultValue int) int {
+	var rv = defaultValue
+
 	fields := strings.Split(fieldPath, ".")
 	if fields[0] == "" {
 		fields = fields[1:]
@@ -128,7 +130,7 @@ func GetIntField(obj map[string]interface{}, fieldPath string, defaultValue int)
 
 	val, found, err := apiunstructured.NestedFieldNoCopy(obj, fields...)
 	if !found || err != nil {
-		return defaultValue
+		return rv
 	}
 
 	switch v := val.(type) {
@@ -139,5 +141,25 @@ func GetIntField(obj map[string]interface{}, fieldPath string, defaultValue int)
 	case int64:
 		return int(v)
 	}
-	return defaultValue
+	return rv
+}
+
+// GetBoolField return field as boolean defaulting to value if not found
+func GetBoolField(obj map[string]any, fieldPath string, defaultValue bool) bool {
+	var rv = defaultValue
+
+	fields := strings.Split(fieldPath, ".")
+	if fields[0] == "" {
+		fields = fields[1:]
+	}
+
+	val, found, err := apiunstructured.NestedFieldNoCopy(obj, fields...)
+	if !found || err != nil {
+		return rv
+	}
+
+	if v, ok := val.(bool); ok {
+		return v
+	}
+	return rv
 }

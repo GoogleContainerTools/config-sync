@@ -35,7 +35,7 @@ var legacyTypes = map[string]GetConditionsFn{
 	"batch/CronJob":              alwaysReady,
 	"ConfigMap":                  alwaysReady,
 	"batch/Job":                  jobConditions,
-	"apiextensions.k8s.io/CustomResourceDefinition": crdConditions,
+	"apiextensions.k8s.io/CustomResourceDefinition": CRDConditions,
 }
 
 const (
@@ -466,14 +466,14 @@ func podConditions(u *unstructured.Unstructured) (*Result, error) {
 	}
 }
 
-func getCrashLoopingContainers(obj map[string]interface{}) ([]string, bool, error) {
+func getCrashLoopingContainers(obj map[string]any) ([]string, bool, error) {
 	var containerNames []string
 	css, found, err := unstructured.NestedSlice(obj, "status", "containerStatuses")
 	if !found || err != nil {
 		return containerNames, found, err
 	}
 	for _, item := range css {
-		cs := item.(map[string]interface{})
+		cs := item.(map[string]any)
 		n, found := cs["name"]
 		if !found {
 			continue
@@ -483,13 +483,13 @@ func getCrashLoopingContainers(obj map[string]interface{}) ([]string, bool, erro
 		if !found {
 			continue
 		}
-		state := s.(map[string]interface{})
+		state := s.(map[string]any)
 
 		ws, found := state["waiting"]
 		if !found {
 			continue
 		}
-		waitingState := ws.(map[string]interface{})
+		waitingState := ws.(map[string]any)
 
 		r, found := waitingState["reason"]
 		if !found {
@@ -539,6 +539,7 @@ func jobConditions(u *unstructured.Unstructured) (*Result, error) {
 	active := GetIntField(obj, ".status.active", 0)
 	failed := GetIntField(obj, ".status.failed", 0)
 	starttime := GetStringField(obj, ".status.startTime", "")
+	suspended := GetBoolField(obj, ".spec.suspend", false)
 
 	// Conditions
 	// https://github.com/kubernetes/kubernetes/blob/master/pkg/controller/job/utils.go#L24
@@ -561,6 +562,15 @@ func jobConditions(u *unstructured.Unstructured) (*Result, error) {
 			if c.Status == corev1.ConditionTrue {
 				return newFailedStatus("JobFailed",
 					fmt.Sprintf("Job Failed. failed: %d/%d", failed, completions)), nil
+			}
+		// Jobs with spec.suspend=true and a Suspended status, should not be treated as in-progress.
+		case "Suspended":
+			if c.Status == corev1.ConditionTrue && suspended {
+				return &Result{
+					Status:     CurrentStatus,
+					Message:    "Job is suspended",
+					Conditions: []Condition{},
+				}, nil
 			}
 		}
 	}
@@ -598,7 +608,7 @@ func serviceConditions(u *unstructured.Unstructured) (*Result, error) {
 	}, nil
 }
 
-func crdConditions(u *unstructured.Unstructured) (*Result, error) {
+func CRDConditions(u *unstructured.Unstructured) (*Result, error) {
 	obj := u.UnstructuredContent()
 
 	objc, err := GetObjectWithConditions(obj)

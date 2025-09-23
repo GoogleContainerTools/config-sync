@@ -327,7 +327,7 @@ func (w *ObjectStatusReporter) startInformerNow(
 		return err
 	}
 
-	informer := w.InformerFactory.NewInformer(ctx, mapping, gkn.Namespace)
+	informer := w.InformerFactory.NewInformer(mapping, gkn.Namespace)
 
 	w.informerRefs[gkn].SetInformer(informer)
 
@@ -361,7 +361,7 @@ func (w *ObjectStatusReporter) startInformerNow(
 	// Informer will be stopped when the context is cancelled.
 	go func() {
 		klog.V(3).Infof("Watch starting: %v", gkn)
-		informer.Run(ctx.Done())
+		informer.RunWithContext(ctx)
 		klog.V(3).Infof("Watch stopped: %v", gkn)
 		// Signal to the caller there will be no more events for this GroupKind.
 		close(eventCh)
@@ -435,7 +435,7 @@ func (w *ObjectStatusReporter) eventHandler(
 ) cache.ResourceEventHandler {
 	var handler cache.ResourceEventHandlerFuncs
 
-	handler.AddFunc = func(iobj interface{}) {
+	handler.AddFunc = func(iobj any) {
 		// Bail early if the context is cancelled, to avoid unnecessary work.
 		if ctx.Err() != nil {
 			return
@@ -484,7 +484,7 @@ func (w *ObjectStatusReporter) eventHandler(
 		}
 	}
 
-	handler.UpdateFunc = func(_, iobj interface{}) {
+	handler.UpdateFunc = func(_, iobj any) {
 		// Bail early if the context is cancelled, to avoid unnecessary work.
 		if ctx.Err() != nil {
 			return
@@ -533,7 +533,7 @@ func (w *ObjectStatusReporter) eventHandler(
 		}
 	}
 
-	handler.DeleteFunc = func(iobj interface{}) {
+	handler.DeleteFunc = func(iobj any) {
 		// Bail early if the context is cancelled, to avoid unnecessary work.
 		if ctx.Err() != nil {
 			return

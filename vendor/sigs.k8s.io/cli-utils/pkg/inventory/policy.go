@@ -83,7 +83,11 @@ const (
 	NoMatch
 )
 
-func IDMatch(inv Info, obj *unstructured.Unstructured) IDMatchStatus {
+type Annotated interface {
+	GetAnnotations() map[string]string
+}
+
+func IDMatch(inv Info, obj Annotated) IDMatchStatus {
 	annotations := obj.GetAnnotations()
 	value, found := annotations[OwningInventoryKey]
 	if !found {
@@ -95,7 +99,7 @@ func IDMatch(inv Info, obj *unstructured.Unstructured) IDMatchStatus {
 	return NoMatch
 }
 
-func CanApply(inv Info, obj *unstructured.Unstructured, policy Policy) (bool, error) {
+func CanApply(inv Info, obj Annotated, policy Policy) (bool, error) {
 	matchStatus := IDMatch(inv, obj)
 	switch matchStatus {
 	case Empty:

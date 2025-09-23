@@ -103,7 +103,7 @@ func (p *Pruner) Prune(
 		// UID will change if the object is deleted and re-created.
 		uid := obj.GetUID()
 		if uid == "" {
-			err := object.NotFound([]interface{}{"metadata", "uid"}, "")
+			err := object.NotFound([]any{"metadata", "uid"}, "")
 			if klog.V(4).Enabled() {
 				// only log event emitted errors if the verbosity > 4
 				klog.Errorf("prune uid lookup errored (object: %s): %v", id, err)
