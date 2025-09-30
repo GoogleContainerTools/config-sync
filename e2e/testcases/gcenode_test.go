@@ -148,9 +148,17 @@ func TestGCENodeOCI(t *testing.T) {
 	kustomizecomponents.ValidateTenant(nt, repoSyncRef.Namespace, repoSyncRef.Namespace, "base")
 
 	tenant := "tenant-b"
+	image := privateGCRImage("kustomize-components")
 	nt.T.Log("Update RootSync to sync from an OCI image in a private Google Container Registry")
-	nt.MustMergePatch(rootSyncOCI, fmt.Sprintf(`{"spec": {"oci": {"image": "%s", "dir": "%s"}}}`, privateGCRImage("kustomize-components"), tenant))
+	nt.MustMergePatch(rootSyncOCI, fmt.Sprintf(`{"spec": {"oci": {"image": "%s", "dir": "%s"}}}`, image, tenant))
+
+	rootSyncDigest, err := getImageDigest(nt, image)
+	if err != nil {
+		nt.T.Fatal(err)
+	}
+
 	nomostest.SetExpectedSyncPath(nt, rootSyncID, tenant)
+	nomostest.SetExpectedOCIImageDigest(nt, rootSyncID, rootSyncDigest)
 	nt.Must(nt.WatchForAllSyncs())
 	kustomizecomponents.ValidateAllTenants(nt, string(declared.RootScope), "../base", tenant)
 }
