@@ -59,6 +59,10 @@ push-test-oci-images-public: "$(CRANE)"
 	cd $(KUSTOMIZE_COMPONENTS_DIR) && crane append -f <(tar -f - -c .) -t $(KUSTOMIZE_COMPONENTS_PUBLIC_GCR_IMAGE)
 	cd $(KUSTOMIZE_COMPONENTS_DIR) && crane append -f <(tar -f - -c .) -t $(KUSTOMIZE_COMPONENTS_PUBLIC_AR_IMAGE)
 
+.PHONY: push-test-helm-chart-public
+push-test-helm-chart-public: "$(HELM)"
+	./scripts/package-test-helm-chart.sh
+
 # The following targets are used to provision test resources in a prow environment
 
 # kustomize-components private images (per dev/prow env registry)

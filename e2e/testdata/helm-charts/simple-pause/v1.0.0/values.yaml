@@ -1,0 +1,14 @@
+annotations:
+  foo: bar
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: registry.k8s.io/pause
+  pullPolicy: Never
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "3.10"
+  name: "pause"
+
+resources: {}
