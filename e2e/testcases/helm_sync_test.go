@@ -41,7 +41,6 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
 	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation/nonhierarchical"
 	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
-	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -927,16 +926,6 @@ func rootsyncForSimpleHelmChart(nt *nomostest.NT, valuesMutator func(map[string]
 				Raw: out,
 			},
 		},
-	}
-	if nt.IsGKEAutopilot {
-		nt.T.Log("Increasing memory request/limit for helm-sync on Autopilot")
-		rs.Spec.SafeOverride().Resources = []v1beta1.ContainerResourcesSpec{
-			{ // This chart sometimes causes OOMKill on Autopilot with default limit
-				ContainerName: reconcilermanager.HelmSync,
-				MemoryRequest: resource.MustParse("600Mi"),
-				MemoryLimit:   resource.MustParse("600Mi"),
-			},
-		}
 	}
 
 	return rs
