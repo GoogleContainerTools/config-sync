@@ -71,6 +71,7 @@ func ComputeStatus(obj *unstructured.Unstructured) *resourcemap.CachedStatus {
 	// get the inventory ID.
 	inv := getOwningInventory(obj.GetAnnotations())
 	resStatus.InventoryID = inv
+	resStatus.IgnoreMutation = isIgnoreMutationObject(obj.GetAnnotations())
 	return resStatus
 }
 
@@ -128,4 +129,11 @@ func getOwningInventory(annotations map[string]string) string {
 		return ""
 	}
 	return annotations[metadata.OwningInventoryKey]
+}
+
+func isIgnoreMutationObject(annotations map[string]string) bool {
+	if len(annotations) == 0 {
+		return false
+	}
+	return annotations[metadata.LifecycleMutationAnnotation] == metadata.IgnoreMutation
 }

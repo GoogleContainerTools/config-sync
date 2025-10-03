@@ -35,13 +35,12 @@ func NewDynamicInformerFactory(client dynamic.Interface, resyncPeriod time.Durat
 	}
 }
 
-func (f *DynamicInformerFactory) NewInformer(ctx context.Context, mapping *meta.RESTMapping, namespace string) cache.SharedIndexInformer {
+func (f *DynamicInformerFactory) NewInformer(mapping *meta.RESTMapping, namespace string) cache.SharedIndexInformer {
 	// Unstructured example output need `"apiVersion"` and `"kind"` set.
 	example := &unstructured.Unstructured{}
 	example.SetGroupVersionKind(mapping.GroupVersionKind)
 	return cache.NewSharedIndexInformer(
 		NewFilteredListWatchFromDynamicClient(
-			ctx,
 			f.Client,
 			mapping.Resource,
 			namespace,
@@ -70,7 +69,6 @@ type Filters struct {
 // NewFilteredListWatchFromDynamicClient creates a new ListWatch from the
 // specified client, resource, namespace, and optional filters.
 func NewFilteredListWatchFromDynamicClient(
-	ctx context.Context,
 	client dynamic.Interface,
 	resource schema.GroupVersionResource,
 	namespace string,
@@ -108,7 +106,7 @@ func NewFilteredListWatchFromDynamicClient(
 		}
 		return nil
 	}
-	return NewModifiedListWatchFromDynamicClient(ctx, client, resource, namespace, optionsModifier)
+	return NewModifiedListWatchFromDynamicClient(client, resource, namespace, optionsModifier)
 }
 
 // NewModifiedListWatchFromDynamicClient creates a new ListWatch from the
@@ -117,30 +115,27 @@ func NewFilteredListWatchFromDynamicClient(
 // ListOptions. Provide customized modifier function to apply modification to
 // ListOptions with field selectors, label selectors, or any other desired options.
 func NewModifiedListWatchFromDynamicClient(
-	ctx context.Context,
 	client dynamic.Interface,
 	resource schema.GroupVersionResource,
 	namespace string,
 	optionsModifier func(*metav1.ListOptions) error,
 ) *cache.ListWatch {
-	listFunc := func(options metav1.ListOptions) (runtime.Object, error) {
-		if err := optionsModifier(&options); err != nil {
-			return nil, fmt.Errorf("modifying list options: %w", err)
-		}
-		return client.Resource(resource).
-			Namespace(namespace).
-			List(ctx, options)
+	res := client.Resource(resource).Namespace(namespace)
+	return &cache.ListWatch{
+		ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+			if err := optionsModifier(&options); err != nil {
+				return nil, fmt.Errorf("modifying list options: %w", err)
+			}
+			return res.List(ctx, options)
+		},
+		WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+			options.Watch = true
+			if err := optionsModifier(&options); err != nil {
+				return nil, fmt.Errorf("modifying watch options: %w", err)
+			}
+			return res.Watch(ctx, options)
+		},
 	}
-	watchFunc := func(options metav1.ListOptions) (watch.Interface, error) {
-		options.Watch = true
-		if err := optionsModifier(&options); err != nil {
-			return nil, fmt.Errorf("modifying watch options: %w", err)
-		}
-		return client.Resource(resource).
-			Namespace(namespace).
-			Watch(ctx, options)
-	}
-	return &cache.ListWatch{ListFunc: listFunc, WatchFunc: watchFunc}
 }
 
 func andLabelSelectors(selectors ...labels.Selector) labels.Selector {

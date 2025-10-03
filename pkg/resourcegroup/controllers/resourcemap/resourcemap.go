@@ -118,10 +118,11 @@ func newresourceGroupSet(groups []types.NamespacedName) *resourceGroupSet {
 
 // CachedStatus stores the status and condition for one resource.
 type CachedStatus struct {
-	Status      v1alpha1.Status
-	Conditions  []v1alpha1.Condition
-	SourceHash  string
-	InventoryID string
+	Status         v1alpha1.Status
+	Conditions     []v1alpha1.Condition
+	SourceHash     string
+	InventoryID    string
+	IgnoreMutation bool
 }
 
 // ResourceMap maintains the following maps:

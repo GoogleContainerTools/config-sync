@@ -18,18 +18,18 @@ import (
 //
 // Example Usage:
 // Expect(receivedEvents).To(testutil.Equal(expectedEvents))
-func Equal(expected interface{}) *EqualMatcher {
+func Equal(expected any) *EqualMatcher {
 	return DefaultAsserter.EqualMatcher(expected)
 }
 
 type EqualMatcher struct {
-	Expected interface{}
+	Expected any
 	Options  cmp.Options
 
 	explanation error
 }
 
-func (cm *EqualMatcher) Match(actual interface{}) (bool, error) {
+func (cm *EqualMatcher) Match(actual any) (bool, error) {
 	match := cmp.Equal(cm.Expected, actual, cm.Options...)
 	if !match {
 		cm.explanation = errors.New(cmp.Diff(cm.Expected, actual, cm.Options...))
@@ -37,12 +37,12 @@ func (cm *EqualMatcher) Match(actual interface{}) (bool, error) {
 	return match, nil
 }
 
-func (cm *EqualMatcher) FailureMessage(actual interface{}) string {
+func (cm *EqualMatcher) FailureMessage(actual any) string {
 	return "\n" + format.Message(actual, "to deeply equal", cm.Expected) +
 		"\nDiff (- Expected, + Actual):\n" + indent(cm.explanation.Error(), 1)
 }
 
-func (cm *EqualMatcher) NegatedFailureMessage(actual interface{}) string {
+func (cm *EqualMatcher) NegatedFailureMessage(actual any) string {
 	return "\n" + format.Message(actual, "not to deeply equal", cm.Expected) +
 		"\nDiff (- Expected, + Actual):\n" + indent(cm.explanation.Error(), 1)
 }

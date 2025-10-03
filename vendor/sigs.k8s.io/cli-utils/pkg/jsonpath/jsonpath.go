@@ -20,7 +20,7 @@ import (
 // Returns the node values that were found (zero or more), or an error.
 // For details about the JSONPath expression language, see:
 // https://goessner.net/articles/JsonPath/
-func Get(obj map[string]interface{}, expression string) ([]interface{}, error) {
+func Get(obj map[string]any, expression string) ([]any, error) {
 	// format input object as json for input into jsonpath library
 	jsonBytes, err := json.Marshal(obj)
 	if err != nil {
@@ -41,7 +41,7 @@ func Get(obj map[string]interface{}, expression string) ([]interface{}, error) {
 		return nil, fmt.Errorf("failed to evaluate jsonpath expression (%s): %w", expression, err)
 	}
 
-	result := make([]interface{}, len(nodes))
+	result := make([]any, len(nodes))
 
 	// get value of all matching nodes
 	for i, node := range nodes {
@@ -54,7 +54,7 @@ func Get(obj map[string]interface{}, expression string) ([]interface{}, error) {
 		klog.V(7).Infof("jsonpath.Get output as json:\n%s", jsonBytes)
 
 		// parse json back into a Go primitive
-		var value interface{}
+		var value any
 		err = yaml.Unmarshal(jsonBytes, &value)
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal jsonpath result: %w", err)
@@ -69,7 +69,7 @@ func Get(obj map[string]interface{}, expression string) ([]interface{}, error) {
 // Returns the number of matching nodes that were updated, or an error.
 // For details about the JSONPath expression language, see:
 // https://goessner.net/articles/JsonPath/
-func Set(obj map[string]interface{}, expression string, value interface{}) (int, error) {
+func Set(obj map[string]any, expression string, value any) (int, error) {
 	// format input object as json for input into jsonpath library
 	jsonBytes, err := json.Marshal(obj)
 	if err != nil {
@@ -105,14 +105,14 @@ func Set(obj map[string]interface{}, expression string, value interface{}) (int,
 			err = node.SetNumeric(float64(typedValue))
 		case float64:
 			err = node.SetNumeric(typedValue)
-		case []interface{}:
+		case []any:
 			var arrayValue []*ajson.Node
 			arrayValue, err = toArrayOfNodes(typedValue)
 			if err != nil {
 				break
 			}
 			err = node.SetArray(arrayValue)
-		case map[string]interface{}:
+		case map[string]any:
 			var mapValue map[string]*ajson.Node
 			mapValue, err = toMapOfNodes(typedValue)
 			if err != nil {
@@ -148,7 +148,7 @@ func Set(obj map[string]interface{}, expression string, value interface{}) (int,
 	return len(nodes), nil
 }
 
-func toArrayOfNodes(obj []interface{}) ([]*ajson.Node, error) {
+func toArrayOfNodes(obj []any) ([]*ajson.Node, error) {
 	out := make([]*ajson.Node, len(obj))
 	for index, value := range obj {
 		// format input object as json for input into jsonpath library
@@ -167,7 +167,7 @@ func toArrayOfNodes(obj []interface{}) ([]*ajson.Node, error) {
 	return out, nil
 }
 
-func toMapOfNodes(obj map[string]interface{}) (map[string]*ajson.Node, error) {
+func toMapOfNodes(obj map[string]any) (map[string]*ajson.Node, error) {
 	out := make(map[string]*ajson.Node, len(obj))
 	for key, value := range obj {
 		// format input object as json for input into jsonpath library
