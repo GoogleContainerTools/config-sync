@@ -39,6 +39,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const (
+	// driftDetectionTimeout is the timeout to use when waiting for the remediator to act
+	driftDetectionTimeout = 5 * time.Second
+)
+
 // This file includes tests for drift correction and drift prevention.
 //
 // Drift Correction uses the following metadata:
@@ -118,21 +123,18 @@ func TestDriftKubectlApplyClusterScoped(t *testing.T) {
 		nt.T.Fatalf("got `kubectl apply -f test-ns2.yaml` error %v %s, want return nil", err, out)
 	}
 
-	// Wait 5 seconds so that the remediator can process the event.
-	time.Sleep(5 * time.Second)
+	// Wait so that the remediator can process the event.
+	time.Sleep(driftDetectionTimeout)
 
 	// Remediator SHOULD NOT delete the namespace, since its
 	// `configsync.gke.io/manager` annotation indicates it is managed by a
 	// RootSync that does not exist.
-	err = nt.Validate("test-ns2", "", &corev1.Namespace{},
+	nt.Must(nt.Validate("test-ns2", "", &corev1.Namespace{},
 		testpredicates.HasExactlyAnnotationKeys(
 			metadata.ManagementModeAnnotationKey,
 			metadata.ResourceIDKey,
 			metadata.ResourceManagerKey,
-			corev1.LastAppliedConfigAnnotation))
-	if err != nil {
-		nt.T.Fatal(err)
-	}
+			corev1.LastAppliedConfigAnnotation)))
 
 	/* A new test */
 	ns3Obj := &corev1.Namespace{}
@@ -154,20 +156,17 @@ func TestDriftKubectlApplyClusterScoped(t *testing.T) {
 		nt.T.Fatalf("got `kubectl apply -f test-ns3.yaml` error %v %s, want return nil", err, out)
 	}
 
-	// Wait 5 seconds so that the remediator can process the event.
-	time.Sleep(5 * time.Second)
+	// Wait so that the remediator can process the event.
+	time.Sleep(driftDetectionTimeout)
 
 	// Remediator SHOULD NOT delete the namespace, since it does not have a
 	// `configsync.gke.io/manager` annotation.
-	err = nt.Validate("test-ns3", "", &corev1.Namespace{},
+	nt.Must(nt.Validate("test-ns3", "", &corev1.Namespace{},
 		testpredicates.HasExactlyAnnotationKeys(
 			metadata.ManagementModeAnnotationKey,
 			metadata.ResourceIDKey,
 			// no manager
-			corev1.LastAppliedConfigAnnotation))
-	if err != nil {
-		nt.T.Fatal(err)
-	}
+			corev1.LastAppliedConfigAnnotation)))
 
 	/* A new test */
 	ns4Obj := &corev1.Namespace{}
@@ -190,20 +189,17 @@ func TestDriftKubectlApplyClusterScoped(t *testing.T) {
 		nt.T.Fatalf("got `kubectl apply -f test-ns4.yaml` error %v %s, want return nil", err, out)
 	}
 
-	// Wait 5 seconds so that the remediator can process the event.
-	time.Sleep(5 * time.Second)
+	// Wait so that the remediator can process the event.
+	time.Sleep(driftDetectionTimeout)
 
 	// Remediator SHOULD NOT delete the namespace, since its
 	// `configsync.gke.io/resource-id` annotation is incorrect.
-	err = nt.Validate("test-ns4", "", &corev1.Namespace{},
+	nt.Must(nt.Validate("test-ns4", "", &corev1.Namespace{},
 		testpredicates.HasExactlyAnnotationKeys(
 			metadata.ManagementModeAnnotationKey,
 			metadata.ResourceIDKey,
 			metadata.ResourceManagerKey,
-			corev1.LastAppliedConfigAnnotation))
-	if err != nil {
-		nt.T.Fatal(err)
-	}
+			corev1.LastAppliedConfigAnnotation)))
 
 	/* A new test */
 	ns5Obj := &corev1.Namespace{}
@@ -226,20 +222,17 @@ func TestDriftKubectlApplyClusterScoped(t *testing.T) {
 		nt.T.Fatalf("got `kubectl apply -f test-ns4.yaml` error %v %s, want return nil", err, out)
 	}
 
-	// Wait 5 seconds so that the remediator can process the event.
-	time.Sleep(5 * time.Second)
+	// Wait so that the remediator can process the event.
+	time.Sleep(driftDetectionTimeout)
 
 	// Remediator SHOULD NOT delete the namespace, since its
 	// `applyset.kubernetes.io/part-of` label is incorrect.
-	err = nt.Validate("test-ns5", "", &corev1.Namespace{},
+	nt.Must(nt.Validate("test-ns5", "", &corev1.Namespace{},
 		testpredicates.HasExactlyAnnotationKeys(
 			metadata.ManagementModeAnnotationKey,
 			metadata.ResourceIDKey,
 			metadata.ResourceManagerKey,
-			corev1.LastAppliedConfigAnnotation))
-	if err != nil {
-		nt.T.Fatal(err)
-	}
+			corev1.LastAppliedConfigAnnotation)))
 }
 
 // TestDriftKubectlApplyNamespaceScoped tests drift correction after
@@ -320,20 +313,17 @@ func TestDriftKubectlApplyNamespaceScoped(t *testing.T) {
 		nt.T.Fatalf("got `kubectl apply -f test-cm2.yaml` error %v %s, want return nil", err, out)
 	}
 
-	// Wait 5 seconds so that the reconciler can process the event.
-	time.Sleep(5 * time.Second)
+	// Wait so that the remediator can process the event.
+	time.Sleep(driftDetectionTimeout)
 
 	// Remediator SHOULD NOT delete the configmap, since its
 	// `configsync.gke.io/resource-id` annotation is incorrect.
-	err = nt.Validate("test-cm2", "bookstore", &corev1.ConfigMap{},
+	nt.Must(nt.Validate("test-cm2", "bookstore", &corev1.ConfigMap{},
 		testpredicates.HasExactlyAnnotationKeys(
 			metadata.ManagementModeAnnotationKey,
 			metadata.ResourceIDKey,
 			metadata.ResourceManagerKey,
-			corev1.LastAppliedConfigAnnotation))
-	if err != nil {
-		nt.T.Fatal(err)
-	}
+			corev1.LastAppliedConfigAnnotation)))
 
 	/* A new test */
 	cm3Obj := &corev1.ConfigMap{}
@@ -360,21 +350,18 @@ func TestDriftKubectlApplyNamespaceScoped(t *testing.T) {
 		nt.T.Fatalf("got `kubectl apply -f test-cm3.yaml` error %v %s, want return nil", err, out)
 	}
 
-	// Wait 5 seconds so that the reconciler can process the event.
-	time.Sleep(5 * time.Second)
+	// Wait so that the remediator can process the event.
+	time.Sleep(driftDetectionTimeout)
 
 	// Remediator SHOULD NOT delete the configmap, since its
 	// `configsync.gke.io/manager` annotation indicates it is managed by a
 	// RootSync that does not exist.
-	err = nt.Validate("test-cm3", "bookstore", &corev1.ConfigMap{},
+	nt.Must(nt.Validate("test-cm3", "bookstore", &corev1.ConfigMap{},
 		testpredicates.HasExactlyAnnotationKeys(
 			metadata.ManagementModeAnnotationKey,
 			metadata.ResourceIDKey,
 			metadata.ResourceManagerKey,
-			corev1.LastAppliedConfigAnnotation))
-	if err != nil {
-		nt.T.Fatal(err)
-	}
+			corev1.LastAppliedConfigAnnotation)))
 
 	/* A new test */
 	cm4Obj := &corev1.ConfigMap{}
@@ -400,20 +387,17 @@ func TestDriftKubectlApplyNamespaceScoped(t *testing.T) {
 		nt.T.Fatalf("got `kubectl apply -f test-cm4.yaml` error %v %s, want return nil", err, out)
 	}
 
-	// Wait 5 seconds so that the reconciler can process the event.
-	time.Sleep(5 * time.Second)
+	// Wait so that the remediator can process the event.
+	time.Sleep(driftDetectionTimeout)
 
 	// Remediator SHOULD NOT delete the configmap, since it does not have a
 	// `configsync.gke.io/manager` annotation.
-	err = nt.Validate("test-cm4", "bookstore", &corev1.ConfigMap{},
+	nt.Must(nt.Validate("test-cm4", "bookstore", &corev1.ConfigMap{},
 		testpredicates.HasExactlyAnnotationKeys(
 			metadata.ManagementModeAnnotationKey,
 			metadata.ResourceIDKey,
 			// no manager
-			corev1.LastAppliedConfigAnnotation))
-	if err != nil {
-		nt.T.Fatal(err)
-	}
+			corev1.LastAppliedConfigAnnotation)))
 
 	/* A new test */
 	cm5Obj := &corev1.ConfigMap{}
@@ -438,8 +422,8 @@ func TestDriftKubectlApplyNamespaceScoped(t *testing.T) {
 		nt.T.Fatalf("got `kubectl apply -f test-cm4.yaml` error %v %s, want return nil", err, out)
 	}
 
-	// Wait 5 seconds so that the reconciler can process the event.
-	time.Sleep(5 * time.Second)
+	// Wait so that the remediator can process the event.
+	time.Sleep(driftDetectionTimeout)
 
 	// Remediator SHOULD NOT delete the configmap, since its
 	// `applyset.kubernetes.io/part-of` label is incorrect.
@@ -472,20 +456,17 @@ func TestDriftKubectlApplyNamespaceScoped(t *testing.T) {
 		nt.T.Fatalf("got `kubectl apply -f test-secret.yaml` error %v %s, want return nil", err, out)
 	}
 
-	// Wait 5 seconds so that the reconciler can process the event.
-	time.Sleep(5 * time.Second)
+	// Wait so that the remediator can process the event.
+	time.Sleep(driftDetectionTimeout)
 
 	// Remediator SHOULD NOT delete the secret, since the GVKs of the resources
 	// declared in the git repository do not include the GVK for Secret.
-	err = nt.Validate("test-secret", "bookstore", &corev1.Secret{},
+	nt.Must(nt.Validate("test-secret", "bookstore", &corev1.Secret{},
 		testpredicates.HasExactlyAnnotationKeys(
 			metadata.ManagementModeAnnotationKey,
 			metadata.ResourceIDKey,
 			metadata.ResourceManagerKey,
-			corev1.LastAppliedConfigAnnotation))
-	if err != nil {
-		nt.T.Fatal(err)
-	}
+			corev1.LastAppliedConfigAnnotation)))
 }
 
 // TestDriftKubectlDelete deletes an object managed by Config Sync, and verifies
@@ -708,7 +689,7 @@ func TestDriftRemoveApplySetPartOfLabel(t *testing.T) {
 	nt.Must(nt.Watcher.WatchObject(kinds.Namespace(), namespace, "", testwatcher.WatchPredicates(
 		testpredicates.HasLabel(metadata.ApplySetPartOfLabel, rootSync1ApplySetID),
 		testpredicates.HasAnnotation("season", "summer"),
-	), testwatcher.WatchTimeout(10*time.Second)))
+	), testwatcher.WatchTimeout(driftDetectionTimeout)))
 
 	nt.T.Log("Removing the ApplySet ID label")
 	nsObj = k8sobjects.NamespaceObject(namespace)
@@ -720,7 +701,7 @@ func TestDriftRemoveApplySetPartOfLabel(t *testing.T) {
 	nt.Must(nt.Watcher.WatchObject(kinds.Namespace(), namespace, "", testwatcher.WatchPredicates(
 		testpredicates.HasLabel(metadata.ApplySetPartOfLabel, rootSync1ApplySetID),
 		testpredicates.HasAnnotation("season", "summer"),
-	), testwatcher.WatchTimeout(10*time.Second)))
+	), testwatcher.WatchTimeout(driftDetectionTimeout)))
 }
 
 func writeObjectYAMLFile(path string, obj client.Object, scheme *runtime.Scheme) error {
