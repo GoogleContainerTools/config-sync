@@ -231,7 +231,7 @@ image:
 	nt.Must(nt.Watcher.WatchForRootSyncStalledError(rs.Name, "Validation",
 		`KNV1061: RootSyncs must reference valid ConfigMaps in spec.helm.valuesFileRefs: ConfigMap "helm-watch-config-map" not found`))
 
-	nt.T.Log("Apply valid ConfigMap with values: imagePullPolicy: Always; wordpressUserName: test-user-1")
+	nt.T.Log("Apply valid ConfigMap with chart values: annotations, imagePullPolicy, and resources")
 	cm2 := k8sobjects.ConfigMapObject(core.Name(cmName), core.Namespace(configsync.ControllerNamespace))
 	cm2.Immutable = ptr.To(true)
 	cm2.Data = map[string]string{"values.yaml": `
