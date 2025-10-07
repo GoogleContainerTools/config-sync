@@ -161,7 +161,7 @@ func (g *GitlabClient) DeleteRepositories(names ...string) error {
 				continue
 			}
 			// Check if project is already marked for deletion (this is also a success case)
-			if strings.Contains(response, "Project has been already marked for deletion") {
+			if strings.Contains(response, "Project has already been marked for deletion") {
 				continue
 			}
 			// Any other response is treated as an error
@@ -198,7 +198,7 @@ func (g *GitlabClient) DeleteRepoByID(ids ...string) error {
 			continue
 		}
 		// Check if project is already marked for deletion (this is also a success case)
-		if strings.Contains(response, "Project has been already marked for deletion") {
+		if strings.Contains(response, "Project has already been marked for deletion") {
 			continue
 		}
 		// Any other response is treated as an error
