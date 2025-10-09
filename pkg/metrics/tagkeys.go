@@ -16,26 +16,26 @@ package metrics
 
 import (
 	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
-	"go.opencensus.io/tag"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 var (
 	// KeyName groups metrics by the reconciler name. Possible values: root-reconciler, ns-reconciler-<namespace>
 	// TODO b/208316928 remove this key from pipeline_error_observed metric once same metric in Resource Group Controller has this tag removed
-	KeyName, _ = tag.NewKey("name")
+	KeyName = attribute.Key("name")
 
 	// KeyReconcilerType groups metrics by the reconciler type. Possible values: root, namespace.
 	// TODO: replace with configsync.sync.kind resource attribute
-	KeyReconcilerType, _ = tag.NewKey("reconciler")
+	KeyReconcilerType = attribute.Key("reconciler")
 
 	// KeyOperation groups metrics by their operation. Possible values: create, patch, update, delete.
-	KeyOperation, _ = tag.NewKey("operation")
+	KeyOperation = attribute.Key("operation")
 
 	// KeyController groups metrics by their controller. Possible values: applier, remediator.
-	KeyController, _ = tag.NewKey("controller")
+	KeyController = attribute.Key("controller")
 
 	// KeyComponent groups metrics by their component. Possible values: source, sync, rendering, readiness(from Resource Group Controller).
-	KeyComponent, _ = tag.NewKey("component")
+	KeyComponent = attribute.Key("component")
 
 	// KeyExportedComponent groups metrics by their component.
 	// The "component" metric tag overlaps with a resource tag exported by
@@ -43,35 +43,35 @@ var (
 	// "exported_component" when exported to Prometheus.
 	// TODO: Fix this naming overlap by renaming the "component" metric tag.
 	// Possible values: source, sync, rendering, readiness (from Resource Group Controller).
-	KeyExportedComponent, _ = tag.NewKey("exported_component")
+	KeyExportedComponent = attribute.Key("exported_component")
 
 	// KeyErrorClass groups metrics by their error code.
-	KeyErrorClass, _ = tag.NewKey("errorclass")
+	KeyErrorClass = attribute.Key("errorclass")
 
 	// KeyStatus groups metrics by their status. Possible values: success, error.
-	KeyStatus, _ = tag.NewKey("status")
+	KeyStatus = attribute.Key("status")
 
 	// KeyInternalErrorSource groups the InternalError metrics by their source. Possible values: parser, differ, remediator.
-	KeyInternalErrorSource, _ = tag.NewKey("source")
+	KeyInternalErrorSource = attribute.Key("source")
 
 	// KeyParserSource groups the metrics for the parser by their source. Possible values: read, parse, update.
-	KeyParserSource, _ = tag.NewKey("source")
+	KeyParserSource = attribute.Key("source")
 
 	// KeyTrigger groups metrics by their trigger. Possible values: retry, watchUpdate, managementConflict, resync, reimport.
-	KeyTrigger, _ = tag.NewKey("trigger")
+	KeyTrigger = attribute.Key("trigger")
 
 	// KeyCommit groups metrics by their git commit. Even though this tag has a high cardinality,
 	// it is only used by the `last_sync_timestamp` and `last_apply_timestamp` metrics.
 	// These are both aggregated as LastValue metrics so the number of recorded values will always be
 	// at most 1 per git commit.
-	KeyCommit, _ = tag.NewKey("commit")
+	KeyCommit = attribute.Key("commit")
 
 	// KeyContainer groups metrics by their container names. Possible values: reconciler, git-sync.
 	// TODO: replace with k8s.container.name resource attribute
-	KeyContainer, _ = tag.NewKey("container")
+	KeyContainer = attribute.Key("container")
 
 	// KeyResourceType groups metrics by their resource types. Possible values: cpu, memory.
-	KeyResourceType, _ = tag.NewKey("resource")
+	KeyResourceType = attribute.Key("resource")
 )
 
 // The following metric tag keys are available from the otel-collector
@@ -79,23 +79,23 @@ var (
 // resource_to_telemetry_conversion feature.
 var (
 	// ResourceKeySyncKind groups metrics by the Sync kind. Possible values: RootSync, RepoSync.
-	ResourceKeySyncKind, _ = tag.NewKey("configsync_sync_kind")
+	ResourceKeySyncKind = attribute.Key("configsync_sync_kind")
 
 	// ResourceKeySyncName groups metrics by the Sync name.
-	ResourceKeySyncName, _ = tag.NewKey("configsync_sync_name")
+	ResourceKeySyncName = attribute.Key("configsync_sync_name")
 
 	// ResourceKeySyncNamespace groups metrics by the Sync namespace.
-	ResourceKeySyncNamespace, _ = tag.NewKey("configsync_sync_namespace")
+	ResourceKeySyncNamespace = attribute.Key("configsync_sync_namespace")
 
 	// ResourceKeySyncGeneration groups metrics by the Sync metadata.generation.
 	// This allows matching metrics to a specific Sync configuration.
-	ResourceKeySyncGeneration, _ = tag.NewKey("configsync_sync_generation")
+	ResourceKeySyncGeneration = attribute.Key("configsync_sync_generation")
 
 	// ResourceKeyDeploymentName groups metrics by k8s deployment name.
-	ResourceKeyDeploymentName, _ = tag.NewKey("k8s_deployment_name")
+	ResourceKeyDeploymentName = attribute.Key("k8s_deployment_name")
 
-	// ResourceKeyDeploymentName groups metrics by k8s pod name.
-	ResourceKeyPodName, _ = tag.NewKey("k8s_pod_name")
+	// ResourceKeyPodName groups metrics by k8s pod name.
+	ResourceKeyPodName = attribute.Key("k8s_pod_name")
 )
 
 const (

@@ -15,34 +15,56 @@
 package metrics
 
 import (
-	"contrib.go.opencensus.io/exporter/ocagent"
-	"go.opencensus.io/stats/view"
+	"context"
+	"os"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
+	"go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 )
 
-// RegisterOCAgentExporter creates the OC Agent metrics exporter.
-func RegisterOCAgentExporter() (*ocagent.Exporter, error) {
-	oce, err := ocagent.NewExporter(
-		ocagent.WithInsecure(),
+// RegisterOTelExporter creates the OTLP metrics exporter.
+func RegisterOTelExporter() (*otlpmetricgrpc.Exporter, error) {
+
+	err := os.Setenv(
+		"OTEL_RESOURCE_ATTRIBUTES",
+		"k8s.container.name=\"resourcegroup\"")
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := resource.New(
+		context.Background(),
+		resource.WithFromEnv(),
+		resource.WithAttributes(
+			semconv.ServiceNameKey.String("config-sync-resourcegroup"),
+			semconv.ServiceVersionKey.String("1.0.0"),
+		),
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	view.RegisterExporter(oce)
-	return oce, nil
-}
-
-// RegisterReconcilerMetricsViews registers the views so that recorded metrics can be exported in the reconcilers.
-func RegisterReconcilerMetricsViews() error {
-	return view.Register(
-		ReconcileDurationView,
-		ResourceGroupTotalView,
-		ResourceCountView,
-		ReadyResourceCountView,
-		NamespaceCountView,
-		ClusterScopedResourceCountView,
-		CRDCountView,
-		KCCResourceCountView,
-		PipelineErrorView,
+	// Create OTLP exporter
+	exporter, err := otlpmetricgrpc.New(
+		context.Background(),
+		otlpmetricgrpc.WithInsecure(),
+		otlpmetricgrpc.WithEndpoint("localhost:4317"),
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create meter provider
+	meterProvider := metric.NewMeterProvider(
+		metric.WithReader(metric.NewPeriodicReader(exporter)),
+		metric.WithResource(res),
+	)
+
+	// Set global meter provider
+	otel.SetMeterProvider(meterProvider)
+
+	return exporter, nil
 }

@@ -154,11 +154,15 @@ apiVersion: v1
 data:
   otel-agent-config.yaml: |
     receivers:
-      opencensus:
-        endpoint: 0.0.0.0:55678
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
     exporters:
-      opencensus:
-        endpoint: otel-collector.config-management-monitoring:55678
+      otlp:
+        endpoint: otel-collector.config-management-monitoring:4317
         tls:
           insecure: true
     processors:
@@ -174,9 +178,9 @@ data:
       extensions: [health_check]
       pipelines:
         metrics:
-          receivers: [opencensus]
-          processors: [batch, resourcedetection]
-          exporters: [opencensus]
+          receivers: [otlp]
+          processors: [resourcedetection, batch]
+          exporters: [otlp]
 kind: ConfigMap
 metadata:
   labels:
@@ -272,7 +276,8 @@ spec:
         image: OTELCONTRIBCOL_IMAGE_NAME
         name: otel-agent
         ports:
-        - containerPort: 55678
+        - containerPort: 4317 # OTLP gRPC receiver port
+        - containerPort: 4318 # OTLP HTTP receiver port
         - containerPort: 8888
         - containerPort: 13133
         readinessProbe:

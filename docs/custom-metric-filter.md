@@ -171,7 +171,7 @@ To **turn off the custom metrics** in Cloud Monitoring, remove this section:
 ```yaml
 # Remove this entire section
 metrics/cloudmonitoring:
-  receivers: [opencensus]
+  receivers: [otlp]
   processors: [batch, filter/cloudmonitoring, metricstransform/cloudmonitoring, resourcedetection]
   exporters: [googlecloud]
 ```
@@ -183,7 +183,7 @@ To **turn off the report to Cloud Monarch**, remove this section:
 ```yaml
 # Remove this entire section
 metrics/kubernetes:
-  receivers: [opencensus]
+  receivers: [otlp]
   processors: [batch, filter/kubernetes, metricstransform/kubernetes, resourcedetection]
   exporters: [googlecloud/kubernetes]
 ```
@@ -235,7 +235,12 @@ metadata:
 data:
   otel-collector-config.yaml: |
     receivers:
-      opencensus:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
     exporters:
       debug:
         verbosity: detailed
@@ -245,7 +250,7 @@ data:
       batch:
       pipelines:
         metrics:
-          receivers: [opencensus]
+          receivers: [otlp]
           processors: [batch]
           exporters: [debug]
 ```
