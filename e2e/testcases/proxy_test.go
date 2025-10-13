@@ -35,7 +35,7 @@ import (
 
 func TestSyncingThroughAProxy(t *testing.T) {
 	rootSyncID := nomostest.DefaultRootSyncID
-	nt := nomostest.New(t, nomostesting.SyncSource)
+	nt := nomostest.New(t, nomostesting.SyncSourceGit)
 
 	nt.T.Logf("Set up the tiny proxy service and Override the RootSync object with proxy setting")
 	nt.MustKubectl("apply", "-f", "../testdata/proxy")

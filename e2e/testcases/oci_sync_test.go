@@ -71,7 +71,7 @@ func gsaGCRReaderEmail() string {
 // It tests Config Sync can pull from public OCI images without any authentication.
 func TestPublicOCI(t *testing.T) {
 	rootSyncID := nomostest.DefaultRootSyncID
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceOCI,
 		ntopts.SyncWithGitSource(rootSyncID, ntopts.Unstructured))
 	var err error
 
@@ -115,7 +115,7 @@ func TestSwitchFromGitToOciCentralized(t *testing.T) {
 	namespace := testNs
 	rootSyncID := nomostest.DefaultRootSyncID
 	repoSyncID := core.RepoSyncID(configsync.RepoSyncName, namespace)
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceOCI,
 		ntopts.RequireOCIProvider,
 		ntopts.SyncWithGitSource(rootSyncID, ntopts.Unstructured),
 		ntopts.SyncWithGitSource(repoSyncID),
@@ -168,7 +168,7 @@ func TestSwitchFromGitToOciCentralized(t *testing.T) {
 func TestSwitchFromGitToOciDelegated(t *testing.T) {
 	namespace := testNs
 	repoSyncID := core.RepoSyncID(configsync.RepoSyncName, namespace)
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceOCI,
 		ntopts.WithDelegatedControl, ntopts.RequireOCIProvider,
 		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured),
 		ntopts.SyncWithGitSource(repoSyncID),
@@ -245,7 +245,7 @@ func isSourceType(sourceType configsync.SourceType) testpredicates.Predicate {
 func TestOciSyncWithDigest(t *testing.T) {
 	rootSyncID := nomostest.DefaultRootSyncID
 	rootSyncKey := rootSyncID.ObjectKey
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceOCI,
 		ntopts.SyncWithGitSource(rootSyncID, ntopts.Unstructured),
 		ntopts.RequireOCIProvider,
 	)

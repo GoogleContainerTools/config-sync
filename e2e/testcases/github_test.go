@@ -59,7 +59,7 @@ const (
 func TestGithubAppRootSync(t *testing.T) {
 	rootSyncID := nomostest.DefaultRootSyncID
 	rootSyncNN := rootSyncID.ObjectKey
-	nt := nomostest.New(t, nomostesting.SyncSource, ntopts.GitHubAppTest)
+	nt := nomostest.New(t, nomostesting.SyncSourceGit, ntopts.GitHubAppTest)
 	githubApp, err := gitproviders.FetchGithubAppConfiguration()
 	if err != nil {
 		nt.T.Fatal(err)
@@ -154,7 +154,7 @@ func TestGithubAppRootSync(t *testing.T) {
 func TestGithubAppRepoSync(t *testing.T) {
 	repoSyncNN := nomostest.RepoSyncNN(githubAppRepoNamespace, "rs-test")
 	repoSyncID := core.RepoSyncID(repoSyncNN.Name, repoSyncNN.Namespace)
-	nt := nomostest.New(t, nomostesting.SyncSource, ntopts.GitHubAppTest,
+	nt := nomostest.New(t, nomostesting.SyncSourceGit, ntopts.GitHubAppTest,
 		ntopts.WithDelegatedControl,                    // DelegatedControl to simplify updating RepoSync
 		ntopts.RepoSyncPermissions(policy.CoreAdmin()), // RepoSync manages ConfigMap
 		ntopts.SyncWithGitSource(repoSyncID))

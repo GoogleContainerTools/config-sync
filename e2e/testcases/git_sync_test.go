@@ -26,7 +26,7 @@ import (
 )
 
 func TestMultipleRemoteBranchesOutOfSync(t *testing.T) {
-	nt := nomostest.New(t, nomostesting.ACMController)
+	nt := nomostest.New(t, nomostesting.SyncSourceGit)
 	rootSyncGitRepo := nt.SyncSourceGitReadWriteRepository(nomostest.DefaultRootSyncID)
 
 	rs := k8sobjects.RootSyncObjectV1Beta1(configsync.RootSyncName)

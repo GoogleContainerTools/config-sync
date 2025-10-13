@@ -39,7 +39,7 @@ var cosignPassword = map[string]string{
 
 func TestAddPreSyncAnnotationRepoSync(t *testing.T) {
 	repoSyncID := core.RepoSyncID(configsync.RepoSyncName, namespaceRepo)
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceOCI,
 		ntopts.RequireOCIProvider,
 		ntopts.SyncWithGitSource(repoSyncID),
 		ntopts.RepoSyncPermissions(policy.RBACAdmin(), policy.CoreAdmin()))
@@ -117,7 +117,7 @@ func TestAddPreSyncAnnotationRepoSync(t *testing.T) {
 func TestAddPreSyncAnnotationRootSync(t *testing.T) {
 	rootSyncID := nomostest.DefaultRootSyncID
 	rootSyncKey := rootSyncID.ObjectKey
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceOCI,
 		ntopts.SyncWithGitSource(rootSyncID, ntopts.Unstructured),
 		ntopts.RequireOCIProvider,
 	)

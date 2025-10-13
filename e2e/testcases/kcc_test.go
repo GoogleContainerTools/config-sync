@@ -44,7 +44,7 @@ import (
 // are removed successfully.
 func TestKCCResourcesOnCSR(t *testing.T) {
 	rootSyncID := nomostest.DefaultRootSyncID
-	nt := nomostest.New(t, nomostesting.SyncSource, ntopts.KCCTest, ntopts.RequireGKE(t))
+	nt := nomostest.New(t, nomostesting.SyncSourceGit, ntopts.KCCTest, ntopts.RequireGKE(t))
 
 	nt.T.Log("sync to the kcc resources from a CSR repo")
 	repo := gitproviders.ReadOnlyRepository{

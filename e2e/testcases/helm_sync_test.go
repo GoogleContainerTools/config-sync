@@ -62,7 +62,7 @@ const (
 // TestPublicHelm can run on both Kind and GKE clusters.
 // It tests Config Sync can pull from a public Helm repo without any authentication.
 func TestPublicHelm(t *testing.T) {
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceHelm,
 		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured))
 
 	rs := rootsyncForSimpleHelmChart(nt, nil)
@@ -144,7 +144,7 @@ func TestPublicHelm(t *testing.T) {
 func TestOCIHelmChartNameContainsSlash(t *testing.T) {
 	rootSyncID := nomostest.DefaultRootSyncID
 	nt := nomostest.New(t,
-		nomostesting.SyncSource,
+		nomostesting.SyncSourceHelm,
 		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured),
 		ntopts.RequireHelmProvider,
 	)
@@ -175,7 +175,7 @@ func TestOCIHelmChartNameContainsSlash(t *testing.T) {
 // It tests that helm-sync properly watches ConfigMaps in the RSync namespace if the RSync is created before
 // the ConfigMap.
 func TestHelmWatchConfigMap(t *testing.T) {
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceHelm,
 		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured))
 	rs := rootsyncForSimpleHelmChart(nt, func(m map[string]interface{}) {
 		delete(m, "annotations") // omit annotations so it can be set with values file
@@ -293,7 +293,7 @@ resources:
 // TestHelmConfigMapOverride can run on both Kind and GKE clusters.
 // It tests ConfigSync behavior when multiple valuesFiles are provided
 func TestHelmConfigMapOverride(t *testing.T) {
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceHelm,
 		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured))
 	cmName := "helm-config-map-override"
 
@@ -340,7 +340,7 @@ image:
 // Google service account `e2e-test-ar-reader@${GCP_PROJECT}.iam.gserviceaccount.com` is created with `roles/artifactregistry.reader` for accessing images in Artifact Registry.
 func TestHelmDefaultNamespace(t *testing.T) {
 	nt := nomostest.New(t,
-		nomostesting.SyncSource,
+		nomostesting.SyncSourceHelm,
 		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured),
 		ntopts.RequireHelmProvider,
 	)
@@ -367,22 +367,10 @@ func TestHelmDefaultNamespace(t *testing.T) {
 // TestHelmLatestVersion verifies the Config Sync behavior for helm charts when helm.spec.version is not specified. The helm-sync
 // binary should pull down the latest available version in this case. It also tests that if a new helm chart gets pushed, the
 // chart version gets automatically updated by Config Sync.
-// The test will run on a GKE cluster only with following pre-requisites
-//
-// 1. Workload Identity is enabled.
-// 2. The Google service account `e2e-test-ar-reader@${GCP_PROJECT}.iam.gserviceaccount.com` is created with `roles/artifactregistry.reader` for access image in Artifact Registry.
-// 3. An IAM policy binding is created between the Google service account and the Kubernetes service accounts with the `roles/iam.workloadIdentityUser` role.
-//
-//	gcloud iam service-accounts add-iam-policy-binding --project=${GCP_PROJECT} \
-//	   --role roles/iam.workloadIdentityUser \
-//	   --member "serviceAccount:${GCP_PROJECT}.svc.id.goog[config-management-system/root-reconciler]" \
-//	   e2e-test-ar-reader@${GCP_PROJECT}.iam.gserviceaccount.com
-//
-// 4. The following environment variables are set: GCP_PROJECT, GCP_CLUSTER, GCP_REGION|GCP_ZONE.
 func TestHelmLatestVersion(t *testing.T) {
 	rootSyncID := nomostest.DefaultRootSyncID
 	nt := nomostest.New(t,
-		nomostesting.WorkloadIdentity,
+		nomostesting.SyncSourceHelm,
 		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured),
 		ntopts.RequireHelmProvider,
 	)
@@ -451,7 +439,7 @@ func TestHelmLatestVersion(t *testing.T) {
 // TestHelmVersionRange verifies the Config Sync behavior for helm charts when helm.spec.version is specified as a range.
 // Helm-sync should pull the latest helm chart version within the range.
 func TestHelmVersionRange(t *testing.T) {
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceHelm,
 		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured))
 
 	nt.T.Log("Create RootSync to sync from a public Helm Chart with specified version range")
@@ -486,7 +474,7 @@ func TestHelmVersionRange(t *testing.T) {
 func TestHelmNamespaceRepo(t *testing.T) {
 	repoSyncID := core.RepoSyncID(configsync.RepoSyncName, testNs)
 	repoSyncNN := repoSyncID.ObjectKey
-	nt := nomostest.New(t, nomostesting.SyncSource, ntopts.RequireHelmProvider,
+	nt := nomostest.New(t, nomostesting.SyncSourceHelm, ntopts.RequireHelmProvider,
 		ntopts.RepoSyncPermissions(policy.AllAdmin()), // NS reconciler manages a bunch of resources.
 		ntopts.SyncWithGitSource(repoSyncID))
 	rootSyncGitRepo := nt.SyncSourceGitReadWriteRepository(nomostest.DefaultRootSyncID)
@@ -530,7 +518,7 @@ func TestHelmNamespaceRepo(t *testing.T) {
 func TestHelmConfigMapNamespaceRepo(t *testing.T) {
 	repoSyncID := core.RepoSyncID(configsync.RepoSyncName, testNs)
 	repoSyncNN := repoSyncID.ObjectKey
-	nt := nomostest.New(t, nomostesting.SyncSource, ntopts.RequireHelmProvider,
+	nt := nomostest.New(t, nomostesting.SyncSourceHelm, ntopts.RequireHelmProvider,
 		ntopts.RepoSyncPermissions(policy.AppsAdmin(), policy.CoreAdmin()),
 		ntopts.SyncWithGitSource(repoSyncID))
 	rootSyncGitRepo := nt.SyncSourceGitReadWriteRepository(nomostest.DefaultRootSyncID)
@@ -642,7 +630,7 @@ type ServiceAccountFile struct {
 // Test handles service account key rotation.
 func TestHelmARTokenAuth(t *testing.T) {
 	nt := nomostest.New(t,
-		nomostesting.SyncSource,
+		nomostesting.SyncSourceHelm,
 		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured),
 		ntopts.RequireGKE(t),
 		ntopts.RequireHelmArtifactRegistry(t),
@@ -701,7 +689,7 @@ func TestHelmARTokenAuth(t *testing.T) {
 // TestHelmEmptyChart verifies Config Sync can apply an empty Helm chart.
 func TestHelmEmptyChart(t *testing.T) {
 	nt := nomostest.New(t,
-		nomostesting.SyncSource,
+		nomostesting.SyncSourceHelm,
 		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured),
 		ntopts.RequireHelmProvider,
 	)

@@ -86,7 +86,7 @@ func TestDeleteRootSyncAndRootSyncV1Alpha1(t *testing.T) {
 func TestUpdateRootSyncGitDirectory(t *testing.T) {
 	rootSyncID := nomostest.DefaultRootSyncID
 	rootSyncKey := rootSyncID.ObjectKey
-	nt := nomostest.New(t, nomostesting.SyncSource)
+	nt := nomostest.New(t, nomostesting.SyncSourceGit)
 	rootSyncGitRepo := nt.SyncSourceGitReadWriteRepository(rootSyncID)
 
 	// Validate RootSync is present.
@@ -172,7 +172,7 @@ func TestUpdateRootSyncGitDirectory(t *testing.T) {
 
 func TestUpdateRootSyncGitBranch(t *testing.T) {
 	rootSyncNN := nomostest.RootSyncNN(configsync.RootSyncName)
-	nt := nomostest.New(t, nomostesting.SyncSource)
+	nt := nomostest.New(t, nomostesting.SyncSourceGit)
 	rootSyncGitRepo := nt.SyncSourceGitReadWriteRepository(nomostest.DefaultRootSyncID)
 
 	nsA := "ns-a"
@@ -297,7 +297,7 @@ func TestUpdateRootSyncGitBranch(t *testing.T) {
 }
 
 func TestForceRevert(t *testing.T) {
-	nt := nomostest.New(t, nomostesting.SyncSource)
+	nt := nomostest.New(t, nomostesting.SyncSourceGit)
 	rootSyncGitRepo := nt.SyncSourceGitReadWriteRepository(nomostest.DefaultRootSyncID)
 
 	nt.Must(rootSyncGitRepo.Remove("acme/system/repo.yaml"))

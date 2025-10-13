@@ -34,7 +34,7 @@ import (
 )
 
 func TestRootSyncSSHKnownHost(t *testing.T) {
-	nt := nomostest.New(t, nomostesting.SyncSource, ntopts.RequireLocalGitProvider,
+	nt := nomostest.New(t, nomostesting.SyncSourceGit, ntopts.RequireLocalGitProvider,
 		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured))
 	rootSyncGitRepo := nt.SyncSourceGitReadWriteRepository(nomostest.DefaultRootSyncID)
 
@@ -116,7 +116,7 @@ func TestRootSyncSSHKnownHost(t *testing.T) {
 func TestRepoSyncSSHKnownHost(t *testing.T) {
 	repoSyncID := core.RepoSyncID(configsync.RepoSyncName, backendNamespace)
 	nt := nomostest.New(t,
-		nomostesting.SyncSource, ntopts.RequireLocalGitProvider,
+		nomostesting.SyncSourceGit, ntopts.RequireLocalGitProvider,
 		ntopts.WithDelegatedControl,
 		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured),
 		ntopts.SyncWithGitSource(repoSyncID),

@@ -222,7 +222,7 @@ func TestDisableWebhookConfigurationUpdateHierarchy(t *testing.T) {
 
 func TestDisableWebhookConfigurationUpdateUnstructured(t *testing.T) {
 	repoSyncID := core.RepoSyncID(configsync.RepoSyncName, namespaceRepo)
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.DriftControl,
 		ntopts.SyncWithGitSource(repoSyncID),
 		ntopts.RepoSyncPermissions(policy.CoreAdmin()))
 	repoSyncGitRepo := nt.SyncSourceGitReadWriteRepository(repoSyncID)

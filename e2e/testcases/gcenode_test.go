@@ -52,7 +52,7 @@ const (
 func TestGCENodeCSR(t *testing.T) {
 	rootSyncID := nomostest.DefaultRootSyncID
 	repoSyncID := core.RepoSyncID(configsync.RepoSyncName, testNs)
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceGit,
 		ntopts.RequireGKE(t), ntopts.GCENodeTest,
 		ntopts.RequireCloudSourceRepository(t),
 		ntopts.SyncWithGitSource(rootSyncID, ntopts.Unstructured),
@@ -108,7 +108,7 @@ func TestGCENodeCSR(t *testing.T) {
 func TestGCENodeOCI(t *testing.T) {
 	rootSyncID := nomostest.DefaultRootSyncID
 	repoSyncID := core.RepoSyncID(configsync.RepoSyncName, testNs)
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceOCI,
 		ntopts.RequireGKE(t), ntopts.GCENodeTest,
 		ntopts.RequireOCIArtifactRegistry(t),
 		ntopts.SyncWithGitSource(rootSyncID, ntopts.Unstructured),
@@ -170,7 +170,7 @@ func TestGCENodeOCI(t *testing.T) {
 //   - `roles/artifactregistry.reader` for access image in Artifact Registry.
 func TestGCENodeHelm(t *testing.T) {
 	repoSyncID := core.RepoSyncID(configsync.RepoSyncName, testNs)
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceHelm,
 		ntopts.RequireGKE(t), ntopts.GCENodeTest,
 		ntopts.RequireHelmArtifactRegistry(t),
 		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured),

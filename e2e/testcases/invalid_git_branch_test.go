@@ -30,7 +30,7 @@ import (
 )
 
 func TestInvalidRootSyncBranchStatus(t *testing.T) {
-	nt := nomostest.New(t, nomostesting.SyncSource)
+	nt := nomostest.New(t, nomostesting.SyncSourceGit)
 	rootSyncGitRepo := nt.SyncSourceGitReadWriteRepository(nomostest.DefaultRootSyncID)
 
 	// Update RootSync to invalid branch name
@@ -59,7 +59,7 @@ func TestInvalidRootSyncBranchStatus(t *testing.T) {
 }
 
 func TestInvalidRootSyncRevisionStatus(t *testing.T) {
-	nt := nomostest.New(t, nomostesting.SyncSource)
+	nt := nomostest.New(t, nomostesting.SyncSourceGit)
 	rootSyncGitRepo := nt.SyncSourceGitReadWriteRepository(nomostest.DefaultRootSyncID)
 
 	// Update RootSync to invalid branch name
@@ -89,7 +89,7 @@ func TestInvalidRootSyncRevisionStatus(t *testing.T) {
 
 func TestInvalidRepoSyncBranchStatus(t *testing.T) {
 	repoSyncID := core.RepoSyncID(configsync.RepoSyncName, namespaceRepo)
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceGit,
 		ntopts.SyncWithGitSource(repoSyncID))
 	rootSyncGitRepo := nt.SyncSourceGitReadWriteRepository(nomostest.DefaultRootSyncID)
 	repoSyncKey := repoSyncID.ObjectKey
@@ -143,7 +143,7 @@ func TestInvalidRepoSyncBranchStatus(t *testing.T) {
 
 func TestInvalidRepoSyncRevisionStatus(t *testing.T) {
 	repoSyncID := core.RepoSyncID(configsync.RepoSyncName, namespaceRepo)
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceGit,
 		ntopts.SyncWithGitSource(repoSyncID))
 	rootSyncGitRepo := nt.SyncSourceGitReadWriteRepository(nomostest.DefaultRootSyncID)
 	repoSyncKey := repoSyncID.ObjectKey
@@ -196,7 +196,7 @@ func TestInvalidRepoSyncRevisionStatus(t *testing.T) {
 }
 
 func TestSyncFailureAfterSuccessfulSyncs(t *testing.T) {
-	nt := nomostest.New(t, nomostesting.SyncSource)
+	nt := nomostest.New(t, nomostesting.SyncSourceGit)
 	rootSyncGitRepo := nt.SyncSourceGitReadWriteRepository(nomostest.DefaultRootSyncID)
 	nt.T.Cleanup(func() {
 		nt.T.Log("Resetting all RootSync branches to main")
