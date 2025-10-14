@@ -112,7 +112,7 @@ func (atm *ApplyTimeMutator) Mutate(ctx context.Context, obj *unstructured.Unstr
 			return mutated, reason, fmt.Errorf("source field (%s) not present in source object (%s)", sub.SourcePath, sourceRef)
 		}
 
-		var newValue interface{}
+		var newValue any
 		if sub.Token == "" {
 			// token not specified, replace the entire target value with the source value
 			newValue = sourceValue
@@ -244,7 +244,7 @@ func computeStatus(obj *unstructured.Unstructured) cache.ResourceStatus {
 	}
 }
 
-func readFieldValue(obj *unstructured.Unstructured, path string) (interface{}, bool, error) {
+func readFieldValue(obj *unstructured.Unstructured, path string) (any, bool, error) {
 	if path == "" {
 		return nil, false, errors.New("empty path expression")
 	}
@@ -259,7 +259,7 @@ func readFieldValue(obj *unstructured.Unstructured, path string) (interface{}, b
 	return values[0], true, nil
 }
 
-func writeFieldValue(obj *unstructured.Unstructured, path string, value interface{}) error {
+func writeFieldValue(obj *unstructured.Unstructured, path string, value any) error {
 	if path == "" {
 		return errors.New("empty path expression")
 	}
@@ -276,7 +276,7 @@ func writeFieldValue(obj *unstructured.Unstructured, path string, value interfac
 
 // valueToString converts an interface{} to a string, formatting as json for
 // maps, lists. Designed to handle yaml/json/krm primitives.
-func valueToString(value interface{}) (string, error) {
+func valueToString(value any) (string, error) {
 	var valueString string
 	switch valueTyped := value.(type) {
 	case string:
