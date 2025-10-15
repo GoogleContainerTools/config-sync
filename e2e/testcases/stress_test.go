@@ -222,9 +222,11 @@ func TestStressLargeRequest(t *testing.T) {
 	reconcilerOverride := v1beta1.ContainerResourcesSpec{
 		ContainerName: reconcilermanager.Reconciler,
 		MemoryLimit:   resource.MustParse("1500Mi"),
+		CPULimit:      resource.MustParse("1.5"),
 	}
 	if *e2e.GKEAutopilot {
 		reconcilerOverride.MemoryRequest = resource.MustParse("1500Mi")
+		reconcilerOverride.CPURequest = resource.MustParse("1.5")
 	}
 	repo := gitproviders.ReadOnlyRepository{
 		URL: "https://github.com/config-sync-examples/crontab-crs",
@@ -256,7 +258,7 @@ func TestStressLargeRequest(t *testing.T) {
 	nomostest.SetExpectedGitCommit(nt, rootSyncID, commit)
 
 	nt.T.Logf("Wait for the sync to complete")
-	nt.Must(nt.WatchForAllSyncs())
+	nt.Must(nt.WatchForAllSyncs(nomostest.WithTimeout(40 * time.Minute)))
 }
 
 // TestStress100CRDs applies 100 CRDs and validates that syncing still works.
