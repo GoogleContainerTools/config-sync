@@ -24,17 +24,21 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
 	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
 	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager/controllers"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/metrics"
 	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/resourcemap"
 	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/typeresolver"
 	"github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest/fake"
 	"github.com/GoogleContainerTools/config-sync/pkg/testing/testcontroller"
 	"github.com/GoogleContainerTools/config-sync/pkg/testing/testerrors"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testmetrics"
 	"github.com/GoogleContainerTools/config-sync/pkg/testing/testwatch"
 	"github.com/GoogleContainerTools/config-sync/pkg/util/log"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opencensus.io/stats/view"
+	"go.opencensus.io/tag"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -61,14 +65,24 @@ const (
 func TestReconcile(t *testing.T) {
 	var channelKpt chan event.GenericEvent
 
+	// Register metrics views with test exporter at the beginning
+	exporter := testmetrics.RegisterMetrics(
+		metrics.ResourceCountView,
+		metrics.ReadyResourceCountView,
+		metrics.NamespaceCountView,
+		metrics.ClusterScopedResourceCountView,
+		metrics.CRDCountView,
+		metrics.KCCResourceCountView,
+	)
+
 	// Configure controller-manager to log to the test logger
 	testLogger := testcontroller.NewTestLogger(t)
 	controllerruntime.SetLogger(testLogger)
 
-	// Setup the Manager
+	// Setup the Manager with metrics enabled for testing
 	mgr, err := manager.New(cfg, manager.Options{
-		// Disable metrics
-		Metrics: metricsserver.Options{BindAddress: "0"},
+		// Enable metrics for this test
+		Metrics: metricsserver.Options{BindAddress: "127.0.0.1:0"},
 		Logger:  testLogger.WithName("controller-manager"),
 		// Use a client.WithWatch, instead of just a client.Client
 		NewClient: func(cfg *rest.Config, opts client.Options) (client.Client, error) {
@@ -304,6 +318,144 @@ func TestReconcile(t *testing.T) {
 		newStalledCondition(v1alpha1.FalseConditionStatus, FinishReconciling, finishReconcilingMsg),
 	}
 	_ = waitForResourceGroupStatus(t, ctx, c, rgKey, 3, 1, expectedStatus)
+
+	// Test metrics recording during ResourceGroup reconciliation
+	t.Log("Testing metrics recording...")
+
+	// Create additional ResourceGroup with diverse resources for metrics testing
+	metricsRes1 := v1alpha1.ObjMetadata{
+		Name:      "test-namespace",
+		Namespace: "",
+		GroupKind: v1alpha1.GroupKind{
+			Group: "",
+			Kind:  "Namespace",
+		},
+	}
+	metricsRes2 := v1alpha1.ObjMetadata{
+		Name:      "test-pod",
+		Namespace: "default",
+		GroupKind: v1alpha1.GroupKind{
+			Group: "",
+			Kind:  "Pod",
+		},
+	}
+	metricsRes3 := v1alpha1.ObjMetadata{
+		Name:      "test-crd",
+		Namespace: "",
+		GroupKind: v1alpha1.GroupKind{
+			Group: "apiextensions.k8s.io",
+			Kind:  "CustomResourceDefinition",
+		},
+	}
+	metricsRes4 := v1alpha1.ObjMetadata{
+		Name:      "test-kcc-resource",
+		Namespace: "default",
+		GroupKind: v1alpha1.GroupKind{
+			Group: "cnrm.cloud.google.com",
+			Kind:  "ComputeInstance",
+		},
+	}
+
+	metricsResources := []v1alpha1.ObjMetadata{metricsRes1, metricsRes2, metricsRes3, metricsRes4}
+
+	metricsResgroupKpt := &v1alpha1.ResourceGroup{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-rg-metrics",
+			Namespace: rgNamespace,
+			Labels: map[string]string{
+				common.InventoryLabel: "test-inventory",
+			},
+		},
+		Spec: v1alpha1.ResourceGroupSpec{
+			Resources: metricsResources,
+		},
+	}
+
+	// Create the ResourceGroup for metrics testing
+	err = c.Create(ctx, metricsResgroupKpt, client.FieldOwner(fake.FieldManager))
+	require.NoError(t, err)
+
+	// Update status to trigger reconciliation
+	metricsResgroupKpt.Status.ObservedGeneration = metricsResgroupKpt.Generation
+	err = c.Status().Update(ctx, metricsResgroupKpt, client.FieldOwner(fake.FieldManager))
+	require.NoError(t, err)
+
+	// Trigger reconciliation
+	channelKpt <- event.GenericEvent{Object: metricsResgroupKpt}
+
+	// Wait for reconciliation to complete
+	time.Sleep(200 * time.Millisecond)
+
+	// Expected metrics for both ResourceGroups
+	expectedMetrics := map[*view.View][]*view.Row{
+		metrics.ResourceCountView: {
+			// Original ResourceGroup (default/group0) - 1 resource (the namespace we created)
+			{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{
+				{Key: metrics.KeyResourceGroup, Value: "default/group0"},
+			}},
+			// Metrics test ResourceGroup (default/test-rg-metrics) - 4 resources
+			{Data: &view.LastValueData{Value: 4}, Tags: []tag.Tag{
+				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics"},
+			}},
+		},
+		metrics.ReadyResourceCountView: {
+			// Original ResourceGroup (default/group0) - 1 ready resource (the namespace)
+			{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{
+				{Key: metrics.KeyResourceGroup, Value: "default/group0"},
+			}},
+			// Metrics test ResourceGroup (default/test-rg-metrics) - 0 ready resources (all will be NotFound)
+			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{
+				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics"},
+			}},
+		},
+		metrics.NamespaceCountView: {
+			// Original ResourceGroup (default/group0) - 1 namespace
+			{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{
+				{Key: metrics.KeyResourceGroup, Value: "default/group0"},
+			}},
+			// Metrics test ResourceGroup (default/test-rg-metrics) - 2 namespaces: "default" and "" (empty)
+			{Data: &view.LastValueData{Value: 2}, Tags: []tag.Tag{
+				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics"},
+			}},
+		},
+		metrics.ClusterScopedResourceCountView: {
+			// Original ResourceGroup (default/group0) - 1 cluster-scoped resource (the namespace)
+			{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{
+				{Key: metrics.KeyResourceGroup, Value: "default/group0"},
+			}},
+			// Metrics test ResourceGroup (default/test-rg-metrics) - 2 cluster-scoped resources (Namespace and CRD)
+			{Data: &view.LastValueData{Value: 2}, Tags: []tag.Tag{
+				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics"},
+			}},
+		},
+		metrics.CRDCountView: {
+			// Original ResourceGroup (default/group0) - 0 CRDs
+			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{
+				{Key: metrics.KeyResourceGroup, Value: "default/group0"},
+			}},
+			// Metrics test ResourceGroup (default/test-rg-metrics) - 1 CRD
+			{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{
+				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics"},
+			}},
+		},
+		metrics.KCCResourceCountView: {
+			// Original ResourceGroup (default/group0) - 0 KCC resources
+			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{
+				{Key: metrics.KeyResourceGroup, Value: "default/group0"},
+			}},
+			// Metrics test ResourceGroup (default/test-rg-metrics) - 1 KCC resource
+			{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{
+				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics"},
+			}},
+		},
+	}
+
+	// Validate metrics
+	for view, rows := range expectedMetrics {
+		if diff := exporter.ValidateMetrics(view, rows); diff != "" {
+			t.Errorf("Unexpected metrics recorded (%s): %v", view.Name, diff)
+		}
+	}
 }
 
 //nolint:revive // testing.T before context.Context

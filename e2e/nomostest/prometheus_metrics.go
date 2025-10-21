@@ -24,7 +24,6 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
 	"github.com/GoogleContainerTools/config-sync/pkg/core"
 	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
-	"github.com/GoogleContainerTools/config-sync/pkg/metrics"
 	ocmetrics "github.com/GoogleContainerTools/config-sync/pkg/metrics"
 	"github.com/GoogleContainerTools/config-sync/pkg/util/log"
 	prometheusapi "github.com/prometheus/client_golang/api"
@@ -184,14 +183,16 @@ func ValidateStandardMetricsForSync(nt *NT, syncKind testmetrics.SyncKind, syncL
 		ReconcilerSyncSuccess(nt, syncLabels, commitHash),
 		ReconcilerSourceMetrics(nt, syncLabels, commitHash, count),
 		ReconcilerSyncMetrics(nt, syncLabels, commitHash),
+		ReconcilerParserMetrics(nt, syncLabels, commitHash),
 		ReconcilerOperationsMetrics(nt, syncLabels, ops...),
-		ReconcilerErrorMetrics(nt, syncLabels, commitHash, summary.Errors))
+		ReconcilerErrorMetrics(nt, syncLabels, commitHash, summary.Errors),
+		ReconcilerPipelineMetrics(nt, syncLabels, summary.Errors))
 }
 
 // ReconcilerManagerMetrics returns a MetricsPredicate that validates the
 // ReconcileDurationView metric.
 func ReconcilerManagerMetrics(nt *NT) MetricsPredicate {
-	nt.Logger.Debugf("[METRICS] Expecting reconciler-manager reconciling status: %s", metrics.StatusSuccess)
+	nt.Logger.Debugf("[METRICS] Expecting reconciler-manager reconciling status: %s", ocmetrics.StatusSuccess)
 	return func(ctx context.Context, v1api prometheusv1.API) error {
 		metricName := ocmetrics.ReconcileDurationView.Name
 		// ReconcileDurationView is a distribution. Query count to aggregate.
@@ -219,15 +220,32 @@ func ReconcilerSourceMetrics(nt *NT, syncLabels prometheusmodel.LabelSet, commit
 // ReconcilerSyncMetrics returns a MetricsPredicate that validates the
 // LastApplyTimestampView, ApplyDurationView, and LastSyncTimestampView metrics.
 func ReconcilerSyncMetrics(nt *NT, syncLabels prometheusmodel.LabelSet, commitHash string) MetricsPredicate {
-	nt.Logger.Debugf("[METRICS] Expecting last apply & sync status (commit: %s): %s", commitHash, metrics.StatusSuccess)
+	nt.Logger.Debugf("[METRICS] Expecting last apply & sync status (commit: %s): %s", commitHash, ocmetrics.StatusSuccess)
 	return func(ctx context.Context, v1api prometheusv1.API) error {
 		var err error
 		err = multierr.Append(err, metricLastApplyTimestampHasStatus(ctx, nt, v1api,
-			syncLabels, commitHash, metrics.StatusSuccess))
+			syncLabels, commitHash, ocmetrics.StatusSuccess))
 		err = multierr.Append(err, metricApplyDurationViewHasStatus(ctx, nt, v1api,
-			syncLabels, commitHash, metrics.StatusSuccess))
+			syncLabels, commitHash, ocmetrics.StatusSuccess))
 		err = multierr.Append(err, metricLastSyncTimestampHasStatus(ctx, nt, v1api,
-			syncLabels, commitHash, metrics.StatusSuccess))
+			syncLabels, commitHash, ocmetrics.StatusSuccess))
+		return err
+	}
+}
+
+// ReconcilerParserMetrics returns a MetricsPredicate that validates the
+// ParserDurationView metric for all parser sources (read, parse, update).
+func ReconcilerParserMetrics(nt *NT, syncLabels prometheusmodel.LabelSet, commitHash string) MetricsPredicate {
+	nt.Logger.Debugf("[METRICS] Expecting parser duration status (commit: %s): %s", commitHash, ocmetrics.StatusSuccess)
+	return func(ctx context.Context, v1api prometheusv1.API) error {
+		var err error
+		// Check parser duration for all three sources: read, parse, update
+		err = multierr.Append(err, metricParserDurationViewHasStatusAndSource(ctx, nt, v1api,
+			syncLabels, "read", ocmetrics.StatusSuccess))
+		err = multierr.Append(err, metricParserDurationViewHasStatusAndSource(ctx, nt, v1api,
+			syncLabels, "parse", ocmetrics.StatusSuccess))
+		err = multierr.Append(err, metricParserDurationViewHasStatusAndSource(ctx, nt, v1api,
+			syncLabels, "update", ocmetrics.StatusSuccess))
 		return err
 	}
 }
@@ -258,6 +276,26 @@ func reconcilerOperationMetrics(nt *NT, syncLabels prometheusmodel.LabelSet, op 
 		err = multierr.Append(err, metricAPICallDurationViewOperationHasStatus(ctx, nt, v1api, syncLabels, string(op.Operation), ocmetrics.StatusSuccess))
 		err = multierr.Append(err, metricApplyOperationsViewHasValueAtLeast(ctx, nt, v1api, syncLabels, string(op.Operation), ocmetrics.StatusSuccess, op.Count))
 		err = multierr.Append(err, metricRemediateDurationViewHasStatus(ctx, nt, v1api, syncLabels, ocmetrics.StatusSuccess))
+		return err
+	}
+}
+
+// ReconcilerPipelineMetrics returns a MetricsPredicate that validates the
+// PipelineErrorView metrics for source, rendering, and sync components.
+func ReconcilerPipelineMetrics(nt *NT, syncLabels prometheusmodel.LabelSet, summary testmetrics.ErrorSummary) MetricsPredicate {
+	nt.Logger.Debugf("[METRICS] Expecting pipeline error metrics: source=%d, rendering=%d, sync=%d", summary.Source, summary.Rendering, summary.Sync)
+
+	var predicates []MetricsPredicate
+	// Pipeline error metrics
+	predicates = append(predicates, metricPipelineErrorViewHasValue(nt, syncLabels, "source", summary.Source))
+	predicates = append(predicates, metricPipelineErrorViewHasValue(nt, syncLabels, "rendering", summary.Rendering))
+	predicates = append(predicates, metricPipelineErrorViewHasValue(nt, syncLabels, "sync", summary.Sync))
+
+	return func(ctx context.Context, v1api prometheusv1.API) error {
+		var err error
+		for _, predicate := range predicates {
+			err = multierr.Append(err, predicate(ctx, v1api))
+		}
 		return err
 	}
 }
@@ -293,20 +331,39 @@ func ReconcilerErrorMetrics(nt *NT, syncLabels prometheusmodel.LabelSet, commitH
 // ReconcilerSyncSuccess returns a MetricsPredicate that validates that the
 // latest commit synced successfully for the specified reconciler and commit.
 func ReconcilerSyncSuccess(nt *NT, syncLabels prometheusmodel.LabelSet, commitHash string) MetricsPredicate {
-	nt.Logger.Debugf("[METRICS] Expecting last sync status (commit: %s): %s", commitHash, metrics.StatusSuccess)
+	nt.Logger.Debugf("[METRICS] Expecting last sync status (commit: %s): %s", commitHash, ocmetrics.StatusSuccess)
 	return func(ctx context.Context, v1api prometheusv1.API) error {
 		return metricLastSyncTimestampHasStatus(ctx, nt, v1api,
-			syncLabels, commitHash, metrics.StatusSuccess)
+			syncLabels, commitHash, ocmetrics.StatusSuccess)
 	}
 }
 
 // ReconcilerSyncError returns a MetricsPredicate that validates that the
 // latest commit sync errored for the specified reconciler and commit.
 func ReconcilerSyncError(nt *NT, syncLabels prometheusmodel.LabelSet, commitHash string) MetricsPredicate {
-	nt.Logger.Debugf("[METRICS] Expecting last sync status (commit: %s): %s", commitHash, metrics.StatusError)
+	nt.Logger.Debugf("[METRICS] Expecting last sync status (commit: %s): %s", commitHash, ocmetrics.StatusError)
 	return func(ctx context.Context, v1api prometheusv1.API) error {
 		return metricLastSyncTimestampHasStatus(ctx, nt, v1api,
-			syncLabels, commitHash, metrics.StatusError)
+			syncLabels, commitHash, ocmetrics.StatusError)
+	}
+}
+
+// ReconcilerParserDuration returns a MetricsPredicate that validates the
+// ParserDurationView metric for the specified reconciler, commit, source, and status.
+func ReconcilerParserDuration(nt *NT, syncLabels prometheusmodel.LabelSet, commitHash, source, status string) MetricsPredicate {
+	nt.Logger.Debugf("[METRICS] Expecting parser duration (commit: %s, source: %s, status: %s)", commitHash, source, status)
+	return func(ctx context.Context, v1api prometheusv1.API) error {
+		return metricParserDurationViewHasStatusAndSource(ctx, nt, v1api,
+			syncLabels, source, status)
+	}
+}
+
+// ReconcilerPipelineError returns a MetricsPredicate that validates the
+// PipelineErrorView metric for the specified reconciler and component.
+func ReconcilerPipelineError(nt *NT, syncLabels prometheusmodel.LabelSet, component string, value int) MetricsPredicate {
+	nt.Logger.Debugf("[METRICS] Expecting pipeline error (component: %s, value: %d)", component, value)
+	return func(ctx context.Context, v1api prometheusv1.API) error {
+		return metricPipelineErrorViewHasValue(nt, syncLabels, component, value)(ctx, v1api)
 	}
 }
 
@@ -398,6 +455,29 @@ func metricInternalErrorsHasValueAtLeast(nt *NT, syncLabels prometheusmodel.Labe
 	}
 }
 
+// metricPipelineErrorViewHasValue returns a MetricsPredicate that validates that
+// the latest pod for the specified reconciler has emitted a pipeline error
+// metric with the specified component and value.
+// If the expected value is zero, the metric being not found is also acceptable.
+// Expected components: "source", "rendering", or "sync".
+func metricPipelineErrorViewHasValue(nt *NT, syncLabels prometheusmodel.LabelSet, componentName string, value int) MetricsPredicate {
+	return func(ctx context.Context, v1api prometheusv1.API) error {
+		metricName := ocmetrics.PipelineErrorName
+		metricName = fmt.Sprintf("%s%s", prometheusConfigSyncMetricPrefix, metricName)
+		labels := prometheusmodel.LabelSet{
+			prometheusmodel.LabelName(ocmetrics.KeyComponent.Name()): prometheusmodel.LabelValue(componentName),
+		}.Merge(syncLabels)
+		query := fmt.Sprintf("%s%s", metricName, labels)
+
+		if value == 0 {
+			// When there's no error, the metric may not be recorded.
+			// So tolerate missing metrics when expecting a zero value.
+			return metricExistsWithValueOrDoesNotExist(ctx, nt, v1api, query, 0)
+		}
+		return metricExistsWithValue(ctx, nt, v1api, query, 1)
+	}
+}
+
 func metricLastSyncTimestampHasStatus(ctx context.Context, nt *NT, v1api prometheusv1.API, syncLabels prometheusmodel.LabelSet, commitHash, status string) error {
 	metricName := ocmetrics.LastSyncTimestampView.Name
 	metricName = fmt.Sprintf("%s%s", prometheusConfigSyncMetricPrefix, metricName)
@@ -434,6 +514,19 @@ func metricApplyDurationViewHasStatus(ctx context.Context, nt *NT, v1api prometh
 		prometheusmodel.LabelName(ocmetrics.KeyStatus.Name()):    prometheusmodel.LabelValue(status),
 	}.Merge(syncLabels)
 	query := fmt.Sprintf("%s%s", metricName, labels)
+	return metricExists(ctx, nt, v1api, query)
+}
+
+func metricParserDurationViewHasStatusAndSource(ctx context.Context, nt *NT, v1api prometheusv1.API, syncLabels prometheusmodel.LabelSet, source, status string) error {
+	metricName := ocmetrics.ParserDurationName
+	// ParserDurationView is a distribution. Query count to aggregate.
+	metricName = fmt.Sprintf("%s%s%s", prometheusConfigSyncMetricPrefix, metricName, prometheusDistributionCountSuffix)
+	labels := prometheusmodel.LabelSet{
+		prometheusmodel.LabelName(ocmetrics.KeyParserSource.Name()): prometheusmodel.LabelValue(source),
+		prometheusmodel.LabelName(ocmetrics.KeyStatus.Name()):       prometheusmodel.LabelValue(status),
+	}.Merge(syncLabels)
+	query := fmt.Sprintf("%s%s", metricName, labels)
+
 	return metricExists(ctx, nt, v1api, query)
 }
 
@@ -502,6 +595,7 @@ func metricQueryNow(ctx context.Context, nt *NT, v1api prometheusv1.API, query s
 	if len(warnings) > 0 {
 		nt.T.Logf("prometheus warnings: %v", warnings)
 	}
+
 	return response, nil
 }
 
