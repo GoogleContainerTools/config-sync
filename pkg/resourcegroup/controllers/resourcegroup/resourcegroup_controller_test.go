@@ -51,6 +51,7 @@ import (
 	"sigs.k8s.io/cli-utils/pkg/common"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -64,16 +65,6 @@ const (
 
 func TestReconcile(t *testing.T) {
 	var channelKpt chan event.GenericEvent
-
-	// Register metrics views with test exporter at the beginning
-	exporter := testmetrics.RegisterMetrics(
-		metrics.ResourceCountView,
-		metrics.ReadyResourceCountView,
-		metrics.NamespaceCountView,
-		metrics.ClusterScopedResourceCountView,
-		metrics.CRDCountView,
-		metrics.KCCResourceCountView,
-	)
 
 	// Configure controller-manager to log to the test logger
 	testLogger := testcontroller.NewTestLogger(t)
@@ -318,11 +309,63 @@ func TestReconcile(t *testing.T) {
 		newStalledCondition(v1alpha1.FalseConditionStatus, FinishReconciling, finishReconcilingMsg),
 	}
 	_ = waitForResourceGroupStatus(t, ctx, c, rgKey, 3, 1, expectedStatus)
+}
+
+func TestReconcile_Metrics(t *testing.T) {
+	var channelKpt chan event.GenericEvent
+
+	// Register metrics views with test exporter at the beginning
+	exporter := testmetrics.RegisterMetrics(
+		metrics.ResourceCountView,
+		metrics.ReadyResourceCountView,
+		metrics.NamespaceCountView,
+		metrics.ClusterScopedResourceCountView,
+		metrics.CRDCountView,
+		metrics.KCCResourceCountView,
+	)
+
+	// Configure controller-manager to log to the test logger
+	testLogger := testcontroller.NewTestLogger(t)
+	controllerruntime.SetLogger(testLogger)
+
+	// Setup the Manager with metrics enabled for testing
+	mgr, err := manager.New(cfg, manager.Options{
+		// Enable metrics for this test
+		Metrics: metricsserver.Options{BindAddress: "127.0.0.1:0"},
+		Logger:  testLogger.WithName("controller-manager"),
+		// Use a client.WithWatch, instead of just a client.Client
+		NewClient: func(cfg *rest.Config, opts client.Options) (client.Client, error) {
+			return client.NewWithWatch(cfg, opts)
+		},
+		// Skip name validation to allow multiple controllers with the same name
+		Controller: config.Controller{
+			SkipNameValidation: func() *bool { b := true; return &b }(),
+		},
+	})
+	require.NoError(t, err)
+	// Get the watch client built by the manager
+	c := mgr.GetClient().(client.WithWatch)
+
+	ctx := t.Context()
+
+	// Setup the controllers with unique names to avoid conflicts
+	logger := testLogger.WithName("controllers-metrics")
+	channelKpt = make(chan event.GenericEvent)
+	resolver, err := typeresolver.ForManager(mgr, logger.WithName("typeresolver-metrics"))
+	require.NoError(t, err)
+	resMap := resourcemap.NewResourceMap()
+	err = NewRGController(mgr, channelKpt, logger.WithName("resourcegroup-metrics"), resolver, resMap, 0)
+	require.NoError(t, err)
+
+	// Start the manager
+	stopTestManager := testcontroller.StartTestManager(t, mgr)
+	// Block test cleanup until manager is fully stopped
+	defer stopTestManager()
 
 	// Test metrics recording during ResourceGroup reconciliation
 	t.Log("Testing metrics recording...")
 
-	// Create additional ResourceGroup with diverse resources for metrics testing
+	// Create a ResourceGroup with diverse resources for metrics testing
 	metricsRes1 := v1alpha1.ObjMetadata{
 		Name:      "test-namespace",
 		Namespace: "",
@@ -384,65 +427,55 @@ func TestReconcile(t *testing.T) {
 	channelKpt <- event.GenericEvent{Object: metricsResgroupKpt}
 
 	// Wait for reconciliation to complete
-	time.Sleep(200 * time.Millisecond)
+	metricsRgKey := client.ObjectKeyFromObject(metricsResgroupKpt)
+	expectedMetricsStatus := v1alpha1.ResourceGroupStatus{
+		ObservedGeneration: 1,
+		ResourceStatuses: []v1alpha1.ResourceStatus{
+			{ObjMetadata: metricsRes1, Status: v1alpha1.NotFound},
+			{ObjMetadata: metricsRes2, Status: v1alpha1.NotFound},
+			{ObjMetadata: metricsRes3, Status: v1alpha1.NotFound},
+			{ObjMetadata: metricsRes4, Status: v1alpha1.NotFound},
+		},
+		Conditions: []v1alpha1.Condition{
+			newReconcilingCondition(v1alpha1.FalseConditionStatus, FinishReconciling, finishReconcilingMsg),
+			newStalledCondition(v1alpha1.FalseConditionStatus, FinishReconciling, finishReconcilingMsg),
+		},
+	}
+	_ = waitForResourceGroupStatus(t, ctx, c, metricsRgKey, 1, 4, expectedMetricsStatus)
 
-	// Expected metrics for both ResourceGroups
+	// Expected metrics for the metrics test ResourceGroup
 	expectedMetrics := map[*view.View][]*view.Row{
 		metrics.ResourceCountView: {
-			// Original ResourceGroup (default/group0) - 1 resource (the namespace we created)
-			{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{
-				{Key: metrics.KeyResourceGroup, Value: "default/group0"},
-			}},
 			// Metrics test ResourceGroup (default/test-rg-metrics) - 4 resources
 			{Data: &view.LastValueData{Value: 4}, Tags: []tag.Tag{
 				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics"},
 			}},
 		},
 		metrics.ReadyResourceCountView: {
-			// Original ResourceGroup (default/group0) - 1 ready resource (the namespace)
-			{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{
-				{Key: metrics.KeyResourceGroup, Value: "default/group0"},
-			}},
 			// Metrics test ResourceGroup (default/test-rg-metrics) - 0 ready resources (all will be NotFound)
 			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{
 				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics"},
 			}},
 		},
 		metrics.NamespaceCountView: {
-			// Original ResourceGroup (default/group0) - 1 namespace
-			{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{
-				{Key: metrics.KeyResourceGroup, Value: "default/group0"},
-			}},
 			// Metrics test ResourceGroup (default/test-rg-metrics) - 2 namespaces: "default" and "" (empty)
 			{Data: &view.LastValueData{Value: 2}, Tags: []tag.Tag{
 				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics"},
 			}},
 		},
 		metrics.ClusterScopedResourceCountView: {
-			// Original ResourceGroup (default/group0) - 1 cluster-scoped resource (the namespace)
-			{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{
-				{Key: metrics.KeyResourceGroup, Value: "default/group0"},
-			}},
 			// Metrics test ResourceGroup (default/test-rg-metrics) - 2 cluster-scoped resources (Namespace and CRD)
 			{Data: &view.LastValueData{Value: 2}, Tags: []tag.Tag{
 				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics"},
 			}},
 		},
 		metrics.CRDCountView: {
-			// Original ResourceGroup (default/group0) - 0 CRDs
-			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{
-				{Key: metrics.KeyResourceGroup, Value: "default/group0"},
-			}},
 			// Metrics test ResourceGroup (default/test-rg-metrics) - 1 CRD
 			{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{
 				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics"},
 			}},
 		},
 		metrics.KCCResourceCountView: {
-			// Original ResourceGroup (default/group0) - 0 KCC resources
-			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{
-				{Key: metrics.KeyResourceGroup, Value: "default/group0"},
-			}},
 			// Metrics test ResourceGroup (default/test-rg-metrics) - 1 KCC resource
 			{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{
 				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics"},

@@ -362,9 +362,7 @@ func ReconcilerParserDuration(nt *NT, syncLabels prometheusmodel.LabelSet, commi
 // PipelineErrorView metric for the specified reconciler and component.
 func ReconcilerPipelineError(nt *NT, syncLabels prometheusmodel.LabelSet, component string, value int) MetricsPredicate {
 	nt.Logger.Debugf("[METRICS] Expecting pipeline error (component: %s, value: %d)", component, value)
-	return func(ctx context.Context, v1api prometheusv1.API) error {
-		return metricPipelineErrorViewHasValue(nt, syncLabels, component, value)(ctx, v1api)
-	}
+	return metricPipelineErrorViewHasValue(nt, syncLabels, component, value)
 }
 
 // metricReconcilerErrorsHasValue returns a MetricsPredicate that validates that
