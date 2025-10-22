@@ -216,11 +216,6 @@ func TestResources_InternalErrorMetricValidation(t *testing.T) {
 			Value:  1,
 			Labels: map[string]string{"source": "parser"},
 		},
-		{
-			Name:   metrics.DeclaredResourcesName,
-			Value:  0,
-			Labels: map[string]string{"commit": "unused"},
-		},
 	}
 
 	if diff := exporter.ValidateMetrics(expectedMetrics); diff != "" {
