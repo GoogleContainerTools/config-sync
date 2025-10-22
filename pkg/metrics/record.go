@@ -158,7 +158,7 @@ func RecordApplyOperation(ctx context.Context, controller, operation, status str
 func RecordApplyDuration(ctx context.Context, status, commit string, startTime time.Time) {
 	if commit == "" {
 		// TODO: Remove default value when otel-collector supports empty tag values correctly.
-		commit = "NONE"
+		commit = CommitNone
 	}
 	now := time.Now()
 	attrs := []attribute.KeyValue{

@@ -92,7 +92,7 @@ func initializeMetricsForTesting() error {
 }
 
 // CollectMetrics collects all OpenTelemetry metrics and stores them in a simple format
-func (e *TestExporter) CollectMetrics() error {
+func (e *TestExporter) CollectMetrics(ctx context.Context) error {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 
@@ -103,7 +103,6 @@ func (e *TestExporter) CollectMetrics() error {
 	// Clear existing metrics before collecting new ones
 	e.metrics = make([]MetricData, 0)
 
-	ctx := context.Background()
 	var rm metricdata.ResourceMetrics
 	if err := e.reader.Collect(ctx, &rm); err != nil {
 		return fmt.Errorf("failed to collect metrics: %w", err)
@@ -245,7 +244,7 @@ func ResetGlobalMetrics() {
 // ValidateMetrics compares collected metrics with expected values
 func (e *TestExporter) ValidateMetrics(expected []MetricData) string {
 	// Collect current metrics
-	if err := e.CollectMetrics(); err != nil {
+	if err := e.CollectMetrics(context.Background()); err != nil {
 		return fmt.Sprintf("Failed to collect metrics: %v", err)
 	}
 
