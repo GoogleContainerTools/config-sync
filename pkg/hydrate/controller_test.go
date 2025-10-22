@@ -215,9 +215,6 @@ func TestRunHydrate(t *testing.T) {
 			// Reset metrics for this test to avoid cross-test contamination
 			testmetrics.ResetGlobalMetrics()
 
-			// Initialize metrics before any test setup
-			_ = testmetrics.NewTestExporter()
-
 			// create a temporary directory with a commit hash
 			tempDir, err := os.MkdirTemp(os.TempDir(), "run-hydrate-test")
 			if err != nil {

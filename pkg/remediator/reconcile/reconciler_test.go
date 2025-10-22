@@ -389,7 +389,7 @@ func TestRemediator_Reconcile(t *testing.T) {
 		},
 	}
 
-	_ = testmetrics.NewTestExporter()
+	testmetrics.ResetGlobalMetrics()
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -551,9 +551,6 @@ func TestRemediator_Reconcile_Metrics(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Reset metrics for each test case to avoid cross-test contamination
-			testmetrics.ResetGlobalMetrics()
-
-			// Initialize metrics before any test setup
 			exporter := testmetrics.NewTestExporter()
 
 			// Set up the fake client that represents the initial state of the cluster.

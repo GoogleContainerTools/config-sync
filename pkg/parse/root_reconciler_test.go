@@ -656,7 +656,7 @@ func TestRootReconciler_ParseAndUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_ = testmetrics.NewTestExporter()
+	testmetrics.ResetGlobalMetrics()
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1328,7 +1328,6 @@ func TestRootReconciler_Parse_SourceErrorMetricValidation(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			require.Error(t, tc.parseErrors)
-			testmetrics.ResetGlobalMetrics()
 			exporter := testmetrics.NewTestExporter()
 			fakeConfigParser := &fsfake.ConfigParser{
 				Outputs: []fsfake.ParserOutputs{

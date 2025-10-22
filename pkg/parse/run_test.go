@@ -1327,9 +1327,6 @@ func TestReconciler_Reconcile(t *testing.T) {
 	for index, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Reset metrics for each test case to avoid cross-test contamination
-			testmetrics.ResetGlobalMetrics()
-
-			// Initialize metrics before any test setup
 			exporter := testmetrics.NewTestExporter()
 
 			util.SourceRetryBackoff = wait.Backoff{

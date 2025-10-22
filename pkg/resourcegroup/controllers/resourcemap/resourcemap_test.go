@@ -57,9 +57,6 @@ func TestResourceMapReconcile(t *testing.T) {
 	// Reset metrics for this test to avoid cross-test contamination
 	testmetrics.ResetGlobalMetrics()
 
-	// Initialize metrics before any test setup
-	_ = testmetrics.NewTestExporter()
-
 	resourceMap := NewResourceMap()
 	assert.True(t, resourceMap.IsEmpty())
 

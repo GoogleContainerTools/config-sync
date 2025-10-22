@@ -41,7 +41,6 @@ func TestMain(m *testing.M) {
 
 		// Initialize metrics for all tests in this package
 		testmetrics.ResetGlobalMetrics()
-		_ = testmetrics.NewTestExporter()
 
 		testEnv = &envtest.Environment{
 			CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "..", "manifests")},

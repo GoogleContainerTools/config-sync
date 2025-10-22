@@ -44,7 +44,7 @@ func TestUpdateDeclared(t *testing.T) {
 	objects := testSet
 	commit := "1"
 	expectedIDs := getIDs(objects)
-	_ = testmetrics.NewTestExporter()
+	testmetrics.ResetGlobalMetrics()
 
 	newObjects, err := dr.UpdateDeclared(context.Background(), objects, commit)
 	if err != nil {
@@ -203,7 +203,6 @@ func TestGVKSet(t *testing.T) {
 }
 
 func TestResources_InternalErrorMetricValidation(t *testing.T) {
-	testmetrics.ResetGlobalMetrics()
 	exporter := testmetrics.NewTestExporter()
 	dr := Resources{}
 	if _, err := dr.UpdateDeclared(context.Background(), nilSet, "unused"); err != nil {

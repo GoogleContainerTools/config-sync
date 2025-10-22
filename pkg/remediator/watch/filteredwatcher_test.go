@@ -374,7 +374,7 @@ func TestFilteredWatcher(t *testing.T) {
 		},
 	}
 
-	_ = testmetrics.NewTestExporter()
+	testmetrics.ResetGlobalMetrics()
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {

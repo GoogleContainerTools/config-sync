@@ -55,9 +55,6 @@ func TestRootReconciler(t *testing.T) {
 	// Reset metrics for this test to avoid cross-test contamination
 	testmetrics.ResetGlobalMetrics()
 
-	// Initialize metrics before any test setup
-	_ = testmetrics.NewTestExporter()
-
 	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
 	// channel when it is finished.
 	mgr, err := manager.New(cfg, manager.Options{

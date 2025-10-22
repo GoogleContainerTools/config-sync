@@ -33,6 +33,7 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	testingfake "github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest/fake"
 	"github.com/GoogleContainerTools/config-sync/pkg/testing/testerrors"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testmetrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -349,7 +350,7 @@ func TestApply(t *testing.T) {
 			},
 		},
 	}
-
+	testmetrics.ResetGlobalMetrics()
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			rsObj := &unstructured.Unstructured{}

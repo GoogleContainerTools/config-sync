@@ -361,7 +361,7 @@ func setupNSReconciler(t *testing.T, objs ...client.Object) (*syncerFake.Client,
 func TestCreateAndUpdateNamespaceReconcilerWithOverride(t *testing.T) {
 	// Mock out parseDeployment for testing.
 	parseDeployment = parsedDeployment
-	_ = testmetrics.NewTestExporter()
+	testmetrics.ResetGlobalMetrics()
 
 	overrideReconcilerAndGitSyncResourceLimits := []v1beta1.ContainerResourcesSpec{
 		{
