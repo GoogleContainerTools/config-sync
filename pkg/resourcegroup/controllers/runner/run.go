@@ -81,7 +81,7 @@ func run() error {
 	}
 
 	// Register the metrics exporter
-	oce, err := ocmetrics.RegisterOTelExporter()
+	oce, err := ocmetrics.RegisterOTelExporter(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to register the metrics exporter: %w", err)
 	}

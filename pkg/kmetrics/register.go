@@ -26,7 +26,7 @@ import (
 )
 
 // RegisterOTelExporter creates the OTLP metrics exporter.
-func RegisterOTelExporter(containerName string) (*otlpmetricgrpc.Exporter, error) {
+func RegisterOTelExporter(ctx context.Context, containerName string) (*otlpmetricgrpc.Exporter, error) {
 
 	err := os.Setenv(
 		"OTEL_RESOURCE_ATTRIBUTES",
@@ -36,7 +36,7 @@ func RegisterOTelExporter(containerName string) (*otlpmetricgrpc.Exporter, error
 	}
 
 	res, err := resource.New(
-		context.Background(),
+		ctx,
 		resource.WithFromEnv(),
 		resource.WithAttributes(
 			semconv.ServiceNameKey.String("config-sync-kmetric"),
@@ -49,7 +49,7 @@ func RegisterOTelExporter(containerName string) (*otlpmetricgrpc.Exporter, error
 
 	// Create OTLP exporter
 	exporter, err := otlpmetricgrpc.New(
-		context.Background(),
+		ctx,
 		otlpmetricgrpc.WithInsecure(),
 		otlpmetricgrpc.WithEndpoint("localhost:4317"),
 	)

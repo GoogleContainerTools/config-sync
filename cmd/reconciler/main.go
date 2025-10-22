@@ -147,7 +147,8 @@ func main() {
 	}
 
 	// Register the OC Agent exporter
-	oce, err := ocmetrics.RegisterOTelExporter(reconcilermanager.Reconciler)
+	ctx := context.Background()
+	oce, err := ocmetrics.RegisterOTelExporter(ctx, reconcilermanager.Reconciler)
 	if err != nil {
 		klog.Fatalf("Failed to register the OC Agent exporter: %v", err)
 	}

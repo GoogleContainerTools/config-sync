@@ -188,7 +188,8 @@ func main() {
 	}
 
 	// Register the OC Agent exporter
-	oce, err := metrics.RegisterOTelExporter(reconcilermanager.ManagerName)
+	ctx := context.Background()
+	oce, err := metrics.RegisterOTelExporter(ctx, reconcilermanager.ManagerName)
 	if err != nil {
 		setupLog.Error(err, "failed to register the OC Agent exporter")
 		os.Exit(1)
