@@ -35,10 +35,8 @@ func RecordAPICallDuration(ctx context.Context, operation, status string, startT
 	}
 	duration := time.Since(startTime).Seconds()
 
-	// Check if metric is initialized
 	if APICallDuration == nil {
-		klog.Errorf("APICallDuration metric is not initialized!")
-		return
+		panic("APICallDuration metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
 	}
 
 	APICallDuration.Record(ctx, duration, metric.WithAttributes(attrs...))
@@ -49,10 +47,8 @@ func RecordAPICallDuration(ctx context.Context, operation, status string, startT
 
 // RecordReconcilerErrors produces a measurement for the ReconcilerErrors view.
 func RecordReconcilerErrors(ctx context.Context, component string, errs []v1beta1.ConfigSyncError) {
-	// Check if metric is initialized
 	if ReconcilerErrors == nil {
-		klog.Errorf("ReconcilerErrors metric is not initialized!")
-		return
+		panic("ReconcilerErrors metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
 	}
 
 	errorCountByClass := status.CountErrorByClass(errs)
@@ -78,10 +74,8 @@ func RecordReconcilerErrors(ctx context.Context, component string, errs []v1beta
 
 // RecordPipelineError produces a measurement for the PipelineError view
 func RecordPipelineError(ctx context.Context, reconcilerType, component string, errLen int) {
-	// Check if metric is initialized
 	if PipelineError == nil {
-		klog.Errorf("PipelineError metric is not initialized!")
-		return
+		panic("PipelineError metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
 	}
 
 	reconcilerName := os.Getenv(reconcilermanager.ReconcilerNameKey)
@@ -104,6 +98,10 @@ func RecordPipelineError(ctx context.Context, reconcilerType, component string, 
 
 // RecordReconcileDuration produces a measurement for the ReconcileDuration view.
 func RecordReconcileDuration(ctx context.Context, status string, startTime time.Time) {
+	if ReconcileDuration == nil {
+		panic("ReconcileDuration metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
+	}
+
 	attrs := []attribute.KeyValue{
 		KeyStatus.String(status),
 	}
@@ -114,6 +112,10 @@ func RecordReconcileDuration(ctx context.Context, status string, startTime time.
 
 // RecordParserDuration produces a measurement for the ParserDuration view.
 func RecordParserDuration(ctx context.Context, trigger, source, status string, startTime time.Time) {
+	if ParserDuration == nil {
+		panic("ParserDuration metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
+	}
+
 	attrs := []attribute.KeyValue{
 		KeyStatus.String(status),
 		KeyTrigger.String(trigger),
@@ -126,6 +128,10 @@ func RecordParserDuration(ctx context.Context, trigger, source, status string, s
 
 // RecordLastSync produces a measurement for the LastSync view.
 func RecordLastSync(ctx context.Context, status, commit string, timestamp time.Time) {
+	if LastSync == nil {
+		panic("LastSync metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
+	}
+
 	attrs := []attribute.KeyValue{
 		KeyStatus.String(status),
 		KeyCommit.String(commit),
@@ -136,6 +142,10 @@ func RecordLastSync(ctx context.Context, status, commit string, timestamp time.T
 
 // RecordDeclaredResources produces a measurement for the DeclaredResources view.
 func RecordDeclaredResources(ctx context.Context, commit string, numResources int) {
+	if DeclaredResources == nil {
+		panic("DeclaredResources metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
+	}
+
 	attrs := []attribute.KeyValue{
 		KeyCommit.String(commit),
 	}
@@ -145,6 +155,10 @@ func RecordDeclaredResources(ctx context.Context, commit string, numResources in
 
 // RecordApplyOperation produces a measurement for the ApplyOperations view.
 func RecordApplyOperation(ctx context.Context, controller, operation, status string) {
+	if ApplyOperations == nil {
+		panic("ApplyOperations metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
+	}
+
 	attrs := []attribute.KeyValue{
 		KeyOperation.String(operation),
 		KeyController.String(controller),
@@ -156,6 +170,14 @@ func RecordApplyOperation(ctx context.Context, controller, operation, status str
 
 // RecordApplyDuration produces measurements for the ApplyDuration and LastApplyTimestamp views.
 func RecordApplyDuration(ctx context.Context, status, commit string, startTime time.Time) {
+	// Fail fast if metrics are not initialized - this enforces that InitializeOTelMetrics is called
+	if ApplyDuration == nil {
+		panic("ApplyDuration metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
+	}
+	if LastApply == nil {
+		panic("LastApply metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
+	}
+
 	if commit == "" {
 		// TODO: Remove default value when otel-collector supports empty tag values correctly.
 		commit = CommitNone
@@ -174,12 +196,20 @@ func RecordApplyDuration(ctx context.Context, status, commit string, startTime t
 
 // RecordResourceFight produces measurements for the ResourceFights view.
 func RecordResourceFight(ctx context.Context, _ string) {
+	if ResourceFights == nil {
+		panic("ResourceFights metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
+	}
+
 	klog.V(5).Infof("METRIC DEBUG: Recording ResourceFight")
 	ResourceFights.Add(ctx, 1)
 }
 
 // RecordRemediateDuration produces measurements for the RemediateDuration view.
 func RecordRemediateDuration(ctx context.Context, status string, startTime time.Time) {
+	if RemediateDuration == nil {
+		panic("RemediateDuration metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
+	}
+
 	attrs := []attribute.KeyValue{
 		KeyStatus.String(status),
 	}
@@ -190,6 +220,10 @@ func RecordRemediateDuration(ctx context.Context, status string, startTime time.
 
 // RecordResourceConflict produces measurements for the ResourceConflicts view.
 func RecordResourceConflict(ctx context.Context, commit string) {
+	if ResourceConflicts == nil {
+		panic("ResourceConflicts metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
+	}
+
 	attrs := []attribute.KeyValue{
 		KeyCommit.String(commit),
 	}
@@ -199,6 +233,10 @@ func RecordResourceConflict(ctx context.Context, commit string) {
 
 // RecordInternalError produces measurements for the InternalErrors view.
 func RecordInternalError(ctx context.Context, source string) {
+	if InternalErrors == nil {
+		panic("InternalErrors metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
+	}
+
 	attrs := []attribute.KeyValue{
 		KeyInternalErrorSource.String(source),
 	}
