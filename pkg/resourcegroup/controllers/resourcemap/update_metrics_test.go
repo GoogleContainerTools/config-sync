@@ -1,5 +1,5 @@
 /*
-Copyright 2020 Google LLC.
+Copyright 2025 Google LLC.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,230 +30,216 @@ import (
 )
 
 func TestResourceMapUpdateMetrics(t *testing.T) {
-	// Create a single resource map for the entire test
-	m := NewResourceMap()
 	ctx := context.Background()
 
-	// Test 1: Add single resource group
-	t.Run("Add single resource group", func(t *testing.T) {
-		// Register metrics views with test exporter for this test
-		exporter := testmetrics.RegisterMetrics(
-			metrics.ResourceGroupTotalView,
-		)
-
-		group := types.NamespacedName{Name: "root-sync", Namespace: configsync.ControllerNamespace}
-		resources := []v1alpha1.ObjMetadata{
-			{
-				Name:      "test-deployment",
-				Namespace: "default",
-				GroupKind: v1alpha1.GroupKind{
-					Group: "apps",
-					Kind:  "Deployment",
+	testcases := []struct {
+		name                   string
+		group                  types.NamespacedName
+		resources              []v1alpha1.ObjMetadata
+		isDelete               bool
+		expectedMetricValue    float64
+		expectedResourceGroups int
+	}{
+		{
+			name:  "Add single resource group",
+			group: types.NamespacedName{Name: "root-sync", Namespace: configsync.ControllerNamespace},
+			resources: []v1alpha1.ObjMetadata{
+				{
+					Name:      "test-deployment",
+					Namespace: "default",
+					GroupKind: v1alpha1.GroupKind{
+						Group: "apps",
+						Kind:  "Deployment",
+					},
 				},
 			},
-		}
-
-		_ = m.Reconcile(ctx, group, resources, false)
-
-		expected := []*view.Row{
-			{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{}},
-		}
-
-		if diff := exporter.ValidateMetrics(metrics.ResourceGroupTotalView, expected); diff != "" {
-			t.Errorf("Unexpected metrics recorded: %v", diff)
-		}
-
-		if len(m.resgroupToResources) != 1 {
-			t.Errorf("Expected 1 resource groups in map, got %d", len(m.resgroupToResources))
-		}
-	})
-
-	// Test 2: Add second resource group
-	t.Run("Add second resource group", func(t *testing.T) {
-		// Register metrics views with test exporter for this test
-		exporter := testmetrics.RegisterMetrics(
-			metrics.ResourceGroupTotalView,
-		)
-
-		group2 := types.NamespacedName{Name: "repo-sync", Namespace: "bookinfo"}
-		resources2 := []v1alpha1.ObjMetadata{
-			{
-				Name:      "test-service",
-				Namespace: "bookinfo",
-				GroupKind: v1alpha1.GroupKind{
-					Group: "",
-					Kind:  "Service",
+			isDelete:               false,
+			expectedMetricValue:    1,
+			expectedResourceGroups: 1,
+		},
+		{
+			name:  "Add second resource group",
+			group: types.NamespacedName{Name: "repo-sync", Namespace: "bookinfo"},
+			resources: []v1alpha1.ObjMetadata{
+				{
+					Name:      "test-service",
+					Namespace: "bookinfo",
+					GroupKind: v1alpha1.GroupKind{
+						Group: "",
+						Kind:  "Service",
+					},
 				},
 			},
-		}
-
-		_ = m.Reconcile(ctx, group2, resources2, false)
-
-		expected := []*view.Row{
-			{Data: &view.LastValueData{Value: 2}, Tags: []tag.Tag{}}, // root-sync + repo-sync
-		}
-
-		if diff := exporter.ValidateMetrics(metrics.ResourceGroupTotalView, expected); diff != "" {
-			t.Errorf("Unexpected metrics recorded: %v", diff)
-		}
-
-		if len(m.resgroupToResources) != 2 {
-			t.Errorf("Expected 2 resource groups in map, got %d", len(m.resgroupToResources))
-		}
-	})
-
-	// Test 3: Delete first resource group
-	t.Run("Delete first resource group", func(t *testing.T) {
-		// Register metrics views with test exporter for this test
-		exporter := testmetrics.RegisterMetrics(
-			metrics.ResourceGroupTotalView,
-		)
-
-		group := types.NamespacedName{Name: "root-sync", Namespace: configsync.ControllerNamespace}
-		_ = m.Reconcile(ctx, group, []v1alpha1.ObjMetadata{}, true)
-
-		expected := []*view.Row{
-			{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{}}, // Only repo-sync remains
-		}
-
-		if diff := exporter.ValidateMetrics(metrics.ResourceGroupTotalView, expected); diff != "" {
-			t.Errorf("Unexpected metrics recorded: %v", diff)
-		}
-
-		if len(m.resgroupToResources) != 1 {
-			t.Errorf("Expected 1 resource groups in map, got %d", len(m.resgroupToResources))
-		}
-	})
-
-	// Test 4: Delete remaining resource group
-	t.Run("Delete remaining resource group", func(t *testing.T) {
-		// Register metrics views with test exporter for this test
-		exporter := testmetrics.RegisterMetrics(
-			metrics.ResourceGroupTotalView,
-		)
-
-		group2 := types.NamespacedName{Name: "repo-sync", Namespace: "bookinfo"}
-		_ = m.Reconcile(ctx, group2, []v1alpha1.ObjMetadata{}, true)
-
-		expected := []*view.Row{
-			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{}}, // No resource groups remain
-		}
-
-		if diff := exporter.ValidateMetrics(metrics.ResourceGroupTotalView, expected); diff != "" {
-			t.Errorf("Unexpected metrics recorded: %v", diff)
-		}
-
-		if len(m.resgroupToResources) != 0 {
-			t.Errorf("Expected 0 resource groups in map, got %d", len(m.resgroupToResources))
-		}
-	})
-
-	// Test 5: Add resource group with multiple resources
-	t.Run("Add resource group with multiple resources", func(t *testing.T) {
-		// Register metrics views with test exporter for this test
-		exporter := testmetrics.RegisterMetrics(
-			metrics.ResourceGroupTotalView,
-		)
-
-		group2 := types.NamespacedName{Name: "repo-sync", Namespace: "bookinfo"}
-		resources3 := []v1alpha1.ObjMetadata{
-			{
-				Name:      "test-service",
-				Namespace: "bookinfo",
-				GroupKind: v1alpha1.GroupKind{
-					Group: "",
-					Kind:  "Service",
+			isDelete:               false,
+			expectedMetricValue:    2, // root-sync + repo-sync
+			expectedResourceGroups: 2,
+		},
+		{
+			name:                   "Delete first resource group",
+			group:                  types.NamespacedName{Name: "root-sync", Namespace: configsync.ControllerNamespace},
+			resources:              []v1alpha1.ObjMetadata{},
+			isDelete:               true,
+			expectedMetricValue:    1, // Only repo-sync remains
+			expectedResourceGroups: 1,
+		},
+		{
+			name:                   "Delete remaining resource group",
+			group:                  types.NamespacedName{Name: "repo-sync", Namespace: "bookinfo"},
+			resources:              []v1alpha1.ObjMetadata{},
+			isDelete:               true,
+			expectedMetricValue:    0, // No resource groups remain
+			expectedResourceGroups: 0,
+		},
+		{
+			name:  "Add resource group with multiple resources",
+			group: types.NamespacedName{Name: "repo-sync", Namespace: "bookinfo"},
+			resources: []v1alpha1.ObjMetadata{
+				{
+					Name:      "test-service",
+					Namespace: "bookinfo",
+					GroupKind: v1alpha1.GroupKind{
+						Group: "",
+						Kind:  "Service",
+					},
+				},
+				{
+					Name:      "test-deployment",
+					Namespace: "bookinfo",
+					GroupKind: v1alpha1.GroupKind{
+						Group: "apps",
+						Kind:  "Deployment",
+					},
 				},
 			},
-			{
-				Name:      "test-deployment",
-				Namespace: "bookinfo",
-				GroupKind: v1alpha1.GroupKind{
-					Group: "apps",
-					Kind:  "Deployment",
-				},
-			},
-		}
+			isDelete:               false,
+			expectedMetricValue:    1, // 1 resource group with multiple resources
+			expectedResourceGroups: 1,
+		},
+	}
 
-		_ = m.Reconcile(ctx, group2, resources3, false)
+	// Create a single resource map for the entire test
+	m := NewResourceMap()
 
-		expected := []*view.Row{
-			{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{}}, // 1 resource group with multiple resources
-		}
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Register metrics views with test exporter for this test
+			exporter := testmetrics.RegisterMetrics(
+				metrics.ResourceGroupTotalView,
+			)
 
-		if diff := exporter.ValidateMetrics(metrics.ResourceGroupTotalView, expected); diff != "" {
-			t.Errorf("Unexpected metrics recorded: %v", diff)
-		}
+			_ = m.Reconcile(ctx, tc.group, tc.resources, tc.isDelete)
 
-		if len(m.resgroupToResources) != 1 {
-			t.Errorf("Expected 1 resource groups in map, got %d", len(m.resgroupToResources))
-		}
-	})
+			expected := []*view.Row{
+				{Data: &view.LastValueData{Value: tc.expectedMetricValue}, Tags: []tag.Tag{}},
+			}
+
+			if diff := exporter.ValidateMetrics(metrics.ResourceGroupTotalView, expected); diff != "" {
+				t.Errorf("Unexpected metrics recorded: %v", diff)
+			}
+
+			if len(m.resgroupToResources) != tc.expectedResourceGroups {
+				t.Errorf("Expected %d resource groups in map, got %d", tc.expectedResourceGroups, len(m.resgroupToResources))
+			}
+		})
+	}
 }
 
 func TestResourceMapMultipleUpdates(t *testing.T) {
-	// Register metrics views with test exporter
-	exporter := testmetrics.RegisterMetrics(
-		metrics.ResourceGroupTotalView,
-	)
-
-	// Create a new resource map
-	m := NewResourceMap()
 	ctx := context.Background()
 
-	// Add first resource group
-	group1 := types.NamespacedName{Name: "root-sync", Namespace: configsync.ControllerNamespace}
-	resources1 := []v1alpha1.ObjMetadata{
+	testcases := []struct {
+		name       string
+		operations []struct {
+			group     types.NamespacedName
+			resources []v1alpha1.ObjMetadata
+			isDelete  bool
+		}
+		expectedMetricValue    float64
+		expectedResourceGroups int
+	}{
 		{
-			Name:      "deployment-1",
-			Namespace: "default",
-			GroupKind: v1alpha1.GroupKind{
-				Group: "apps",
-				Kind:  "Deployment",
+			name: "Add multiple resource groups sequentially",
+			operations: []struct {
+				group     types.NamespacedName
+				resources []v1alpha1.ObjMetadata
+				isDelete  bool
+			}{
+				{
+					group: types.NamespacedName{Name: "root-sync", Namespace: configsync.ControllerNamespace},
+					resources: []v1alpha1.ObjMetadata{
+						{
+							Name:      "deployment-1",
+							Namespace: "default",
+							GroupKind: v1alpha1.GroupKind{
+								Group: "apps",
+								Kind:  "Deployment",
+							},
+						},
+					},
+					isDelete: false,
+				},
+				{
+					group: types.NamespacedName{Name: "repo-sync", Namespace: "bookinfo"},
+					resources: []v1alpha1.ObjMetadata{
+						{
+							Name:      "service-1",
+							Namespace: "bookinfo",
+							GroupKind: v1alpha1.GroupKind{
+								Group: "",
+								Kind:  "Service",
+							},
+						},
+					},
+					isDelete: false,
+				},
+				{
+					group: types.NamespacedName{Name: "another-sync", Namespace: "default"},
+					resources: []v1alpha1.ObjMetadata{
+						{
+							Name:      "role-1",
+							Namespace: "default",
+							GroupKind: v1alpha1.GroupKind{
+								Group: "rbac.authorization.k8s.io",
+								Kind:  "Role",
+							},
+						},
+					},
+					isDelete: false,
+				},
 			},
+			expectedMetricValue:    3, // All three resource groups
+			expectedResourceGroups: 3,
 		},
 	}
-	_ = m.Reconcile(ctx, group1, resources1, false)
 
-	// Add second resource group
-	group2 := types.NamespacedName{Name: "repo-sync", Namespace: "bookinfo"}
-	resources2 := []v1alpha1.ObjMetadata{
-		{
-			Name:      "service-1",
-			Namespace: "bookinfo",
-			GroupKind: v1alpha1.GroupKind{
-				Group: "",
-				Kind:  "Service",
-			},
-		},
-	}
-	_ = m.Reconcile(ctx, group2, resources2, false)
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Register metrics views with test exporter
+			exporter := testmetrics.RegisterMetrics(
+				metrics.ResourceGroupTotalView,
+			)
 
-	// Add third resource group
-	group3 := types.NamespacedName{Name: "another-sync", Namespace: "default"}
-	resources3 := []v1alpha1.ObjMetadata{
-		{
-			Name:      "role-1",
-			Namespace: "default",
-			GroupKind: v1alpha1.GroupKind{
-				Group: "rbac.authorization.k8s.io",
-				Kind:  "Role",
-			},
-		},
-	}
-	_ = m.Reconcile(ctx, group3, resources3, false)
+			// Create a new resource map
+			m := NewResourceMap()
 
-	// Verify final metrics
-	expected := []*view.Row{
-		{Data: &view.LastValueData{Value: 3}, Tags: []tag.Tag{}}, // All three resource groups
-	}
+			// Execute all operations
+			for _, op := range tc.operations {
+				_ = m.Reconcile(ctx, op.group, op.resources, op.isDelete)
+			}
 
-	if diff := exporter.ValidateMetrics(metrics.ResourceGroupTotalView, expected); diff != "" {
-		t.Errorf("Unexpected metrics recorded: %v", diff)
-	}
+			// Verify final metrics
+			expected := []*view.Row{
+				{Data: &view.LastValueData{Value: tc.expectedMetricValue}, Tags: []tag.Tag{}},
+			}
 
-	// Verify the resource map state
-	if len(m.resgroupToResources) != 3 {
-		t.Errorf("Expected 3 resource groups in map, got %d", len(m.resgroupToResources))
+			if diff := exporter.ValidateMetrics(metrics.ResourceGroupTotalView, expected); diff != "" {
+				t.Errorf("Unexpected metrics recorded: %v", diff)
+			}
+
+			// Verify the resource map state
+			if len(m.resgroupToResources) != tc.expectedResourceGroups {
+				t.Errorf("Expected %d resource groups in map, got %d", tc.expectedResourceGroups, len(m.resgroupToResources))
+			}
+		})
 	}
 }

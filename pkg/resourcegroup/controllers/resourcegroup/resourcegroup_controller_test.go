@@ -458,7 +458,7 @@ func TestReconcile_Metrics(t *testing.T) {
 			}},
 		},
 		metrics.NamespaceCountView: {
-			// Metrics test ResourceGroup (default/test-rg-metrics) - 2 namespaces: "default" and "" (empty)
+			// Metrics test ResourceGroup (default/test-rg-metrics) - 2 namespaces: "default" and "test-namespace"
 			{Data: &view.LastValueData{Value: 2}, Tags: []tag.Tag{
 				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics"},
 			}},
