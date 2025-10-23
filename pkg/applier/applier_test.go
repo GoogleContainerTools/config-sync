@@ -767,8 +767,8 @@ For more information, see https://g.co/cloud/acm-errors#knv2009`,
 
 	// process skipped apply of testObj1 (ignore-mutation object)
 	applyErr := &filter.AnnotationPreventedUpdateError{
-		Annotation: metadata.LifecycleMutationAnnotation,
-		Value:      metadata.IgnoreMutation,
+		Annotation: common.LifecycleMutationAnnotation,
+		Value:      common.IgnoreMutation,
 	}
 	// inject expected config sync metadata to verify it's set by applier
 	applyObj := testObj1.DeepCopy()
