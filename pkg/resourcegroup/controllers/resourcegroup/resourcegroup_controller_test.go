@@ -322,6 +322,7 @@ func TestReconcile_Metrics(t *testing.T) {
 		metrics.ClusterScopedResourceCountView,
 		metrics.CRDCountView,
 		metrics.KCCResourceCountView,
+		metrics.PipelineErrorView,
 	)
 
 	// Configure controller-manager to log to the test logger
@@ -600,12 +601,307 @@ func TestReconcile_Metrics(t *testing.T) {
 				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics"},
 			}},
 		},
+		metrics.PipelineErrorView: {
+			// Metrics test ResourceGroup (default/test-rg-metrics) - no pipeline errors
+			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{
+				{Key: metrics.KeyComponent, Value: "readiness"},
+				{Key: metrics.KeyName, Value: "ns-reconciler-default-test-rg-metrics-15"},
+				{Key: metrics.KeyType, Value: "repo-sync"},
+			}},
+		},
 	}
 
 	// Validate metrics
 	for view, rows := range expectedMetrics {
 		if diff := exporter.ValidateMetrics(view, rows); diff != "" {
 			t.Errorf("Unexpected metrics recorded (%s): %v", view.Name, diff)
+		}
+	}
+}
+
+func TestReconcile_Metrics_EmptyThenAddResources(t *testing.T) {
+	// Register metrics views with test exporter at the beginning
+	exporter := testmetrics.RegisterMetrics(
+		metrics.ResourceCountView,
+		metrics.ReadyResourceCountView,
+		metrics.NamespaceCountView,
+		metrics.ClusterScopedResourceCountView,
+		metrics.CRDCountView,
+		metrics.KCCResourceCountView,
+		metrics.PipelineErrorView,
+	)
+
+	var channelKpt chan event.GenericEvent
+
+	// Configure controller-manager to log to the test logger
+	testLogger := testcontroller.NewTestLogger(t)
+	controllerruntime.SetLogger(testLogger)
+
+	// Setup the Manager with metrics enabled for testing
+	mgr, err := manager.New(cfg, manager.Options{
+		// Enable metrics for this test
+		Metrics: metricsserver.Options{BindAddress: "127.0.0.1:0"},
+		Logger:  testLogger.WithName("controller-manager"),
+		// Use a client.WithWatch, instead of just a client.Client
+		NewClient: func(cfg *rest.Config, opts client.Options) (client.Client, error) {
+			return client.NewWithWatch(cfg, opts)
+		},
+		// Skip name validation to allow multiple controllers with the same name
+		Controller: config.Controller{
+			SkipNameValidation: func() *bool { b := true; return &b }(),
+		},
+	})
+	require.NoError(t, err)
+	// Get the watch client built by the manager
+	c := mgr.GetClient().(client.WithWatch)
+
+	ctx := t.Context()
+
+	// Setup the controllers
+	logger := testLogger.WithName("controllers-metrics-empty-add")
+	channelKpt = make(chan event.GenericEvent)
+	resolver, err := typeresolver.ForManager(mgr, logger.WithName("typeresolver-metrics-empty-add"))
+	require.NoError(t, err)
+	resMap := resourcemap.NewResourceMap()
+	err = NewRGController(mgr, channelKpt, logger.WithName("resourcegroup-metrics-empty-add"), resolver, resMap, 0)
+	require.NoError(t, err)
+
+	// Start the manager
+	stopTestManager := testcontroller.StartTestManager(t, mgr)
+	// Block test cleanup until manager is fully stopped
+	defer stopTestManager()
+
+	resources := []v1alpha1.ObjMetadata{}
+
+	// Create a ResourceGroup object which does not include any resources
+	rgKey := client.ObjectKey{
+		Name:      "test-rg-metrics-empty-add",
+		Namespace: rgNamespace,
+	}
+	resgroupKpt := &v1alpha1.ResourceGroup{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-rg-metrics-empty-add",
+			Namespace: rgNamespace,
+			Labels: map[string]string{
+				common.InventoryLabel: "test-inventory-empty-add",
+			},
+		},
+		Spec: v1alpha1.ResourceGroupSpec{
+			Resources: resources,
+		},
+	}
+	expectedStatus := v1alpha1.ResourceGroupStatus{
+		ObservedGeneration: 0,
+	}
+
+	// Create the ResourceGroup spec (simulating InventoryResourceGroup.Apply)
+	err = c.Create(ctx, resgroupKpt, client.FieldOwner(fake.FieldManager))
+	require.NoError(t, err)
+	resgroupKpt = waitForResourceGroupStatus(t, ctx, c, rgKey, 1, 0, expectedStatus)
+
+	// Update the ResourceGroup status (simulating InventoryResourceGroup.Apply)
+	resgroupKpt.Status.ObservedGeneration = resgroupKpt.Generation
+	err = c.Status().Update(ctx, resgroupKpt, client.FieldOwner(fake.FieldManager))
+	require.NoError(t, err)
+	expectedStatus.ObservedGeneration = 1
+	resgroupKpt = waitForResourceGroupStatus(t, ctx, c, rgKey, 1, 0, expectedStatus)
+
+	// Push an event to the channel, which will cause trigger a reconciliation for resgroup
+	t.Log("Sending event to controller for empty ResourceGroup")
+	channelKpt <- event.GenericEvent{Object: resgroupKpt}
+
+	// Verify that the reconciliation modifies the ResourceGroupStatus field correctly
+	expectedStatus.ObservedGeneration = 1
+	expectedStatus.Conditions = []v1alpha1.Condition{
+		newReconcilingCondition(v1alpha1.FalseConditionStatus, FinishReconciling, finishReconcilingMsg),
+		newStalledCondition(v1alpha1.FalseConditionStatus, FinishReconciling, finishReconcilingMsg),
+	}
+	resgroupKpt = waitForResourceGroupStatus(t, ctx, c, rgKey, 1, 0, expectedStatus)
+
+	// Verify metrics for empty ResourceGroup - all should be 0
+	expectedEmptyMetrics := map[*view.View][]*view.Row{
+		metrics.ResourceCountView: {
+			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{
+				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics-empty-add"},
+			}},
+		},
+		metrics.ReadyResourceCountView: {
+			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{
+				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics-empty-add"},
+			}},
+		},
+		metrics.NamespaceCountView: {
+			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{
+				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics-empty-add"},
+			}},
+		},
+		metrics.ClusterScopedResourceCountView: {
+			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{
+				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics-empty-add"},
+			}},
+		},
+		metrics.CRDCountView: {
+			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{
+				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics-empty-add"},
+			}},
+		},
+		metrics.KCCResourceCountView: {
+			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{
+				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics-empty-add"},
+			}},
+		},
+		metrics.PipelineErrorView: {
+			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{
+				{Key: metrics.KeyComponent, Value: "readiness"},
+				{Key: metrics.KeyName, Value: "ns-reconciler-default-test-rg-metrics-empty-add-25"},
+				{Key: metrics.KeyType, Value: "repo-sync"},
+			}},
+		},
+	}
+
+	// Validate empty metrics
+	for view, rows := range expectedEmptyMetrics {
+		if diff := exporter.ValidateMetrics(view, rows); diff != "" {
+			t.Errorf("Unexpected empty metrics recorded (%s): %v", view.Name, diff)
+		}
+	}
+
+	// Reset the exporter to clear accumulated metrics before testing with resources
+	exporter = exporter.Reset(
+		metrics.ResourceCountView,
+		metrics.ReadyResourceCountView,
+		metrics.NamespaceCountView,
+		metrics.ClusterScopedResourceCountView,
+		metrics.CRDCountView,
+		metrics.KCCResourceCountView,
+		metrics.PipelineErrorView,
+	)
+
+	// Now add test resources to the ResourceGroup (without creating the actual objects)
+	// Use unique names to avoid conflicts with existing resources from other tests
+	namespaceRes := v1alpha1.ObjMetadata{
+		Name:      "test-namespace-empty-add",
+		Namespace: "",
+		GroupKind: v1alpha1.GroupKind{
+			Group: "",
+			Kind:  "Namespace",
+		},
+	}
+	crdRes := v1alpha1.ObjMetadata{
+		Name:      "testresources-empty-add.test.example.com",
+		Namespace: "",
+		GroupKind: v1alpha1.GroupKind{
+			Group: "apiextensions.k8s.io",
+			Kind:  "CustomResourceDefinition",
+		},
+	}
+	pubsubRes := v1alpha1.ObjMetadata{
+		Name:      "test-pubsub-topic-empty-add",
+		Namespace: "default",
+		GroupKind: v1alpha1.GroupKind{
+			Group: "pubsub.cnrm.cloud.google.com",
+			Kind:  "PubSubTopic",
+		},
+	}
+	podRes := v1alpha1.ObjMetadata{
+		Name:      "test-pod-empty-add",
+		Namespace: "default",
+		GroupKind: v1alpha1.GroupKind{
+			Group: "",
+			Kind:  "Pod",
+		},
+	}
+	resources = []v1alpha1.ObjMetadata{namespaceRes, crdRes, pubsubRes, podRes}
+	resgroupKpt.Spec = v1alpha1.ResourceGroupSpec{
+		Resources: resources,
+	}
+
+	// Update the ResourceGroup spec (simulating InventoryResourceGroup.Apply)
+	err = c.Update(ctx, resgroupKpt, client.FieldOwner(fake.FieldManager))
+	require.NoError(t, err)
+	resgroupKpt = waitForResourceGroupStatus(t, ctx, c, rgKey, 2, 4, expectedStatus)
+
+	// Update the ResourceGroup status (simulating InventoryResourceGroup.Apply)
+	resgroupKpt.Status.ObservedGeneration = resgroupKpt.Generation
+	err = c.Status().Update(ctx, resgroupKpt, client.FieldOwner(fake.FieldManager))
+	require.NoError(t, err)
+	expectedStatus.ObservedGeneration = 2
+	resgroupKpt = waitForResourceGroupStatus(t, ctx, c, rgKey, 2, 4, expectedStatus)
+
+	t.Log("Sending event to controller for ResourceGroup with resources")
+	channelKpt <- event.GenericEvent{Object: resgroupKpt}
+
+	// Verify that the reconciliation modifies the ResourceGroupStatus field correctly
+	expectedStatus.ResourceStatuses = []v1alpha1.ResourceStatus{
+		{
+			ObjMetadata: namespaceRes,
+			Status:      v1alpha1.NotFound,
+		},
+		{
+			ObjMetadata: crdRes,
+			Status:      v1alpha1.NotFound,
+		},
+		{
+			ObjMetadata: pubsubRes,
+			Status:      v1alpha1.NotFound,
+		},
+		{
+			ObjMetadata: podRes,
+			Status:      v1alpha1.NotFound,
+		},
+	}
+	expectedStatus.ObservedGeneration = 2
+	expectedStatus.Conditions = []v1alpha1.Condition{
+		newReconcilingCondition(v1alpha1.FalseConditionStatus, FinishReconciling, finishReconcilingMsg),
+		newStalledCondition(v1alpha1.FalseConditionStatus, FinishReconciling, finishReconcilingMsg),
+	}
+	_ = waitForResourceGroupStatus(t, ctx, c, rgKey, 2, 4, expectedStatus)
+
+	// Verify metrics for ResourceGroup with resources (all NotFound, so 0 ready)
+	expectedResourcesMetrics := map[*view.View][]*view.Row{
+		metrics.ResourceCountView: {
+			{Data: &view.LastValueData{Value: 4}, Tags: []tag.Tag{
+				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics-empty-add"},
+			}},
+		},
+		metrics.ReadyResourceCountView: {
+			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{
+				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics-empty-add"},
+			}},
+		},
+		metrics.NamespaceCountView: {
+			{Data: &view.LastValueData{Value: 2}, Tags: []tag.Tag{
+				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics-empty-add"},
+			}},
+		},
+		metrics.ClusterScopedResourceCountView: {
+			{Data: &view.LastValueData{Value: 2}, Tags: []tag.Tag{
+				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics-empty-add"},
+			}},
+		},
+		metrics.CRDCountView: {
+			{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{
+				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics-empty-add"},
+			}},
+		},
+		metrics.KCCResourceCountView: {
+			{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{
+				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics-empty-add"},
+			}},
+		},
+		metrics.PipelineErrorView: {
+			{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{
+				{Key: metrics.KeyComponent, Value: "readiness"},
+				{Key: metrics.KeyName, Value: "ns-reconciler-default-test-rg-metrics-empty-add-25"},
+				{Key: metrics.KeyType, Value: "repo-sync"},
+			}},
+		},
+	}
+
+	// Validate metrics with resources
+	for view, rows := range expectedResourcesMetrics {
+		if diff := exporter.ValidateMetrics(view, rows); diff != "" {
+			t.Errorf("Unexpected resources metrics recorded (%s): %v", view.Name, diff)
 		}
 	}
 }
