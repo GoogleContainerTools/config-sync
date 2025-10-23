@@ -29,141 +29,162 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+type testOperation struct {
+	group     types.NamespacedName
+	resources []v1alpha1.ObjMetadata
+	isDelete  bool
+}
+
 func TestResourceMapUpdateMetrics(t *testing.T) {
 	ctx := context.Background()
 
 	testcases := []struct {
 		name                   string
-		group                  types.NamespacedName
-		resources              []v1alpha1.ObjMetadata
-		isDelete               bool
+		operations             []testOperation
 		expectedMetricValue    float64
 		expectedResourceGroups int
 	}{
 		{
-			name:  "Add single resource group",
-			group: types.NamespacedName{Name: "root-sync", Namespace: configsync.ControllerNamespace},
-			resources: []v1alpha1.ObjMetadata{
+			name: "Add single resource group",
+			operations: []testOperation{
 				{
-					Name:      "test-deployment",
-					Namespace: "default",
-					GroupKind: v1alpha1.GroupKind{
-						Group: "apps",
-						Kind:  "Deployment",
+					group: types.NamespacedName{Name: "root-sync", Namespace: configsync.ControllerNamespace},
+					resources: []v1alpha1.ObjMetadata{
+						{
+							Name:      "test-deployment",
+							Namespace: "default",
+							GroupKind: v1alpha1.GroupKind{
+								Group: "apps",
+								Kind:  "Deployment",
+							},
+						},
 					},
+					isDelete: false,
 				},
 			},
-			isDelete:               false,
 			expectedMetricValue:    1,
 			expectedResourceGroups: 1,
 		},
 		{
-			name:  "Add second resource group",
-			group: types.NamespacedName{Name: "repo-sync", Namespace: "bookinfo"},
-			resources: []v1alpha1.ObjMetadata{
+			name: "Add multiple resource groups and delete them",
+			operations: []testOperation{
 				{
-					Name:      "test-service",
-					Namespace: "bookinfo",
-					GroupKind: v1alpha1.GroupKind{
-						Group: "",
-						Kind:  "Service",
+					group: types.NamespacedName{Name: "root-sync", Namespace: configsync.ControllerNamespace},
+					resources: []v1alpha1.ObjMetadata{
+						{
+							Name:      "test-deployment",
+							Namespace: "default",
+							GroupKind: v1alpha1.GroupKind{
+								Group: "apps",
+								Kind:  "Deployment",
+							},
+						},
 					},
+					isDelete: false,
+				},
+				{
+					group: types.NamespacedName{Name: "repo-sync", Namespace: "bookinfo"},
+					resources: []v1alpha1.ObjMetadata{
+						{
+							Name:      "test-service",
+							Namespace: "bookinfo",
+							GroupKind: v1alpha1.GroupKind{
+								Group: "",
+								Kind:  "Service",
+							},
+						},
+					},
+					isDelete: false,
+				},
+				{
+					group:     types.NamespacedName{Name: "root-sync", Namespace: configsync.ControllerNamespace},
+					resources: []v1alpha1.ObjMetadata{},
+					isDelete:  true,
+				},
+				{
+					group:     types.NamespacedName{Name: "repo-sync", Namespace: "bookinfo"},
+					resources: []v1alpha1.ObjMetadata{},
+					isDelete:  true,
 				},
 			},
-			isDelete:               false,
-			expectedMetricValue:    2, // root-sync + repo-sync
-			expectedResourceGroups: 2,
-		},
-		{
-			name:                   "Delete first resource group",
-			group:                  types.NamespacedName{Name: "root-sync", Namespace: configsync.ControllerNamespace},
-			resources:              []v1alpha1.ObjMetadata{},
-			isDelete:               true,
-			expectedMetricValue:    1, // Only repo-sync remains
-			expectedResourceGroups: 1,
-		},
-		{
-			name:                   "Delete remaining resource group",
-			group:                  types.NamespacedName{Name: "repo-sync", Namespace: "bookinfo"},
-			resources:              []v1alpha1.ObjMetadata{},
-			isDelete:               true,
-			expectedMetricValue:    0, // No resource groups remain
+			expectedMetricValue:    0, // All resource groups deleted
 			expectedResourceGroups: 0,
 		},
 		{
-			name:  "Add resource group with multiple resources",
-			group: types.NamespacedName{Name: "repo-sync", Namespace: "bookinfo"},
-			resources: []v1alpha1.ObjMetadata{
+			name: "Add resource group with multiple resources",
+			operations: []testOperation{
 				{
-					Name:      "test-service",
-					Namespace: "bookinfo",
-					GroupKind: v1alpha1.GroupKind{
-						Group: "",
-						Kind:  "Service",
+					group: types.NamespacedName{Name: "repo-sync", Namespace: "bookinfo"},
+					resources: []v1alpha1.ObjMetadata{
+						{
+							Name:      "test-service",
+							Namespace: "bookinfo",
+							GroupKind: v1alpha1.GroupKind{
+								Group: "",
+								Kind:  "Service",
+							},
+						},
+						{
+							Name:      "test-deployment",
+							Namespace: "bookinfo",
+							GroupKind: v1alpha1.GroupKind{
+								Group: "apps",
+								Kind:  "Deployment",
+							},
+						},
 					},
-				},
-				{
-					Name:      "test-deployment",
-					Namespace: "bookinfo",
-					GroupKind: v1alpha1.GroupKind{
-						Group: "apps",
-						Kind:  "Deployment",
-					},
+					isDelete: false,
 				},
 			},
-			isDelete:               false,
 			expectedMetricValue:    1, // 1 resource group with multiple resources
 			expectedResourceGroups: 1,
 		},
-	}
-
-	// Create a single resource map for the entire test
-	m := NewResourceMap()
-
-	for _, tc := range testcases {
-		t.Run(tc.name, func(t *testing.T) {
-			// Register metrics views with test exporter for this test
-			exporter := testmetrics.RegisterMetrics(
-				metrics.ResourceGroupTotalView,
-			)
-
-			_ = m.Reconcile(ctx, tc.group, tc.resources, tc.isDelete)
-
-			expected := []*view.Row{
-				{Data: &view.LastValueData{Value: tc.expectedMetricValue}, Tags: []tag.Tag{}},
-			}
-
-			if diff := exporter.ValidateMetrics(metrics.ResourceGroupTotalView, expected); diff != "" {
-				t.Errorf("Unexpected metrics recorded: %v", diff)
-			}
-
-			if len(m.resgroupToResources) != tc.expectedResourceGroups {
-				t.Errorf("Expected %d resource groups in map, got %d", tc.expectedResourceGroups, len(m.resgroupToResources))
-			}
-		})
-	}
-}
-
-func TestResourceMapMultipleUpdates(t *testing.T) {
-	ctx := context.Background()
-
-	testcases := []struct {
-		name       string
-		operations []struct {
-			group     types.NamespacedName
-			resources []v1alpha1.ObjMetadata
-			isDelete  bool
-		}
-		expectedMetricValue    float64
-		expectedResourceGroups int
-	}{
+		{
+			name: "Add and update resource group",
+			operations: []testOperation{
+				{
+					group: types.NamespacedName{Name: "root-sync", Namespace: configsync.ControllerNamespace},
+					resources: []v1alpha1.ObjMetadata{
+						{
+							Name:      "test-deployment",
+							Namespace: "default",
+							GroupKind: v1alpha1.GroupKind{
+								Group: "apps",
+								Kind:  "Deployment",
+							},
+						},
+					},
+					isDelete: false,
+				},
+				{
+					group: types.NamespacedName{Name: "root-sync", Namespace: configsync.ControllerNamespace},
+					resources: []v1alpha1.ObjMetadata{
+						{
+							Name:      "test-deployment",
+							Namespace: "default",
+							GroupKind: v1alpha1.GroupKind{
+								Group: "apps",
+								Kind:  "Deployment",
+							},
+						},
+						{
+							Name:      "test-service",
+							Namespace: "default",
+							GroupKind: v1alpha1.GroupKind{
+								Group: "",
+								Kind:  "Service",
+							},
+						},
+					},
+					isDelete: false,
+				},
+			},
+			expectedMetricValue:    1, // Same resource group, now with 2 resources
+			expectedResourceGroups: 1,
+		},
 		{
 			name: "Add multiple resource groups sequentially",
-			operations: []struct {
-				group     types.NamespacedName
-				resources []v1alpha1.ObjMetadata
-				isDelete  bool
-			}{
+			operations: []testOperation{
 				{
 					group: types.NamespacedName{Name: "root-sync", Namespace: configsync.ControllerNamespace},
 					resources: []v1alpha1.ObjMetadata{
@@ -219,7 +240,7 @@ func TestResourceMapMultipleUpdates(t *testing.T) {
 				metrics.ResourceGroupTotalView,
 			)
 
-			// Create a new resource map
+			// Create a new resource map for each test case
 			m := NewResourceMap()
 
 			// Execute all operations
