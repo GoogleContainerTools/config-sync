@@ -252,6 +252,11 @@ func TestResourceMapUpdateMetrics(t *testing.T) {
 			if diff := exporter.ValidateMetrics(expected); diff != "" {
 				t.Errorf("Unexpected metrics recorded: %v", diff)
 			}
+
+			// Verify the resource map state
+			if len(m.resgroupToResources) != tc.expectedResourceGroups {
+				t.Errorf("Expected %d resource groups in map, got %d", tc.expectedResourceGroups, len(m.resgroupToResources))
+			}
 		})
 	}
 }

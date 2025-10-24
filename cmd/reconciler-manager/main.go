@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"time"
 
 	traceapi "cloud.google.com/go/trace/apiv2"
 	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
@@ -197,7 +196,7 @@ func main() {
 	}
 
 	defer func() {
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), metrics.ShutdownTimeout)
 		defer cancel()
 		if err := oce.Shutdown(shutdownCtx); err != nil {
 			setupLog.Error(err, "failed to stop the OC Agent exporter")
@@ -210,7 +209,7 @@ func main() {
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
 		// os.Exit(1) does not run deferred functions so explicitly stopping the OC Agent exporter.
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), metrics.ShutdownTimeout)
 		defer cancel()
 		if err := oce.Shutdown(shutdownCtx); err != nil {
 			setupLog.Error(err, "failed to stop the OC Agent exporter")

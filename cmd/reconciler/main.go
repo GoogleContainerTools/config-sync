@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
 	"github.com/GoogleContainerTools/config-sync/pkg/declared"
@@ -155,7 +154,7 @@ func main() {
 	}
 
 	defer func() {
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), ocmetrics.ShutdownTimeout)
 		defer cancel()
 		if err := oce.Shutdown(shutdownCtx); err != nil {
 			klog.Fatalf("Unable to stop the OC Agent exporter: %v", err)

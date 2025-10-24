@@ -22,7 +22,6 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
-	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 )
 
 // RegisterOTelExporter creates the OTLP metrics exporter.
@@ -38,10 +37,6 @@ func RegisterOTelExporter(ctx context.Context) (*otlpmetricgrpc.Exporter, error)
 	res, err := resource.New(
 		ctx,
 		resource.WithFromEnv(),
-		resource.WithAttributes(
-			semconv.ServiceNameKey.String("config-sync-resourcegroup"),
-			semconv.ServiceVersionKey.String("1.0.0"),
-		),
 	)
 	if err != nil {
 		return nil, err

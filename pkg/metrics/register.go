@@ -17,13 +17,18 @@ package metrics
 import (
 	"context"
 	"os"
+	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
-	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 	"k8s.io/klog/v2"
+)
+
+const (
+	// ShutdownTimeout is the timeout for shutting down the Otel exporter
+	ShutdownTimeout = 5 * time.Second
 )
 
 // RegisterOTelExporter creates the OTLP metrics exporter.
@@ -40,10 +45,6 @@ func RegisterOTelExporter(ctx context.Context, containerName string) (*otlpmetri
 	res, err := resource.New(
 		ctx,
 		resource.WithFromEnv(),
-		resource.WithAttributes(
-			semconv.ServiceNameKey.String("config-sync"),
-			semconv.ServiceVersionKey.String("1.0.0"),
-		),
 	)
 	if err != nil {
 		klog.V(5).ErrorS(err, "METRIC DEBUG: Failed to create resource")
