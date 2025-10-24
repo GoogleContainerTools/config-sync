@@ -56,24 +56,6 @@ func RegisterMetrics(views ...*view.View) *TestExporter {
 	return &e
 }
 
-// Reset unregisters the given views and re-registers them with a fresh TestExporter.
-// This is useful for clearing accumulated metric data between test phases.
-func (e *TestExporter) Reset(views ...*view.View) *TestExporter {
-	// Unregister the views to clear any accumulated data
-	view.Unregister(views...)
-
-	// Clear the current exporter's data
-	e.rows = nil
-
-	// Re-register the views
-	_ = view.Register(views...)
-
-	// Return a fresh TestExporter
-	var newExporter TestExporter
-	view.RegisterExporter(&newExporter)
-	return &newExporter
-}
-
 // diff compares the exported rows' Tags and data Value with the expected
 // rows' Tags and data Value. It excludes the Start time field from the comparison.
 func diff(got, want []*view.Row) string {

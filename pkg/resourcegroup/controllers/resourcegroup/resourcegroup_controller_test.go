@@ -605,7 +605,10 @@ func TestReconcile_Metrics(t *testing.T) {
 			// Metrics test ResourceGroup (default/test-rg-metrics) - no pipeline errors
 			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{
 				{Key: metrics.KeyComponent, Value: "readiness"},
-				{Key: metrics.KeyName, Value: "ns-reconciler-default-test-rg-metrics-15"},
+				{Key: metrics.KeyName, Value: func() string {
+					reconcilerName, _ := metrics.ComputeReconcilerNameType(types.NamespacedName{Name: "test-rg-metrics", Namespace: "default"})
+					return reconcilerName
+				}()},
 				{Key: metrics.KeyType, Value: "repo-sync"},
 			}},
 		},
@@ -753,7 +756,10 @@ func TestReconcile_Metrics_EmptyThenAddResources(t *testing.T) {
 		metrics.PipelineErrorView: {
 			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{
 				{Key: metrics.KeyComponent, Value: "readiness"},
-				{Key: metrics.KeyName, Value: "ns-reconciler-default-test-rg-metrics-empty-add-25"},
+				{Key: metrics.KeyName, Value: func() string {
+					reconcilerName, _ := metrics.ComputeReconcilerNameType(types.NamespacedName{Name: "test-rg-metrics-empty-add", Namespace: "default"})
+					return reconcilerName
+				}()},
 				{Key: metrics.KeyType, Value: "repo-sync"},
 			}},
 		},
@@ -767,7 +773,7 @@ func TestReconcile_Metrics_EmptyThenAddResources(t *testing.T) {
 	}
 
 	// Reset the exporter to clear accumulated metrics before testing with resources
-	exporter = exporter.Reset(
+	exporter = testmetrics.RegisterMetrics(
 		metrics.ResourceCountView,
 		metrics.ReadyResourceCountView,
 		metrics.NamespaceCountView,
@@ -892,7 +898,10 @@ func TestReconcile_Metrics_EmptyThenAddResources(t *testing.T) {
 		metrics.PipelineErrorView: {
 			{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{
 				{Key: metrics.KeyComponent, Value: "readiness"},
-				{Key: metrics.KeyName, Value: "ns-reconciler-default-test-rg-metrics-empty-add-25"},
+				{Key: metrics.KeyName, Value: func() string {
+					reconcilerName, _ := metrics.ComputeReconcilerNameType(types.NamespacedName{Name: "test-rg-metrics-empty-add", Namespace: "default"})
+					return reconcilerName
+				}()},
 				{Key: metrics.KeyType, Value: "repo-sync"},
 			}},
 		},
