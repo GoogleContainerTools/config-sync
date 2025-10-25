@@ -182,20 +182,18 @@ func main() {
 	}
 	setupLog.Info("OtelSA controller registration successful")
 
-	// Register the OpenCensus views
-	if err := metrics.RegisterReconcilerManagerMetricsViews(); err != nil {
-		setupLog.Error(err, "failed to register OpenCensus views")
-	}
-
 	// Register the OC Agent exporter
-	oce, err := metrics.RegisterOCAgentExporter(reconcilermanager.ManagerName)
+	ctx := context.Background()
+	oce, err := metrics.RegisterOTelExporter(ctx, reconcilermanager.ManagerName)
 	if err != nil {
 		setupLog.Error(err, "failed to register the OC Agent exporter")
 		os.Exit(1)
 	}
 
 	defer func() {
-		if err := oce.Stop(); err != nil {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), metrics.ShutdownTimeout)
+		defer cancel()
+		if err := oce.Shutdown(shutdownCtx); err != nil {
 			setupLog.Error(err, "failed to stop the OC Agent exporter")
 		}
 	}()
@@ -206,7 +204,9 @@ func main() {
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
 		// os.Exit(1) does not run deferred functions so explicitly stopping the OC Agent exporter.
-		if err := oce.Stop(); err != nil {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), metrics.ShutdownTimeout)
+		defer cancel()
+		if err := oce.Shutdown(shutdownCtx); err != nil {
 			setupLog.Error(err, "failed to stop the OC Agent exporter")
 		}
 		os.Exit(1)

@@ -22,6 +22,7 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/core"
 	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
 	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metrics"
 	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	syncerclient "github.com/GoogleContainerTools/config-sync/pkg/syncer/client"
 	syncertestfake "github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest/fake"
@@ -80,6 +81,11 @@ func TestClient_Create(t *testing.T) {
 			wantErr: status.APIServerError(errors.New("some API server error"), "failed to create object",
 				k8sobjects.RoleObject(core.Name("admin"), core.Namespace("billing"))),
 		},
+	}
+
+	err := metrics.InitializeOTelMetrics()
+	if err != nil {
+		t.Fatalf("Failed to initialize OTel metrics: %v", err)
 	}
 
 	for _, tc := range testCases {

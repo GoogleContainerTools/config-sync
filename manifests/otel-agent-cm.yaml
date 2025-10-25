@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # This ConfigMap is used in the reconciler manager pod and the resource group controller pod.
-# It contains the OpenTelemetry (OTEL) agent configuration for metrics and resource detection.
+# It contains the OpenTelemetry (OTEL) agent configuration for metrics and resource detection using OTLP.
 
 apiVersion: v1
 kind: ConfigMap
@@ -28,11 +28,15 @@ metadata:
 data:
   otel-agent-config.yaml: |
     receivers:
-      opencensus:
-        endpoint: 0.0.0.0:55678
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
     exporters:
-      opencensus:
-        endpoint: otel-collector.config-management-monitoring:55678
+      otlp:
+        endpoint: otel-collector.config-management-monitoring:4317
         tls:
           insecure: true
     processors:
@@ -46,9 +50,9 @@ data:
       extensions: [health_check]
       pipelines:
         metrics:
-          receivers: [opencensus]
-          processors: [batch, resourcedetection]
-          exporters: [opencensus]
+          receivers: [otlp]
+          processors: [resourcedetection, batch]
+          exporters: [otlp]
       telemetry:
         logs:
           level: "INFO"

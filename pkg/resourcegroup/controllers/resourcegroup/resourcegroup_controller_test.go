@@ -37,8 +37,6 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.opencensus.io/stats/view"
-	"go.opencensus.io/tag"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -314,16 +312,9 @@ func TestReconcile(t *testing.T) {
 }
 
 func TestReconcile_Metrics(t *testing.T) {
+	testmetrics.ResetGlobalMetrics()
 	// Register metrics views with test exporter at the beginning
-	exporter := testmetrics.RegisterMetrics(
-		metrics.ResourceCountView,
-		metrics.ReadyResourceCountView,
-		metrics.NamespaceCountView,
-		metrics.ClusterScopedResourceCountView,
-		metrics.CRDCountView,
-		metrics.KCCResourceCountView,
-		metrics.PipelineErrorView,
-	)
+	exporter := testmetrics.NewTestExporter()
 
 	// Configure controller-manager to log to the test logger
 	testLogger := testcontroller.NewTestLogger(t)
@@ -563,76 +554,28 @@ func TestReconcile_Metrics(t *testing.T) {
 	}
 	_ = waitForResourceGroupStatus(t, ctx, c, metricsRgKey, 1, 3, expectedMetricsStatus)
 
+	reconcilerName, _ := metrics.ComputeReconcilerNameType(types.NamespacedName{Name: "test-rg-metrics", Namespace: "default"})
 	// Expected metrics for the metrics test ResourceGroup
-	expectedMetrics := map[*view.View][]*view.Row{
-		metrics.ResourceCountView: {
-			// Metrics test ResourceGroup (default/test-rg-metrics) - 3 resources
-			{Data: &view.LastValueData{Value: 3}, Tags: []tag.Tag{
-				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics"},
-			}},
-		},
-		metrics.ReadyResourceCountView: {
-			// Metrics test ResourceGroup (default/test-rg-metrics) - 3 ready resources (all are Current)
-			{Data: &view.LastValueData{Value: 3}, Tags: []tag.Tag{
-				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics"},
-			}},
-		},
-		metrics.NamespaceCountView: {
-			// Metrics test ResourceGroup (default/test-rg-metrics) - 2 namespaces: "default" and "test-namespace"
-			{Data: &view.LastValueData{Value: 2}, Tags: []tag.Tag{
-				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics"},
-			}},
-		},
-		metrics.ClusterScopedResourceCountView: {
-			// Metrics test ResourceGroup (default/test-rg-metrics) - 2 cluster-scoped resources (Namespace and CRD)
-			{Data: &view.LastValueData{Value: 2}, Tags: []tag.Tag{
-				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics"},
-			}},
-		},
-		metrics.CRDCountView: {
-			// Metrics test ResourceGroup (default/test-rg-metrics) - 1 CRD (only the test CRD, PubSub CRD is not tracked)
-			{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{
-				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics"},
-			}},
-		},
-		metrics.KCCResourceCountView: {
-			// Metrics test ResourceGroup (default/test-rg-metrics) - 1 KCC resource
-			{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{
-				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics"},
-			}},
-		},
-		metrics.PipelineErrorView: {
-			// Metrics test ResourceGroup (default/test-rg-metrics) - no pipeline errors
-			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{
-				{Key: metrics.KeyComponent, Value: "readiness"},
-				{Key: metrics.KeyName, Value: func() string {
-					reconcilerName, _ := metrics.ComputeReconcilerNameType(types.NamespacedName{Name: "test-rg-metrics", Namespace: "default"})
-					return reconcilerName
-				}()},
-				{Key: metrics.KeyType, Value: "repo-sync"},
-			}},
-		},
+	expectedMetrics := []testmetrics.MetricData{
+		{Name: metrics.ResourceCountName, Value: 3, Labels: map[string]string{"resourcegroup": "default/test-rg-metrics"}},
+		{Name: metrics.ReadyResourceCountName, Value: 3, Labels: map[string]string{"resourcegroup": "default/test-rg-metrics"}},
+		{Name: metrics.NamespaceCountName, Value: 2, Labels: map[string]string{"resourcegroup": "default/test-rg-metrics"}},
+		{Name: metrics.ClusterScopedResourceCountName, Value: 2, Labels: map[string]string{"resourcegroup": "default/test-rg-metrics"}},
+		{Name: metrics.CRDCountName, Value: 1, Labels: map[string]string{"resourcegroup": "default/test-rg-metrics"}},
+		{Name: metrics.KCCResourceCountName, Value: 1, Labels: map[string]string{"resourcegroup": "default/test-rg-metrics"}},
+		{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "readiness", "name": reconcilerName, "reconciler": "repo-sync"}},
 	}
 
 	// Validate metrics
-	for view, rows := range expectedMetrics {
-		if diff := exporter.ValidateMetrics(view, rows); diff != "" {
-			t.Errorf("Unexpected metrics recorded (%s): %v", view.Name, diff)
-		}
+	if diff := exporter.ValidateMetrics(expectedMetrics); diff != "" {
+		t.Errorf("Unexpected metrics recorded: %v", diff)
 	}
 }
 
 func TestReconcile_Metrics_EmptyThenAddResources(t *testing.T) {
+	testmetrics.ResetGlobalMetrics()
 	// Register metrics views with test exporter at the beginning
-	exporter := testmetrics.RegisterMetrics(
-		metrics.ResourceCountView,
-		metrics.ReadyResourceCountView,
-		metrics.NamespaceCountView,
-		metrics.ClusterScopedResourceCountView,
-		metrics.CRDCountView,
-		metrics.KCCResourceCountView,
-		metrics.PipelineErrorView,
-	)
+	exporter := testmetrics.NewTestExporter()
 
 	var channelKpt chan event.GenericEvent
 
@@ -721,67 +664,26 @@ func TestReconcile_Metrics_EmptyThenAddResources(t *testing.T) {
 	}
 	resgroupKpt = waitForResourceGroupStatus(t, ctx, c, rgKey, 1, 0, expectedStatus)
 
+	reconcilerName, _ := metrics.ComputeReconcilerNameType(types.NamespacedName{Name: "test-rg-metrics-empty-add", Namespace: "default"})
 	// Verify metrics for empty ResourceGroup - all should be 0
-	expectedEmptyMetrics := map[*view.View][]*view.Row{
-		metrics.ResourceCountView: {
-			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{
-				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics-empty-add"},
-			}},
-		},
-		metrics.ReadyResourceCountView: {
-			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{
-				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics-empty-add"},
-			}},
-		},
-		metrics.NamespaceCountView: {
-			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{
-				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics-empty-add"},
-			}},
-		},
-		metrics.ClusterScopedResourceCountView: {
-			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{
-				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics-empty-add"},
-			}},
-		},
-		metrics.CRDCountView: {
-			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{
-				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics-empty-add"},
-			}},
-		},
-		metrics.KCCResourceCountView: {
-			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{
-				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics-empty-add"},
-			}},
-		},
-		metrics.PipelineErrorView: {
-			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{
-				{Key: metrics.KeyComponent, Value: "readiness"},
-				{Key: metrics.KeyName, Value: func() string {
-					reconcilerName, _ := metrics.ComputeReconcilerNameType(types.NamespacedName{Name: "test-rg-metrics-empty-add", Namespace: "default"})
-					return reconcilerName
-				}()},
-				{Key: metrics.KeyType, Value: "repo-sync"},
-			}},
-		},
+	expectedEmptyMetrics := []testmetrics.MetricData{
+		{Name: metrics.ResourceCountName, Value: 0, Labels: map[string]string{"resourcegroup": "default/test-rg-metrics-empty-add"}},
+		{Name: metrics.ReadyResourceCountName, Value: 0, Labels: map[string]string{"resourcegroup": "default/test-rg-metrics-empty-add"}},
+		{Name: metrics.NamespaceCountName, Value: 0, Labels: map[string]string{"resourcegroup": "default/test-rg-metrics-empty-add"}},
+		{Name: metrics.ClusterScopedResourceCountName, Value: 0, Labels: map[string]string{"resourcegroup": "default/test-rg-metrics-empty-add"}},
+		{Name: metrics.CRDCountName, Value: 0, Labels: map[string]string{"resourcegroup": "default/test-rg-metrics-empty-add"}},
+		{Name: metrics.KCCResourceCountName, Value: 0, Labels: map[string]string{"resourcegroup": "default/test-rg-metrics-empty-add"}},
+		{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "readiness", "name": reconcilerName, "reconciler": "repo-sync"}},
 	}
 
 	// Validate empty metrics
-	for view, rows := range expectedEmptyMetrics {
-		if diff := exporter.ValidateMetrics(view, rows); diff != "" {
-			t.Errorf("Unexpected empty metrics recorded (%s): %v", view.Name, diff)
-		}
+	if diff := exporter.ValidateMetrics(expectedEmptyMetrics); diff != "" {
+		t.Errorf("Unexpected empty metrics recorded: %v", diff)
 	}
 
 	// Reset the exporter to clear accumulated metrics before testing with resources
-	exporter = testmetrics.RegisterMetrics(
-		metrics.ResourceCountView,
-		metrics.ReadyResourceCountView,
-		metrics.NamespaceCountView,
-		metrics.ClusterScopedResourceCountView,
-		metrics.CRDCountView,
-		metrics.KCCResourceCountView,
-		metrics.PipelineErrorView,
-	)
+	testmetrics.ResetGlobalMetrics()
+	exporter = testmetrics.NewTestExporter()
 
 	// Now add test resources to the ResourceGroup (without creating the actual objects)
 	// Use unique names to avoid conflicts with existing resources from other tests
@@ -864,54 +766,19 @@ func TestReconcile_Metrics_EmptyThenAddResources(t *testing.T) {
 	_ = waitForResourceGroupStatus(t, ctx, c, rgKey, 2, 4, expectedStatus)
 
 	// Verify metrics for ResourceGroup with resources (all NotFound, so 0 ready)
-	expectedResourcesMetrics := map[*view.View][]*view.Row{
-		metrics.ResourceCountView: {
-			{Data: &view.LastValueData{Value: 4}, Tags: []tag.Tag{
-				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics-empty-add"},
-			}},
-		},
-		metrics.ReadyResourceCountView: {
-			{Data: &view.LastValueData{Value: 0}, Tags: []tag.Tag{
-				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics-empty-add"},
-			}},
-		},
-		metrics.NamespaceCountView: {
-			{Data: &view.LastValueData{Value: 2}, Tags: []tag.Tag{
-				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics-empty-add"},
-			}},
-		},
-		metrics.ClusterScopedResourceCountView: {
-			{Data: &view.LastValueData{Value: 2}, Tags: []tag.Tag{
-				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics-empty-add"},
-			}},
-		},
-		metrics.CRDCountView: {
-			{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{
-				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics-empty-add"},
-			}},
-		},
-		metrics.KCCResourceCountView: {
-			{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{
-				{Key: metrics.KeyResourceGroup, Value: "default/test-rg-metrics-empty-add"},
-			}},
-		},
-		metrics.PipelineErrorView: {
-			{Data: &view.LastValueData{Value: 1}, Tags: []tag.Tag{
-				{Key: metrics.KeyComponent, Value: "readiness"},
-				{Key: metrics.KeyName, Value: func() string {
-					reconcilerName, _ := metrics.ComputeReconcilerNameType(types.NamespacedName{Name: "test-rg-metrics-empty-add", Namespace: "default"})
-					return reconcilerName
-				}()},
-				{Key: metrics.KeyType, Value: "repo-sync"},
-			}},
-		},
+	expectedResourcesMetrics := []testmetrics.MetricData{
+		{Name: metrics.ResourceCountName, Value: 4, Labels: map[string]string{"resourcegroup": "default/test-rg-metrics-empty-add"}},
+		{Name: metrics.ReadyResourceCountName, Value: 0, Labels: map[string]string{"resourcegroup": "default/test-rg-metrics-empty-add"}},
+		{Name: metrics.NamespaceCountName, Value: 2, Labels: map[string]string{"resourcegroup": "default/test-rg-metrics-empty-add"}},
+		{Name: metrics.ClusterScopedResourceCountName, Value: 2, Labels: map[string]string{"resourcegroup": "default/test-rg-metrics-empty-add"}},
+		{Name: metrics.CRDCountName, Value: 1, Labels: map[string]string{"resourcegroup": "default/test-rg-metrics-empty-add"}},
+		{Name: metrics.KCCResourceCountName, Value: 1, Labels: map[string]string{"resourcegroup": "default/test-rg-metrics-empty-add"}},
+		{Name: metrics.PipelineErrorName, Value: 1, Labels: map[string]string{"component": "readiness", "name": reconcilerName, "reconciler": "repo-sync"}},
 	}
 
 	// Validate metrics with resources
-	for view, rows := range expectedResourcesMetrics {
-		if diff := exporter.ValidateMetrics(view, rows); diff != "" {
-			t.Errorf("Unexpected resources metrics recorded (%s): %v", view.Name, diff)
-		}
+	if diff := exporter.ValidateMetrics(expectedResourcesMetrics); diff != "" {
+		t.Errorf("Unexpected resources metrics recorded: %v", diff)
 	}
 }
 
