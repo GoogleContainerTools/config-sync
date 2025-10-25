@@ -23,39 +23,45 @@ import (
 func TestSanitizeRepoName(t *testing.T) {
 	testCases := []struct {
 		testName     string
-		repoPrefix   string
+		repoSuffix   string
 		repoName     string
 		expectedName string
 	}{
 		{
 			testName:     "RepoSync test-ns/repo-sync",
-			repoPrefix:   "test",
+			repoSuffix:   "project/cluster",
 			repoName:     "test-ns/repo-sync",
-			expectedName: "cs-e2e-test-test-ns-repo-sync-19dcbc51",
+			expectedName: "test-ns-repo-sync-project-cluster-b96b1396",
 		},
 		{
 			testName:     "RepoSync test/ns-repo-sync should not collide with RepoSync test-ns/repo-sync",
-			repoPrefix:   "test",
+			repoSuffix:   "project/cluster",
 			repoName:     "test/ns-repo-sync",
-			expectedName: "cs-e2e-test-test-ns-repo-sync-f98ca740",
+			expectedName: "test-ns-repo-sync-project-cluster-d98dee7d",
 		},
 		{
-			testName:     "A very long repoPrefix should be truncated",
-			repoPrefix:   "autopilot-rapid-latest-10",
+			testName:     "A very long repoSuffix should be truncated",
+			repoSuffix:   "kpt-config-sync-ci-main/autopilot-rapid-latest-10",
 			repoName:     "config-management-system/root-sync",
-			expectedName: "cs-e2e-autopilot-rapid-latest-10-config-management-sys-0aab99c5",
+			expectedName: "config-management-system-root-sync-kpt-config-sync-ci-6485bfa0",
+		},
+		{
+			testName:     "A similar very long repoSuffix should be truncated and not collide",
+			repoSuffix:   "kpt-config-sync-ci-release/autopilot-rapid-latest-10",
+			repoName:     "config-management-system/root-sync",
+			expectedName: "config-management-system-root-sync-kpt-config-sync-ci-8b9c3b0d",
 		},
 		{
 			testName:     "A very long repoName should be truncated",
-			repoPrefix:   "test",
+			repoSuffix:   "test",
 			repoName:     "config-management-system/root-sync-with-a-very-long-name",
-			expectedName: "cs-e2e-test-config-management-system-root-sync-with-a--0d0af6c0",
+			expectedName: "config-management-system-root-sync-with-a-very-long-na-3b0dae1c",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.testName, func(t *testing.T) {
-			gotName := SanitizeRepoName(tc.repoPrefix, tc.repoName)
+			gotName := SanitizeRepoName(tc.repoSuffix, tc.repoName)
 			assert.Equal(t, tc.expectedName, gotName)
 		})
 	}

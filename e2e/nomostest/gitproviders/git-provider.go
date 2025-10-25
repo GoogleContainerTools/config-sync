@@ -62,17 +62,18 @@ func NewGitProvider(t testing.NTB, provider, clusterName string, logger *testlog
 			t.Fatal(err)
 		}
 		return client
-	case e2e.CSR:
-		return newCSRClient(clusterName, shell)
-	case e2e.SSM:
+	case e2e.CSR, e2e.SSM:
+		repoSuffix := *e2e.GCPProject + "/" + clusterName
+		if provider == e2e.CSR {
+			return newCSRClient(repoSuffix, shell)
+		}
+		// case e2e.SSM
 		out, err := shell.ExecWithDebug("gcloud", "projects", "describe", *e2e.GCPProject, "--format", "value(projectNumber)")
 		if err != nil {
 			t.Fatalf("getting project number: %w", err)
 		}
-
 		projectNumber := strings.Split(string(out), "\n")[0]
-
-		return newSSMClient(clusterName, shell, projectNumber)
+		return newSSMClient(repoSuffix, shell, projectNumber)
 	default:
 		return &LocalProvider{}
 	}

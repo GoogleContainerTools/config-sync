@@ -34,23 +34,23 @@ func CSRReaderEmail() string {
 type CSRClient struct {
 	// project in which to store the source repo
 	project string
-	// repoPrefix is used to avoid overlap
-	repoPrefix string
+	// repoSuffix is used to avoid overlap
+	repoSuffix string
 	// shell used for invoking CLI tools
 	shell *testshell.TestShell
 }
 
 // newCSRClient instantiates a new CSR client.
-func newCSRClient(repoPrefix string, shell *testshell.TestShell) *CSRClient {
+func newCSRClient(repoSuffix string, shell *testshell.TestShell) *CSRClient {
 	return &CSRClient{
 		project:    *e2e.GCPProject,
-		repoPrefix: repoPrefix,
+		repoSuffix: repoSuffix,
 		shell:      shell,
 	}
 }
 
 func (c *CSRClient) fullName(name string) string {
-	return util.SanitizeRepoName("cs-e2e-"+c.repoPrefix, name)
+	return util.SanitizeRepoName(c.repoSuffix, name)
 }
 
 // Type returns the provider type.
