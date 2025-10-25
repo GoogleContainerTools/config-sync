@@ -22,19 +22,37 @@ import (
 )
 
 const (
-	repoNameMaxLen  = 63
-	repoNameHashLen = 8
+	defaultRepoNameMaxLen   = 63
+	bitbucketRepoNameMaxLen = 62
+	repoNameHashLen         = 8
 )
 
-// SanitizeRepoName replaces all slashes with hyphens, and truncate the name.
+// SanitizeRepoName replaces all slashes with hyphens, and truncates the name.
 // repo name may contain between 3 and 63 lowercase letters, digits and hyphens.
 func SanitizeRepoName(repoPrefix, name string) string {
-	fullName := "cs-e2e-" + repoPrefix + "-" + name
-	hashBytes := sha1.Sum([]byte(fullName))
-	hashStr := hex.EncodeToString(hashBytes[:])[:repoNameHashLen]
+	return sanitize(repoPrefix, name, defaultRepoNameMaxLen)
+}
 
-	if len(fullName) > repoNameMaxLen-1-repoNameHashLen {
-		fullName = fullName[:repoNameMaxLen-1-repoNameHashLen]
+// SanitizeBitbucketRepoName replaces all slashes with hyphens, and truncates the name for Bitbucket.
+// repo name may contain between 3 and 62 lowercase letters, digits and hyphens.
+func SanitizeBitbucketRepoName(repoPrefix, name string) string {
+	return sanitize(repoPrefix, name, bitbucketRepoNameMaxLen)
+}
+
+func hashName(fullName string) string {
+	hashBytes := sha1.Sum([]byte(fullName))
+	return hex.EncodeToString(hashBytes[:])[:repoNameHashLen]
+}
+
+func sanitize(repoPrefix, name string, maxLen int) string {
+	fullName := "cs-e2e-" + repoPrefix + "-" + name
+	hashStr := hashName(fullName)
+
+	if len(fullName) > maxLen-1-repoNameHashLen {
+		fullName = fullName[:maxLen-1-repoNameHashLen]
 	}
-	return fmt.Sprintf("%s-%s", strings.ReplaceAll(fullName, "/", "-"), hashStr)
+	sanitizedName := strings.ReplaceAll(fullName, "/", "-")
+	sanitizedName = strings.TrimSuffix(sanitizedName, "-") // Avoids double dash before the hash.
+
+	return fmt.Sprintf("%s-%s", sanitizedName, hashStr)
 }
