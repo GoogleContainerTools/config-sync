@@ -15,6 +15,8 @@
 package metrics
 
 import (
+	"sync"
+
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 	"k8s.io/klog/v2"
@@ -98,8 +100,28 @@ var (
 	InternalErrors metric.Int64Counter
 )
 
+var (
+	// once ensures metrics are initialized only once
+	once sync.Once
+	// initErr stores any error that occurred during initialization
+	initErr error
+)
+
+// lazyInit initializes metrics lazily using sync.Once
+func lazyInit() error {
+	once.Do(func() {
+		initErr = initializeOTelMetrics()
+	})
+	return initErr
+}
+
 // InitializeOTelMetrics initializes OpenTelemetry metrics instruments
 func InitializeOTelMetrics() error {
+	return initializeOTelMetrics()
+}
+
+// initializeOTelMetrics contains the actual initialization logic
+func initializeOTelMetrics() error {
 	klog.V(5).Infof("METRIC DEBUG: Initializing OpenTelemetry metrics instruments")
 
 	meter := otel.Meter("config-sync")

@@ -182,11 +182,6 @@ func main() {
 	}
 	setupLog.Info("OtelSA controller registration successful")
 
-	// Initialize the metrics
-	if err := metrics.InitializeOTelMetrics(); err != nil {
-		setupLog.Error(err, "failed to initialize metrics")
-	}
-
 	// Register the OC Agent exporter
 	ctx := context.Background()
 	oce, err := metrics.RegisterOTelExporter(ctx, reconcilermanager.ManagerName)

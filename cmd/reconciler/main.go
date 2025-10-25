@@ -141,11 +141,6 @@ func main() {
 		status.EnablePanicOnMisuse()
 	}
 
-	// Initialize the metrics
-	if err := ocmetrics.InitializeOTelMetrics(); err != nil {
-		klog.Fatalf("Failed to initialize metrics: %v", err)
-	}
-
 	// Register the OC Agent exporter
 	ctx := context.Background()
 	oce, err := ocmetrics.RegisterOTelExporter(ctx, reconcilermanager.Reconciler)

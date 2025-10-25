@@ -29,15 +29,16 @@ import (
 
 // RecordAPICallDuration produces a measurement for the APICallDuration view.
 func RecordAPICallDuration(ctx context.Context, operation, status string, startTime time.Time) {
+	if err := lazyInit(); err != nil {
+		klog.Errorf("Failed to initialize metrics for APICallDuration: %v", err)
+		return
+	}
+
 	attrs := []attribute.KeyValue{
 		KeyOperation.String(operation),
 		KeyStatus.String(status),
 	}
 	duration := time.Since(startTime).Seconds()
-
-	if APICallDuration == nil {
-		panic("APICallDuration metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
-	}
 
 	APICallDuration.Record(ctx, duration, metric.WithAttributes(attrs...))
 
@@ -47,8 +48,9 @@ func RecordAPICallDuration(ctx context.Context, operation, status string, startT
 
 // RecordReconcilerErrors produces a measurement for the ReconcilerErrors view.
 func RecordReconcilerErrors(ctx context.Context, component string, errs []v1beta1.ConfigSyncError) {
-	if ReconcilerErrors == nil {
-		panic("ReconcilerErrors metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
+	if err := lazyInit(); err != nil {
+		klog.Errorf("Failed to initialize metrics for ReconcilerErrors: %v", err)
+		return
 	}
 
 	errorCountByClass := status.CountErrorByClass(errs)
@@ -74,8 +76,9 @@ func RecordReconcilerErrors(ctx context.Context, component string, errs []v1beta
 
 // RecordPipelineError produces a measurement for the PipelineError view
 func RecordPipelineError(ctx context.Context, reconcilerType, component string, errLen int) {
-	if PipelineError == nil {
-		panic("PipelineError metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
+	if err := lazyInit(); err != nil {
+		klog.Errorf("Failed to initialize metrics for PipelineError: %v", err)
+		return
 	}
 
 	reconcilerName := os.Getenv(reconcilermanager.ReconcilerNameKey)
@@ -98,8 +101,9 @@ func RecordPipelineError(ctx context.Context, reconcilerType, component string, 
 
 // RecordReconcileDuration produces a measurement for the ReconcileDuration view.
 func RecordReconcileDuration(ctx context.Context, status string, startTime time.Time) {
-	if ReconcileDuration == nil {
-		panic("ReconcileDuration metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
+	if err := lazyInit(); err != nil {
+		klog.Errorf("Failed to initialize metrics for ReconcileDuration: %v", err)
+		return
 	}
 
 	attrs := []attribute.KeyValue{
@@ -112,8 +116,9 @@ func RecordReconcileDuration(ctx context.Context, status string, startTime time.
 
 // RecordParserDuration produces a measurement for the ParserDuration view.
 func RecordParserDuration(ctx context.Context, trigger, source, status string, startTime time.Time) {
-	if ParserDuration == nil {
-		panic("ParserDuration metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
+	if err := lazyInit(); err != nil {
+		klog.Errorf("Failed to initialize metrics for ParserDuration: %v", err)
+		return
 	}
 
 	attrs := []attribute.KeyValue{
@@ -128,8 +133,9 @@ func RecordParserDuration(ctx context.Context, trigger, source, status string, s
 
 // RecordLastSync produces a measurement for the LastSync view.
 func RecordLastSync(ctx context.Context, status, commit string, timestamp time.Time) {
-	if LastSync == nil {
-		panic("LastSync metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
+	if err := lazyInit(); err != nil {
+		klog.Errorf("Failed to initialize metrics for LastSync: %v", err)
+		return
 	}
 
 	attrs := []attribute.KeyValue{
@@ -142,8 +148,9 @@ func RecordLastSync(ctx context.Context, status, commit string, timestamp time.T
 
 // RecordDeclaredResources produces a measurement for the DeclaredResources view.
 func RecordDeclaredResources(ctx context.Context, commit string, numResources int) {
-	if DeclaredResources == nil {
-		panic("DeclaredResources metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
+	if err := lazyInit(); err != nil {
+		klog.Errorf("Failed to initialize metrics for DeclaredResources: %v", err)
+		return
 	}
 
 	attrs := []attribute.KeyValue{
@@ -155,8 +162,9 @@ func RecordDeclaredResources(ctx context.Context, commit string, numResources in
 
 // RecordApplyOperation produces a measurement for the ApplyOperations view.
 func RecordApplyOperation(ctx context.Context, controller, operation, status string) {
-	if ApplyOperations == nil {
-		panic("ApplyOperations metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
+	if err := lazyInit(); err != nil {
+		klog.Errorf("Failed to initialize metrics for ApplyOperations: %v", err)
+		return
 	}
 
 	attrs := []attribute.KeyValue{
@@ -170,12 +178,9 @@ func RecordApplyOperation(ctx context.Context, controller, operation, status str
 
 // RecordApplyDuration produces measurements for the ApplyDuration and LastApplyTimestamp views.
 func RecordApplyDuration(ctx context.Context, status, commit string, startTime time.Time) {
-	// Fail fast if metrics are not initialized - this enforces that InitializeOTelMetrics is called
-	if ApplyDuration == nil {
-		panic("ApplyDuration metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
-	}
-	if LastApply == nil {
-		panic("LastApply metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
+	if err := lazyInit(); err != nil {
+		klog.Errorf("Failed to initialize metrics for ApplyDuration/LastApply: %v", err)
+		return
 	}
 
 	if commit == "" {
@@ -196,8 +201,9 @@ func RecordApplyDuration(ctx context.Context, status, commit string, startTime t
 
 // RecordResourceFight produces measurements for the ResourceFights view.
 func RecordResourceFight(ctx context.Context, _ string) {
-	if ResourceFights == nil {
-		panic("ResourceFights metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
+	if err := lazyInit(); err != nil {
+		klog.Errorf("Failed to initialize metrics for ResourceFights: %v", err)
+		return
 	}
 
 	klog.V(5).Infof("METRIC DEBUG: Recording ResourceFight")
@@ -206,8 +212,9 @@ func RecordResourceFight(ctx context.Context, _ string) {
 
 // RecordRemediateDuration produces measurements for the RemediateDuration view.
 func RecordRemediateDuration(ctx context.Context, status string, startTime time.Time) {
-	if RemediateDuration == nil {
-		panic("RemediateDuration metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
+	if err := lazyInit(); err != nil {
+		klog.Errorf("Failed to initialize metrics for RemediateDuration: %v", err)
+		return
 	}
 
 	attrs := []attribute.KeyValue{
@@ -220,8 +227,9 @@ func RecordRemediateDuration(ctx context.Context, status string, startTime time.
 
 // RecordResourceConflict produces measurements for the ResourceConflicts view.
 func RecordResourceConflict(ctx context.Context, commit string) {
-	if ResourceConflicts == nil {
-		panic("ResourceConflicts metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
+	if err := lazyInit(); err != nil {
+		klog.Errorf("Failed to initialize metrics for ResourceConflicts: %v", err)
+		return
 	}
 
 	attrs := []attribute.KeyValue{
@@ -233,8 +241,9 @@ func RecordResourceConflict(ctx context.Context, commit string) {
 
 // RecordInternalError produces measurements for the InternalErrors view.
 func RecordInternalError(ctx context.Context, source string) {
-	if InternalErrors == nil {
-		panic("InternalErrors metric is not initialized! Call InitializeOTelMetrics() before recording metrics.")
+	if err := lazyInit(); err != nil {
+		klog.Errorf("Failed to initialize metrics for InternalErrors: %v", err)
+		return
 	}
 
 	attrs := []attribute.KeyValue{
