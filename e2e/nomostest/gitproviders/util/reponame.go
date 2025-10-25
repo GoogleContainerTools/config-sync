@@ -28,13 +28,16 @@ const (
 
 // SanitizeRepoName replaces all slashes with hyphens, and truncate the name.
 // repo name may contain between 3 and 63 lowercase letters, digits and hyphens.
-func SanitizeRepoName(repoPrefix, name string) string {
-	fullName := "cs-e2e-" + repoPrefix + "-" + name
+func SanitizeRepoName(repoSuffix, name string) string {
+	fullName := name + "-" + repoSuffix
 	hashBytes := sha1.Sum([]byte(fullName))
 	hashStr := hex.EncodeToString(hashBytes[:])[:repoNameHashLen]
 
 	if len(fullName) > repoNameMaxLen-1-repoNameHashLen {
 		fullName = fullName[:repoNameMaxLen-1-repoNameHashLen]
 	}
-	return fmt.Sprintf("%s-%s", strings.ReplaceAll(fullName, "/", "-"), hashStr)
+	sanitizedName := strings.ReplaceAll(fullName, "/", "-")
+	sanitizedName = strings.TrimRight(sanitizedName, "-") // Avoids double dash before the hash.
+
+	return fmt.Sprintf("%s-%s", sanitizedName, hashStr)
 }

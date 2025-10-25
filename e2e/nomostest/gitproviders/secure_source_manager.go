@@ -40,8 +40,8 @@ type SSMClient struct {
 	instanceID string
 	// region of the SSM instance in which to store the source repo
 	region string
-	// repoPrefix is used to avoid overlap
-	repoPrefix string
+	// repoSuffix is used to avoid overlap
+	repoSuffix string
 	// shell used for invoking CLI tools
 	shell *testshell.TestShell
 }
@@ -49,19 +49,19 @@ type SSMClient struct {
 var _ GitProvider = &SSMClient{}
 
 // newSSMClient instantiates a new SSM client.
-func newSSMClient(repoPrefix string, shell *testshell.TestShell, projectNumber string) *SSMClient {
+func newSSMClient(repoSuffix string, shell *testshell.TestShell, projectNumber string) *SSMClient {
 	return &SSMClient{
 		project:       *e2e.GCPProject,
 		instanceID:    testing.SSMInstanceID,
 		region:        *e2e.SSMInstanceRegion,
-		repoPrefix:    repoPrefix,
+		repoSuffix:    repoSuffix,
 		shell:         shell,
 		projectNumber: projectNumber,
 	}
 }
 
 func (c *SSMClient) fullName(name string) string {
-	return util.SanitizeRepoName(c.repoPrefix, name)
+	return util.SanitizeRepoName(c.repoSuffix, name)
 }
 
 // Type returns the provider type.
