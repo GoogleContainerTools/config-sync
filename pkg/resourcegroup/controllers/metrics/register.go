@@ -25,11 +25,11 @@ import (
 )
 
 // RegisterOTelExporter creates the OTLP metrics exporter.
-func RegisterOTelExporter(ctx context.Context) (*otlpmetricgrpc.Exporter, error) {
+func RegisterOTelExporter(ctx context.Context, containerName string) (*otlpmetricgrpc.Exporter, error) {
 
 	err := os.Setenv(
 		"OTEL_RESOURCE_ATTRIBUTES",
-		"k8s.container.name=\"resourcegroup\"")
+		"k8s.container.name=\""+containerName+"\"")
 	if err != nil {
 		return nil, err
 	}

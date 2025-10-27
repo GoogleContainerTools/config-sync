@@ -76,7 +76,7 @@ func run() error {
 	ctx := context.Background()
 
 	// Register the OTLP metrics exporter and metrics instruments
-	oce, err := ocmetrics.RegisterOTelExporter(ctx)
+	oce, err := ocmetrics.RegisterOTelExporter(ctx, resourcegroup.ManagerContainerName)
 	if err != nil {
 		return fmt.Errorf("failed to register the OTLP metrics exporter: %w", err)
 	}
