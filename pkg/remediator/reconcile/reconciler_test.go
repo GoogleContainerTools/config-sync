@@ -34,6 +34,7 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/testing/testerrors"
 	"github.com/GoogleContainerTools/config-sync/pkg/testing/testmetrics"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -389,8 +390,6 @@ func TestRemediator_Reconcile(t *testing.T) {
 		},
 	}
 
-	testmetrics.ResetGlobalMetrics()
-
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Set up the fake client that represents the initial state of the cluster.
@@ -551,8 +550,8 @@ func TestRemediator_Reconcile_Metrics(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Reset metrics for each test case to avoid cross-test contamination
-			exporter := testmetrics.NewTestExporter()
-
+			exporter, err := testmetrics.NewTestExporter()
+			require.NoError(t, err)
 			// Set up the fake client that represents the initial state of the cluster.
 			var existingObjs []client.Object
 			if tc.actual != nil {
@@ -581,7 +580,7 @@ func TestRemediator_Reconcile_Metrics(t *testing.T) {
 				t.Fatal("at least one of actual or declared must be specified for a test")
 			}
 
-			err := reconciler.Remediate(context.Background(), core.IDOf(obj), tc.actual)
+			err = reconciler.Remediate(context.Background(), core.IDOf(obj), tc.actual)
 			testerrors.AssertEqual(t, tc.wantError, err)
 
 			if tc.want == nil {

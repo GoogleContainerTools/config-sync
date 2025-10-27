@@ -47,32 +47,19 @@ type TestExporter struct {
 	mutex   sync.Mutex
 }
 
-// Mutex to protect metrics initialization
-var metricsInitMutex sync.Mutex
-
-// NewTestExporter creates a new test exporter and initializes the metrics system.
-// This function resets and initializes the metrics system, then creates an exporter.
-func NewTestExporter() *TestExporter {
-	metricsInitMutex.Lock()
-	defer metricsInitMutex.Unlock()
-
+// NewTestExporter creates a new test exporter with a fresh OpenTelemetry setup.
+// This function initializes a new meter provider and all metric instruments
+// for testing purposes. It returns an error if initialization fails.
+func NewTestExporter() (*TestExporter, error) {
 	reader := initOtelReaderAndProvider()
-	initMetrics()
+	if err := initMetrics(); err != nil {
+		return nil, fmt.Errorf("failed to initialize test metrics: %w", err)
+	}
 
 	return &TestExporter{
 		metrics: make([]MetricData, 0),
 		reader:  reader,
-	}
-}
-
-// ResetGlobalMetrics resets the global metrics state for testing.
-// This function completely resets and re-initializes the metrics system.
-func ResetGlobalMetrics() {
-	metricsInitMutex.Lock()
-	defer metricsInitMutex.Unlock()
-
-	_ = initOtelReaderAndProvider()
-	initMetrics()
+	}, nil
 }
 
 // CollectMetrics collects all OpenTelemetry metrics and stores them in a simple format.
@@ -226,14 +213,15 @@ func initOtelReaderAndProvider() sdkmetric.Reader {
 }
 
 // initMetrics initializes all metric systems.
-func initMetrics() {
+func initMetrics() error {
 	if err := metrics.InitializeOTelMetrics(); err != nil {
-		panic(fmt.Sprintf("Failed to initialize OTel metrics: %v", err))
+		return fmt.Errorf("failed to initialize OTel metrics: %w", err)
 	}
 	if err := rgmetrics.InitializeOTelResourceGroupMetrics(); err != nil {
-		panic(fmt.Sprintf("Failed to initialize OTel resource group metrics: %v", err))
+		return fmt.Errorf("failed to initialize OTel resource group metrics: %w", err)
 	}
 	if err := kmetrics.InitializeOTelKustomizeMetrics(); err != nil {
-		panic(fmt.Sprintf("Failed to initialize OTel kustomize metrics: %v", err))
+		return fmt.Errorf("failed to initialize OTel kustomize metrics: %w", err)
 	}
+	return nil
 }

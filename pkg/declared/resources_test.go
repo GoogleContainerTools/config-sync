@@ -44,7 +44,6 @@ func TestUpdateDeclared(t *testing.T) {
 	objects := testSet
 	commit := "1"
 	expectedIDs := getIDs(objects)
-	testmetrics.ResetGlobalMetrics()
 
 	newObjects, err := dr.UpdateDeclared(context.Background(), objects, commit)
 	if err != nil {
@@ -203,7 +202,12 @@ func TestGVKSet(t *testing.T) {
 }
 
 func TestResources_InternalErrorMetricValidation(t *testing.T) {
-	exporter := testmetrics.NewTestExporter()
+	// Initialize metrics for this test
+	exporter, err := testmetrics.NewTestExporter()
+	if err != nil {
+		t.Fatalf("Failed to create test exporter: %v", err)
+	}
+	defer exporter.ClearMetrics()
 	dr := Resources{}
 	if _, err := dr.UpdateDeclared(context.Background(), nilSet, "unused"); err != nil {
 		t.Fatal(err)

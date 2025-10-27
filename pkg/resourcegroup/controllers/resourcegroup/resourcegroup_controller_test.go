@@ -312,10 +312,12 @@ func TestReconcile(t *testing.T) {
 }
 
 func TestReconcile_Metrics(t *testing.T) {
-	testmetrics.ResetGlobalMetrics()
-	// Register metrics views with test exporter at the beginning
-	exporter := testmetrics.NewTestExporter()
-
+	// Initialize metrics for this test
+	exporter, err := testmetrics.NewTestExporter()
+	if err != nil {
+		t.Fatalf("Failed to create test exporter: %v", err)
+	}
+	defer exporter.ClearMetrics()
 	// Configure controller-manager to log to the test logger
 	testLogger := testcontroller.NewTestLogger(t)
 	controllerruntime.SetLogger(testLogger)
@@ -573,10 +575,12 @@ func TestReconcile_Metrics(t *testing.T) {
 }
 
 func TestReconcile_Metrics_EmptyThenAddResources(t *testing.T) {
-	testmetrics.ResetGlobalMetrics()
-	// Register metrics views with test exporter at the beginning
-	exporter := testmetrics.NewTestExporter()
-
+	// Initialize metrics for this test
+	exporter, err := testmetrics.NewTestExporter()
+	if err != nil {
+		t.Fatalf("Failed to create test exporter: %v", err)
+	}
+	defer exporter.ClearMetrics()
 	var channelKpt chan event.GenericEvent
 
 	// Configure controller-manager to log to the test logger
@@ -682,9 +686,10 @@ func TestReconcile_Metrics_EmptyThenAddResources(t *testing.T) {
 	}
 
 	// Reset the exporter to clear accumulated metrics before testing with resources
-	testmetrics.ResetGlobalMetrics()
-	exporter = testmetrics.NewTestExporter()
-
+	exporter, err = testmetrics.NewTestExporter()
+	if err != nil {
+		t.Fatalf("Failed to create test exporter: %v", err)
+	}
 	// Now add test resources to the ResourceGroup (without creating the actual objects)
 	// Use unique names to avoid conflicts with existing resources from other tests
 	namespaceRes := v1alpha1.ObjMetadata{

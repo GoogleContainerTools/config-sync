@@ -1326,8 +1326,12 @@ func TestReconciler_Reconcile(t *testing.T) {
 
 	for index, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Reset metrics for each test case to avoid cross-test contamination
-			exporter := testmetrics.NewTestExporter()
+			// Initialize metrics for this test
+			exporter, err := testmetrics.NewTestExporter()
+			if err != nil {
+				t.Fatalf("Failed to create test exporter: %v", err)
+			}
+			defer exporter.ClearMetrics()
 
 			util.SourceRetryBackoff = wait.Backoff{
 				Duration: time.Millisecond,

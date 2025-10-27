@@ -39,13 +39,15 @@ func TestMain(m *testing.M) {
 	setup := func() error {
 		klog.InitFlags(nil)
 
-		// Initialize metrics for all tests in this package
-		testmetrics.ResetGlobalMetrics()
+		// Initialize metrics for tests
+		_, err := testmetrics.NewTestExporter()
+		if err != nil {
+			return err
+		}
 
 		testEnv = &envtest.Environment{
 			CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "..", "manifests")},
 		}
-		var err error
 		cfg, err = testEnv.Start()
 		if err != nil {
 			return err

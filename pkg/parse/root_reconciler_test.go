@@ -656,8 +656,6 @@ func TestRootReconciler_ParseAndUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	testmetrics.ResetGlobalMetrics()
-
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			fakeClient := syncertest.NewClient(t, core.Scheme, tc.existingObjects...)
@@ -1328,7 +1326,12 @@ func TestRootReconciler_Parse_SourceErrorMetricValidation(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			require.Error(t, tc.parseErrors)
-			exporter := testmetrics.NewTestExporter()
+			// Initialize metrics for this test
+			exporter, err := testmetrics.NewTestExporter()
+			if err != nil {
+				t.Fatalf("Failed to create test exporter: %v", err)
+			}
+			defer exporter.ClearMetrics()
 			fakeConfigParser := &fsfake.ConfigParser{
 				Outputs: []fsfake.ParserOutputs{
 					// One Parse call, with errors
@@ -1442,7 +1445,12 @@ func TestRootReconciler_Update_ApplierErrorMetricValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			exporter := testmetrics.NewTestExporter()
+			// Initialize metrics for this test
+			exporter, err := testmetrics.NewTestExporter()
+			if err != nil {
+				t.Fatalf("Failed to create test exporter: %v", err)
+			}
+			defer exporter.ClearMetrics()
 			fakeConfigParser := &fsfake.ConfigParser{
 				Outputs: []fsfake.ParserOutputs{
 					{}, // One Parse call, no errors

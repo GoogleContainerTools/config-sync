@@ -25,6 +25,13 @@ import (
 )
 
 func TestResourceMapReconcile(t *testing.T) {
+	// Initialize metrics for this test
+	exporter, err := testmetrics.NewTestExporter()
+	if err != nil {
+		t.Fatalf("Failed to create test exporter: %v", err)
+	}
+	defer exporter.ClearMetrics()
+
 	res1 := resource{
 		Namespace: "ns1",
 		Name:      "res1",
@@ -53,9 +60,6 @@ func TestResourceMapReconcile(t *testing.T) {
 	}
 
 	gk := res1.GK()
-
-	// Reset metrics for this test to avoid cross-test contamination
-	testmetrics.ResetGlobalMetrics()
 
 	resourceMap := NewResourceMap()
 	assert.True(t, resourceMap.IsEmpty())

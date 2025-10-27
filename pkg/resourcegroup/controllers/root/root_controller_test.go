@@ -46,14 +46,18 @@ const (
 )
 
 func TestRootReconciler(t *testing.T) {
+	// Initialize metrics for this test
+	exporter, err := testmetrics.NewTestExporter()
+	if err != nil {
+		t.Fatalf("Failed to create test exporter: %v", err)
+	}
+	defer exporter.ClearMetrics()
+
 	var reconcilerKpt *Reconciler
 
 	// Configure controller-manager to log to the test logger
 	testLogger := testcontroller.NewTestLogger(t)
 	controllerruntime.SetLogger(testLogger)
-
-	// Reset metrics for this test to avoid cross-test contamination
-	testmetrics.ResetGlobalMetrics()
 
 	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
 	// channel when it is finished.

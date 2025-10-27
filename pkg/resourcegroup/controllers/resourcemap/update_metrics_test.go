@@ -233,9 +233,12 @@ func TestResourceMapUpdateMetrics(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Register metrics views with test exporter
-			exporter := testmetrics.NewTestExporter()
-
+			// Initialize metrics for this test
+			exporter, err := testmetrics.NewTestExporter()
+			if err != nil {
+				t.Fatalf("Failed to create test exporter: %v", err)
+			}
+			defer exporter.ClearMetrics()
 			// Create a new resource map for each test case
 			m := NewResourceMap()
 

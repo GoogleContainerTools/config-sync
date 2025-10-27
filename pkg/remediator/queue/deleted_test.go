@@ -61,7 +61,12 @@ func TestWasDeleted(t *testing.T) {
 }
 
 func TestDeleted_InternalErrorMetricValidation(t *testing.T) {
-	exporter := testmetrics.NewTestExporter()
+	// Initialize metrics for this test
+	exporter, err := testmetrics.NewTestExporter()
+	if err != nil {
+		t.Fatalf("Failed to create test exporter: %v", err)
+	}
+	defer exporter.ClearMetrics()
 	ctx := context.Background()
 	MarkDeleted(ctx, nil)
 
