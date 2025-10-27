@@ -61,7 +61,7 @@ func newSSMClient(repoPrefix string, shell *testshell.TestShell, projectNumber s
 }
 
 func (c *SSMClient) fullName(name string) string {
-	return util.SanitizeRepoName(c.repoPrefix, name)
+	return util.SanitizeGCPRepoName(c.repoPrefix, name)
 }
 
 // Type returns the provider type.

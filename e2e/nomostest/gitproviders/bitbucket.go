@@ -45,20 +45,20 @@ type BitbucketClient struct {
 	refreshToken string
 	logger       *testlogger.TestLogger
 	workspace    string
-	// repoPrefix is used to avoid overlap
-	repoPrefix string
+	// repoSuffix is used to avoid overlap
+	repoSuffix string
 	httpClient *http.Client
 }
 
 // newBitbucketClient instantiates a new Bitbucket client.
-func newBitbucketClient(repoPrefix string, logger *testlogger.TestLogger) (*BitbucketClient, error) {
+func newBitbucketClient(repoSuffix string, logger *testlogger.TestLogger) (*BitbucketClient, error) {
 	if *e2e.BitbucketWorkspace == "" {
 		return nil, errors.New("bitbucket workspace cannot be empty; set with -bitbucket-workspace flag or E2E_BITBUCKET_WORKSPACE env var")
 	}
 	client := &BitbucketClient{
 		logger:     logger,
 		workspace:  *e2e.BitbucketWorkspace,
-		repoPrefix: repoPrefix,
+		repoSuffix: repoSuffix,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -78,7 +78,7 @@ func newBitbucketClient(repoPrefix string, logger *testlogger.TestLogger) (*Bitb
 }
 
 func (b *BitbucketClient) fullName(name string) string {
-	return util.SanitizeBitbucketRepoName(b.repoPrefix, name)
+	return util.SanitizeBitbucketRepoName(b.repoSuffix, name)
 }
 
 // Type returns the provider type.
@@ -220,7 +220,7 @@ func (b *BitbucketClient) refreshAccessToken() (string, error) {
 		return "", fmt.Errorf("reading token refresh response body: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("refresh token failed with status %d: %s", resp.StatusCode, string(body))
+		return "", fmt.Errorf("refresh token failed with status %d", resp.StatusCode)
 	}
 
 	var output map[string]interface{}
@@ -230,12 +230,12 @@ func (b *BitbucketClient) refreshAccessToken() (string, error) {
 
 	accessToken, ok := output["access_token"]
 	if !ok {
-		return "", fmt.Errorf("no access_token in response: %s", string(body))
+		return "", fmt.Errorf("no access_token in response")
 	}
 
 	accessTokenStr, ok := accessToken.(string)
 	if !ok {
-		return "", fmt.Errorf("access_token is not a string: %v", accessToken)
+		return "", fmt.Errorf("access_token is not a string: %T", accessToken)
 	}
 
 	return accessTokenStr, nil

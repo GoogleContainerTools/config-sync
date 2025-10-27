@@ -27,16 +27,40 @@ const (
 	repoNameHashLen         = 8
 )
 
-// SanitizeRepoName replaces all slashes with hyphens, and truncates the name.
+// SanitizeGCPRepoName replaces all slashes with hyphens, and truncates the name.
 // repo name may contain between 3 and 63 lowercase letters, digits and hyphens.
-func SanitizeRepoName(repoPrefix, name string) string {
-	return sanitize(repoPrefix, name, defaultRepoNameMaxLen)
+// This is used by CSR and SSM which are per-project resources
+// The repo name will be of the form cs-e2e-<repoPrefix>-<name>-<hash>
+func SanitizeGCPRepoName(repoPrefix, name string) string {
+	if name == "" {
+		return name // Requires at least the base repo name
+	}
+	fullName := "cs-e2e"
+
+	if repoPrefix != "" {
+		fullName += "-" + repoPrefix
+	}
+	fullName += "-" + name
+	hashStr := hashName(fullName)
+
+	return sanitize(fullName, hashStr, defaultRepoNameMaxLen)
 }
 
 // SanitizeBitbucketRepoName replaces all slashes with hyphens, and truncates the name for Bitbucket.
 // repo name may contain between 3 and 62 lowercase letters, digits and hyphens.
-func SanitizeBitbucketRepoName(repoPrefix, name string) string {
-	return sanitize(repoPrefix, name, bitbucketRepoNameMaxLen)
+// The repo name will be of the form <name>-<repoSuffix>-<hash>
+func SanitizeBitbucketRepoName(repoSuffix, name string) string {
+	if name == "" {
+		return name // Requires at least the base repo name
+	}
+
+	fullName := name
+	if repoSuffix != "" {
+		fullName += "-" + repoSuffix
+	}
+	hashStr := hashName(fullName)
+
+	return sanitize(fullName, hashStr, bitbucketRepoNameMaxLen)
 }
 
 func hashName(fullName string) string {
@@ -44,10 +68,7 @@ func hashName(fullName string) string {
 	return hex.EncodeToString(hashBytes[:])[:repoNameHashLen]
 }
 
-func sanitize(repoPrefix, name string, maxLen int) string {
-	fullName := "cs-e2e-" + repoPrefix + "-" + name
-	hashStr := hashName(fullName)
-
+func sanitize(fullName, hashStr string, maxLen int) string {
 	if len(fullName) > maxLen-1-repoNameHashLen {
 		fullName = fullName[:maxLen-1-repoNameHashLen]
 	}
