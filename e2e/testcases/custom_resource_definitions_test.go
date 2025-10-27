@@ -34,6 +34,7 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/webhook/configuration"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -45,6 +46,11 @@ func mustRemoveCustomResourceWithDefinition(nt *nomostest.NT, crd client.Object)
 	nt.Must(rootSyncGitRepo.Add("acme/namespaces/foo/ns.yaml", nsObj))
 	anvilObj := newAnvilObject("v1", "heavy", 10)
 	nt.Must(rootSyncGitRepo.Add("acme/namespaces/foo/anvil-v1.yaml", anvilObj))
+
+	nt.T.Cleanup(func() {
+		cleanupCRD(nt, crd)
+	})
+
 	nt.Must(rootSyncGitRepo.CommitAndPush("Adding Anvil CRD and one Anvil CR"))
 	nt.Must(nt.WatchForAllSyncs())
 	nt.RenewClient()
@@ -204,6 +210,10 @@ func mustRemoveUnManagedCustomResource(nt *nomostest.NT, dir string, crd string)
 	crdObj := rootSyncGitRepo.MustGet(nt.T, "acme/cluster/anvil-crd.yaml")
 	nsObj := k8sobjects.NamespaceObject("prod")
 	nt.Must(rootSyncGitRepo.Add("acme/namespaces/prod/ns.yaml", nsObj))
+
+	nt.T.Cleanup(func() {
+		cleanupCRD(nt, crdObj)
+	})
 	nt.Must(rootSyncGitRepo.CommitAndPush("Adding Anvil CRD"))
 	nt.Must(nt.WatchForAllSyncs())
 	nt.RenewClient()
@@ -267,6 +277,10 @@ func addUpdateRemoveClusterScopedCRD(nt *nomostest.NT, dir string, crd string) {
 	crdObj := rootSyncGitRepo.MustGet(nt.T, "acme/cluster/clusteranvil-crd.yaml")
 	clusteranvilObj := clusteranvilCR("v1", "e2e-test-clusteranvil", 10)
 	nt.Must(rootSyncGitRepo.Add("acme/cluster/clusteranvil.yaml", clusteranvilObj))
+
+	nt.T.Cleanup(func() {
+		cleanupCRD(nt, crdObj)
+	})
 	nt.Must(rootSyncGitRepo.CommitAndPush("Adding clusterscoped Anvil CRD and CR"))
 	nt.Must(nt.WatchForAllSyncs())
 	nt.RenewClient()
@@ -345,6 +359,10 @@ func addUpdateNamespaceScopedCRD(nt *nomostest.NT, dir string, crd string) {
 	nt.Must(rootSyncGitRepo.Add("acme/namespaces/prod/anvil.yaml", anvilObj))
 	nsObj := k8sobjects.NamespaceObject("prod")
 	nt.Must(rootSyncGitRepo.Add("acme/namespaces/prod/ns.yaml", nsObj))
+
+	nt.T.Cleanup(func() {
+		cleanupCRD(nt, crdObj)
+	})
 	nt.Must(rootSyncGitRepo.CommitAndPush("Adding namespacescoped Anvil CRD and CR"))
 	nt.Must(nt.WatchForAllSyncs())
 	nt.RenewClient()
@@ -435,6 +453,14 @@ func TestLargeCRD(t *testing.T) {
 		}
 		nt.Must(rootSyncGitRepo.AddFile(fmt.Sprintf("acme/cluster/%s", file), crdContent))
 	}
+
+	nt.T.Cleanup(func() {
+		for _, file := range []string{"challenges-acme-cert-manager-io.yaml", "solrclouds-solr-apache-org.yaml"} {
+			crd := rootSyncGitRepo.MustGet(nt.T, fmt.Sprintf("acme/cluster/%s", file))
+			cleanupCRD(nt, crd)
+		}
+	})
+
 	nt.Must(rootSyncGitRepo.CommitAndPush("Adding two large CRDs"))
 	nt.Must(nt.WatchForAllSyncs())
 	nt.RenewClient()
@@ -506,4 +532,15 @@ func clusteranvilCR(version, name string, weight int64) *unstructured.Unstructur
 	gvk.Kind = "ClusterAnvil"
 	u.SetGroupVersionKind(gvk)
 	return u
+}
+
+func cleanupCRD(nt *nomostest.NT, crd client.Object) {
+	if err := nt.KubeClient.Get(crd.GetName(), crd.GetNamespace(), &apiextensionsv1.CustomResourceDefinition{}); err == nil {
+		nomostest.StopWebhook(nt)
+		if err := nt.KubeClient.Delete(crd); err != nil {
+			nt.T.Error(err)
+		}
+	} else if !apierrors.IsNotFound(err) {
+		nt.T.Error(err)
+	}
 }
