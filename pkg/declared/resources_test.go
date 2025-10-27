@@ -45,6 +45,12 @@ func TestUpdateDeclared(t *testing.T) {
 	commit := "1"
 	expectedIDs := getIDs(objects)
 
+	exporter, err := testmetrics.NewTestExporter()
+	if err != nil {
+		t.Fatalf("Failed to create test exporter: %v", err)
+	}
+	defer exporter.ClearMetrics()
+
 	newObjects, err := dr.UpdateDeclared(context.Background(), objects, commit)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)

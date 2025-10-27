@@ -141,7 +141,7 @@ func main() {
 		status.EnablePanicOnMisuse()
 	}
 
-	// Register the OTLP metrics exporter
+	// Register the OTLP metrics exporter and metrics instruments
 	ctx := context.Background()
 	oce, err := ocmetrics.RegisterOTelExporter(ctx, reconcilermanager.Reconciler)
 	if err != nil {

@@ -38,6 +38,7 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/reposync"
 	syncerFake "github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest/fake"
 	"github.com/GoogleContainerTools/config-sync/pkg/testing/testerrors"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testmetrics"
 	"github.com/GoogleContainerTools/config-sync/pkg/util"
 	"github.com/GoogleContainerTools/config-sync/pkg/validate/rsync/validate"
 	webhookconfiguration "github.com/GoogleContainerTools/config-sync/pkg/webhook/configuration"
@@ -384,6 +385,12 @@ func TestCreateAndUpdateNamespaceReconcilerWithOverride(t *testing.T) {
 			MemoryLimit:   resource.MustParse("1Gi"),
 		},
 	}
+
+	exporter, err := testmetrics.NewTestExporter()
+	if err != nil {
+		t.Fatalf("Failed to create test exporter: %v", err)
+	}
+	defer exporter.ClearMetrics()
 
 	rs := repoSyncWithGit(reposyncNs, reposyncName, reposyncRef(gitRevision), reposyncBranch(branch), reposyncSecretType(configsync.AuthSSH),
 		reposyncSecretRef(reposyncSSHKey), reposyncOverrideResources(overrideReconcilerAndGitSyncResourceLimits))

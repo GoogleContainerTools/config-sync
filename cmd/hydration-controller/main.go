@@ -79,12 +79,7 @@ func main() {
 	profiler.Service()
 	ctrl.SetLogger(textlogger.NewLogger(textlogger.NewConfig()))
 
-	// Initialize the kustomize metrics
-	if err := kmetrics.InitializeOTelKustomizeMetrics(); err != nil {
-		klog.Fatalf("Failed to initialize kustomize metrics: %v", err)
-	}
-
-	// Register the OTLP metrics exporter
+	// Register the OTLP metrics exporter and metrics instruments
 	ctx := context.Background()
 	oce, err := kmetrics.RegisterOTelExporter(ctx, reconcilermanager.HydrationController)
 	if err != nil {

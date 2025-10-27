@@ -182,7 +182,7 @@ func main() {
 	}
 	setupLog.Info("OtelSA controller registration successful")
 
-	// Register the OTLP metrics exporter
+	// Register the OTLP metrics exporter and metrics instruments
 	ctx := context.Background()
 	oce, err := metrics.RegisterOTelExporter(ctx, reconcilermanager.ManagerName)
 	if err != nil {

@@ -658,6 +658,11 @@ func TestRootReconciler_ParseAndUpdate(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			exporter, err := testmetrics.NewTestExporter()
+			if err != nil {
+				t.Fatalf("Failed to create test exporter: %v", err)
+			}
+			defer exporter.ClearMetrics()
 			fakeClient := syncertest.NewClient(t, core.Scheme, tc.existingObjects...)
 			// We're not testing the Parser here, just how the `root` calls the
 			// Parser. So the outputs are faked.

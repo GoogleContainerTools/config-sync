@@ -75,12 +75,7 @@ func run() error {
 	logger := textlogger.NewLogger(textlogger.NewConfig())
 	ctx := context.Background()
 
-	// Initialize the metrics
-	if err := ocmetrics.InitializeOTelResourceGroupMetrics(); err != nil {
-		return fmt.Errorf("failed to initialize metrics: %w", err)
-	}
-
-	// Register the OTLP metrics exporter
+	// Register the OTLP metrics exporter and metrics instruments
 	oce, err := ocmetrics.RegisterOTelExporter(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to register the OTLP metrics exporter: %w", err)

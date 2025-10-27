@@ -67,5 +67,10 @@ func RegisterOTelExporter(ctx context.Context, containerName string) (*otlpmetri
 	// Set global meter provider
 	otel.SetMeterProvider(meterProvider)
 
+	err = InitializeOTelKustomizeMetrics()
+	if err != nil {
+		return nil, err
+	}
+
 	return exporter, nil
 }

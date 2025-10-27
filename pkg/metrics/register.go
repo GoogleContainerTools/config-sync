@@ -74,5 +74,10 @@ func RegisterOTelExporter(ctx context.Context, containerName string) (*otlpmetri
 	otel.SetMeterProvider(meterProvider)
 	klog.V(5).Infof("METRIC DEBUG: Set global meter provider")
 
+	err = InitializeOTelMetrics()
+	if err != nil {
+		return nil, err
+	}
+
 	return exporter, nil
 }

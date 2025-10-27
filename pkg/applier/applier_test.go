@@ -33,6 +33,7 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	testingfake "github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest/fake"
 	"github.com/GoogleContainerTools/config-sync/pkg/testing/testerrors"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testmetrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -351,6 +352,11 @@ func TestApply(t *testing.T) {
 	}
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
+			exporter, err := testmetrics.NewTestExporter()
+			if err != nil {
+				t.Fatalf("Failed to create test exporter: %v", err)
+			}
+			defer exporter.ClearMetrics()
 			rsObj := &unstructured.Unstructured{}
 			rsObj.SetGroupVersionKind(kinds.RepoSyncV1Beta1())
 			rsObj.SetNamespace(syncScope.SyncNamespace())
@@ -385,7 +391,7 @@ func TestApply(t *testing.T) {
 
 			ctx := context.Background()
 			resources := &declared.Resources{}
-			_, err := resources.UpdateDeclared(ctx, objs, "")
+			_, err = resources.UpdateDeclared(ctx, objs, "")
 			require.NoError(t, err)
 
 			objectStatusMap, syncStats := applier.Apply(context.Background(), eventHandler, resources)

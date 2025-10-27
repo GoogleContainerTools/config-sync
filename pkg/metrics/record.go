@@ -29,11 +29,6 @@ import (
 
 // RecordAPICallDuration produces a measurement for the APICallDuration view.
 func RecordAPICallDuration(ctx context.Context, operation, status string, startTime time.Time) {
-	if err := lazyInit(); err != nil {
-		klog.Errorf("Failed to initialize metrics for APICallDuration: %v", err)
-		return
-	}
-
 	attrs := []attribute.KeyValue{
 		KeyOperation.String(operation),
 		KeyStatus.String(status),
@@ -48,11 +43,6 @@ func RecordAPICallDuration(ctx context.Context, operation, status string, startT
 
 // RecordReconcilerErrors produces a measurement for the ReconcilerErrors view.
 func RecordReconcilerErrors(ctx context.Context, component string, errs []v1beta1.ConfigSyncError) {
-	if err := lazyInit(); err != nil {
-		klog.Errorf("Failed to initialize metrics for ReconcilerErrors: %v", err)
-		return
-	}
-
 	errorCountByClass := status.CountErrorByClass(errs)
 	var supportedErrorClasses = []string{"1xxx", "2xxx", "9xxx"}
 
@@ -76,11 +66,6 @@ func RecordReconcilerErrors(ctx context.Context, component string, errs []v1beta
 
 // RecordPipelineError produces a measurement for the PipelineError view
 func RecordPipelineError(ctx context.Context, reconcilerType, component string, errLen int) {
-	if err := lazyInit(); err != nil {
-		klog.Errorf("Failed to initialize metrics for PipelineError: %v", err)
-		return
-	}
-
 	reconcilerName := os.Getenv(reconcilermanager.ReconcilerNameKey)
 	attrs := []attribute.KeyValue{
 		KeyName.String(reconcilerName),
@@ -101,11 +86,6 @@ func RecordPipelineError(ctx context.Context, reconcilerType, component string, 
 
 // RecordReconcileDuration produces a measurement for the ReconcileDuration view.
 func RecordReconcileDuration(ctx context.Context, status string, startTime time.Time) {
-	if err := lazyInit(); err != nil {
-		klog.Errorf("Failed to initialize metrics for ReconcileDuration: %v", err)
-		return
-	}
-
 	attrs := []attribute.KeyValue{
 		KeyStatus.String(status),
 	}
@@ -116,11 +96,6 @@ func RecordReconcileDuration(ctx context.Context, status string, startTime time.
 
 // RecordParserDuration produces a measurement for the ParserDuration view.
 func RecordParserDuration(ctx context.Context, trigger, source, status string, startTime time.Time) {
-	if err := lazyInit(); err != nil {
-		klog.Errorf("Failed to initialize metrics for ParserDuration: %v", err)
-		return
-	}
-
 	attrs := []attribute.KeyValue{
 		KeyStatus.String(status),
 		KeyTrigger.String(trigger),
@@ -133,11 +108,6 @@ func RecordParserDuration(ctx context.Context, trigger, source, status string, s
 
 // RecordLastSync produces a measurement for the LastSync view.
 func RecordLastSync(ctx context.Context, status, commit string, timestamp time.Time) {
-	if err := lazyInit(); err != nil {
-		klog.Errorf("Failed to initialize metrics for LastSync: %v", err)
-		return
-	}
-
 	attrs := []attribute.KeyValue{
 		KeyStatus.String(status),
 		KeyCommit.String(commit),
@@ -148,11 +118,6 @@ func RecordLastSync(ctx context.Context, status, commit string, timestamp time.T
 
 // RecordDeclaredResources produces a measurement for the DeclaredResources view.
 func RecordDeclaredResources(ctx context.Context, commit string, numResources int) {
-	if err := lazyInit(); err != nil {
-		klog.Errorf("Failed to initialize metrics for DeclaredResources: %v", err)
-		return
-	}
-
 	attrs := []attribute.KeyValue{
 		KeyCommit.String(commit),
 	}
@@ -162,11 +127,6 @@ func RecordDeclaredResources(ctx context.Context, commit string, numResources in
 
 // RecordApplyOperation produces a measurement for the ApplyOperations view.
 func RecordApplyOperation(ctx context.Context, controller, operation, status string) {
-	if err := lazyInit(); err != nil {
-		klog.Errorf("Failed to initialize metrics for ApplyOperations: %v", err)
-		return
-	}
-
 	attrs := []attribute.KeyValue{
 		KeyOperation.String(operation),
 		KeyController.String(controller),
@@ -178,11 +138,6 @@ func RecordApplyOperation(ctx context.Context, controller, operation, status str
 
 // RecordApplyDuration produces measurements for the ApplyDuration and LastApplyTimestamp views.
 func RecordApplyDuration(ctx context.Context, status, commit string, startTime time.Time) {
-	if err := lazyInit(); err != nil {
-		klog.Errorf("Failed to initialize metrics for ApplyDuration/LastApply: %v", err)
-		return
-	}
-
 	if commit == "" {
 		// TODO: Remove default value when otel-collector supports empty tag values correctly.
 		commit = CommitNone
@@ -201,22 +156,12 @@ func RecordApplyDuration(ctx context.Context, status, commit string, startTime t
 
 // RecordResourceFight produces measurements for the ResourceFights view.
 func RecordResourceFight(ctx context.Context, _ string) {
-	if err := lazyInit(); err != nil {
-		klog.Errorf("Failed to initialize metrics for ResourceFights: %v", err)
-		return
-	}
-
 	klog.V(5).Infof("METRIC DEBUG: Recording ResourceFight")
 	ResourceFights.Add(ctx, 1)
 }
 
 // RecordRemediateDuration produces measurements for the RemediateDuration view.
 func RecordRemediateDuration(ctx context.Context, status string, startTime time.Time) {
-	if err := lazyInit(); err != nil {
-		klog.Errorf("Failed to initialize metrics for RemediateDuration: %v", err)
-		return
-	}
-
 	attrs := []attribute.KeyValue{
 		KeyStatus.String(status),
 	}
@@ -227,11 +172,6 @@ func RecordRemediateDuration(ctx context.Context, status string, startTime time.
 
 // RecordResourceConflict produces measurements for the ResourceConflicts view.
 func RecordResourceConflict(ctx context.Context, commit string) {
-	if err := lazyInit(); err != nil {
-		klog.Errorf("Failed to initialize metrics for ResourceConflicts: %v", err)
-		return
-	}
-
 	attrs := []attribute.KeyValue{
 		KeyCommit.String(commit),
 	}
@@ -241,11 +181,6 @@ func RecordResourceConflict(ctx context.Context, commit string) {
 
 // RecordInternalError produces measurements for the InternalErrors view.
 func RecordInternalError(ctx context.Context, source string) {
-	if err := lazyInit(); err != nil {
-		klog.Errorf("Failed to initialize metrics for InternalErrors: %v", err)
-		return
-	}
-
 	attrs := []attribute.KeyValue{
 		KeyInternalErrorSource.String(source),
 	}

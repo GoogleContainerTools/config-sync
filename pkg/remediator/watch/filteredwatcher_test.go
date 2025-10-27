@@ -31,6 +31,7 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/syncer/reconcile"
 	"github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest"
 	testfake "github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest/fake"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testmetrics"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/require"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -375,6 +376,11 @@ func TestFilteredWatcher(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			exporter, err := testmetrics.NewTestExporter()
+			if err != nil {
+				t.Fatalf("Failed to create test exporter: %v", err)
+			}
+			defer exporter.ClearMetrics()
 			dr := &declared.Resources{}
 			ctx := context.Background()
 			var cancel context.CancelFunc
@@ -424,7 +430,7 @@ func TestFilteredWatcher(t *testing.T) {
 				}
 			}()
 			// w.Run() blocks until w.Stop() is called or the context is cancelled.
-			err := w.Run(ctx)
+			err = w.Run(ctx)
 			require.Equal(t, tc.wantErr, err)
 
 			var got []core.ID

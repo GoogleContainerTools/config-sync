@@ -392,6 +392,11 @@ func TestRemediator_Reconcile(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			exporter, err := testmetrics.NewTestExporter()
+			if err != nil {
+				t.Fatalf("Failed to create test exporter: %v", err)
+			}
+			defer exporter.ClearMetrics()
 			// Set up the fake client that represents the initial state of the cluster.
 			var existingObjs []client.Object
 			if tc.actual != nil {
@@ -419,7 +424,7 @@ func TestRemediator_Reconcile(t *testing.T) {
 				t.Fatal("at least one of actual or declared must be specified for a test")
 			}
 
-			err := r.Remediate(context.Background(), core.IDOf(obj), tc.actual)
+			err = r.Remediate(context.Background(), core.IDOf(obj), tc.actual)
 			testerrors.AssertEqual(t, tc.wantError, err)
 
 			if tc.declared != nil {
