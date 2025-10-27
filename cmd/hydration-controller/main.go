@@ -84,18 +84,18 @@ func main() {
 		klog.Fatalf("Failed to initialize kustomize metrics: %v", err)
 	}
 
-	// Register the OC Agent exporter
+	// Register the OTLP metrics exporter
 	ctx := context.Background()
 	oce, err := kmetrics.RegisterOTelExporter(ctx, reconcilermanager.HydrationController)
 	if err != nil {
-		klog.Fatalf("Failed to register the OC Agent exporter: %v", err)
+		klog.Fatalf("Failed to register the OTLP metrics exporter: %v", err)
 	}
 
 	defer func() {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), kmetrics.ShutdownTimeout)
 		defer cancel()
 		if err := oce.Shutdown(shutdownCtx); err != nil {
-			klog.Fatalf("Unable to stop the OC Agent exporter: %v", err)
+			klog.Fatalf("Unable to stop the OTLP metrics exporter: %v", err)
 		}
 	}()
 

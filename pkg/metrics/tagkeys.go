@@ -88,7 +88,6 @@ var (
 	ResourceKeySyncNamespace = attribute.Key("configsync_sync_namespace")
 
 	// ResourceKeySyncGeneration groups metrics by the Sync metadata.generation.
-	// This allows matching metrics to a specific Sync configuration.
 	ResourceKeySyncGeneration = attribute.Key("configsync_sync_generation")
 
 	// ResourceKeyDeploymentName groups metrics by k8s deployment name.

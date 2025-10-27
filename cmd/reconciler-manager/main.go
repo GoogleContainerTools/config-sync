@@ -182,11 +182,11 @@ func main() {
 	}
 	setupLog.Info("OtelSA controller registration successful")
 
-	// Register the OC Agent exporter
+	// Register the OTLP metrics exporter
 	ctx := context.Background()
 	oce, err := metrics.RegisterOTelExporter(ctx, reconcilermanager.ManagerName)
 	if err != nil {
-		setupLog.Error(err, "failed to register the OC Agent exporter")
+		setupLog.Error(err, "failed to register the OTLP metrics exporter")
 		os.Exit(1)
 	}
 
@@ -194,7 +194,7 @@ func main() {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), metrics.ShutdownTimeout)
 		defer cancel()
 		if err := oce.Shutdown(shutdownCtx); err != nil {
-			setupLog.Error(err, "failed to stop the OC Agent exporter")
+			setupLog.Error(err, "failed to stop the OTLP metrics exporter")
 		}
 	}()
 
@@ -203,11 +203,11 @@ func main() {
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
-		// os.Exit(1) does not run deferred functions so explicitly stopping the OC Agent exporter.
+		// os.Exit(1) does not run deferred functions so explicitly stopping the OTLP metrics exporter.
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), metrics.ShutdownTimeout)
 		defer cancel()
 		if err := oce.Shutdown(shutdownCtx); err != nil {
-			setupLog.Error(err, "failed to stop the OC Agent exporter")
+			setupLog.Error(err, "failed to stop the OTLP metrics exporter")
 		}
 		os.Exit(1)
 	}

@@ -141,18 +141,18 @@ func main() {
 		status.EnablePanicOnMisuse()
 	}
 
-	// Register the OC Agent exporter
+	// Register the OTLP metrics exporter
 	ctx := context.Background()
 	oce, err := ocmetrics.RegisterOTelExporter(ctx, reconcilermanager.Reconciler)
 	if err != nil {
-		klog.Fatalf("Failed to register the OC Agent exporter: %v", err)
+		klog.Fatalf("Failed to register the OTLP metrics exporter: %v", err)
 	}
 
 	defer func() {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), ocmetrics.ShutdownTimeout)
 		defer cancel()
 		if err := oce.Shutdown(shutdownCtx); err != nil {
-			klog.Fatalf("Unable to stop the OC Agent exporter: %v", err)
+			klog.Fatalf("Unable to stop the OTLP metrics exporter: %v", err)
 		}
 	}()
 

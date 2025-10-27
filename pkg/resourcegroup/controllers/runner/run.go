@@ -80,15 +80,15 @@ func run() error {
 		return fmt.Errorf("failed to initialize metrics: %w", err)
 	}
 
-	// Register the metrics exporter
+	// Register the OTLP metrics exporter
 	oce, err := ocmetrics.RegisterOTelExporter(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to register the metrics exporter: %w", err)
+		return fmt.Errorf("failed to register the OTLP metrics exporter: %w", err)
 	}
 
 	defer func() {
 		if err := oce.Shutdown(ctx); err != nil {
-			klog.Error(err, "Unable to stop the OC Agent exporter")
+			klog.Error(err, "Unable to stop the OTLP metrics exporter")
 		}
 	}()
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
