@@ -88,6 +88,18 @@ const (
 	InstallMethodUpdate InstallMethod = "update"
 )
 
+// InstallConfigSyncOpts defines options for installing Config Sync
+type InstallConfigSyncOpts struct {
+	Method InstallMethod
+}
+
+// WithInstallMethod sets the installation method
+func WithInstallMethod(method InstallMethod) func(*InstallConfigSyncOpts) {
+	return func(opts *InstallConfigSyncOpts) {
+		opts.Method = method
+	}
+}
+
 var (
 	// baseDir is the path to the Nomos repository root from test case files.
 	//
@@ -240,21 +252,35 @@ func parseConfigSyncManifests(nt *NT) ([]client.Object, error) {
 }
 
 // InstallConfigSync installs ConfigSync on the test cluster
-func InstallConfigSync(nt *NT, method InstallMethod) error {
-	nt.T.Log("[SETUP] Installing Config Sync using method: ", method)
+func InstallConfigSync(nt *NT, opts ...func(*InstallConfigSyncOpts)) error {
+	// Set default options
+	options := InstallConfigSyncOpts{
+		Method: InstallMethodApply, // Default to apply method
+	}
+
+	for _, opt := range opts {
+		opt(&options)
+	}
+
+	nt.T.Log("[SETUP] Installing Config Sync using method: ", options.Method)
 	objs, err := parseConfigSyncManifests(nt)
 	if err != nil {
 		return err
 	}
 	for _, o := range objs {
 		nt.T.Logf("installConfigSync obj: %v", core.GKNN(o))
-		switch method {
+		switch options.Method {
 		case InstallMethodApply:
 			if err := nt.KubeClient.Apply(o); err != nil {
 				return err
 			}
 		case InstallMethodUpdate:
-			currentObj := o.DeepCopyObject().(client.Object)
+			// Create an empty Unstructured object for the Get operation
+			// We only need the name and namespace, not a full DeepCopy
+			currentObj := &unstructured.Unstructured{}
+			currentObj.SetName(o.GetName())
+			currentObj.SetNamespace(o.GetNamespace())
+			currentObj.SetGroupVersionKind(o.GetObjectKind().GroupVersionKind())
 			if err := nt.KubeClient.Get(currentObj.GetName(), currentObj.GetNamespace(), currentObj); err != nil {
 				if apierrors.IsNotFound(err) {
 					if err := nt.KubeClient.Create(o); err != nil {
@@ -264,7 +290,12 @@ func InstallConfigSync(nt *NT, method InstallMethod) error {
 					return err
 				}
 			} else {
-				// Attach existing resourceVersion to the object
+				// Attach existing resourceVersion to the object for optimistic concurrency control.
+				// Kubernetes requires the resourceVersion to match the current cluster state for Update
+				// operations to prevent race conditions. Without this, the Update will fail with a conflict
+				// error since Kubernetes thinks we're trying to update an outdated version of the object.
+				// In this instance, the current state of the object on the cluster does not matter and the
+				// intent is to fully update to the original configuration declared in the manifest.
 				o.SetResourceVersion(currentObj.GetResourceVersion())
 				if err := nt.KubeClient.Update(o); err != nil {
 					return err
