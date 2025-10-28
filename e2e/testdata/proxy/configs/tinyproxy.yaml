@@ -13,11 +13,6 @@
 # limitations under the License.
 
 apiVersion: v1
-kind: Namespace
-metadata:
-  name: proxy-test
----
-apiVersion: v1
 kind: ServiceAccount
 metadata:
   labels:

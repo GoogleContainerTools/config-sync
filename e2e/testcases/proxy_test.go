@@ -38,10 +38,14 @@ func TestSyncingThroughAProxy(t *testing.T) {
 	nt := nomostest.New(t, nomostesting.SyncSourceGit)
 
 	nt.T.Logf("Set up the tiny proxy service and Override the RootSync object with proxy setting")
-	nt.MustKubectl("apply", "-f", "../testdata/proxy")
+	nt.MustKubectl("apply", "-f", "../testdata/proxy/namespace.yaml")
+	nt.Must(nt.Watcher.WatchForCurrentStatus(kinds.Namespace(), "proxy-test", ""))
+	nt.MustKubectl("apply", "-f", "../testdata/proxy/configs")
 	nt.T.Cleanup(func() {
-		nt.MustKubectl("delete", "-f", "../testdata/proxy")
+		nt.MustKubectl("delete", "-f", "../testdata/proxy/configs")
 		nt.Must(nt.Watcher.WatchForNotFound(kinds.Deployment(), "tinyproxy-deployment", "proxy-test"))
+		nt.MustKubectl("delete", "-f", "../testdata/proxy/namespace.yaml")
+		nt.Must(nt.Watcher.WatchForNotFound(kinds.Namespace(), "proxy-test", ""))
 	})
 	nt.Must(nt.Watcher.WatchObject(kinds.Deployment(), "tinyproxy-deployment", "proxy-test",
 		testwatcher.WatchPredicates(hasReadyReplicas(1))))
