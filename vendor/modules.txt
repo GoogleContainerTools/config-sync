@@ -1,7 +1,7 @@
 # al.essio.dev/pkg/shellescape v1.5.1
 ## explicit; go 1.18
 al.essio.dev/pkg/shellescape
-# cloud.google.com/go v0.120.0
+# cloud.google.com/go v0.121.6
 ## explicit; go 1.23.0
 cloud.google.com/go
 # cloud.google.com/go/auth v0.17.0
@@ -33,8 +33,8 @@ cloud.google.com/go/compute/metadata
 # cloud.google.com/go/iam v1.5.2
 ## explicit; go 1.23.0
 cloud.google.com/go/iam/apiv1/iampb
-# cloud.google.com/go/logging v1.13.0
-## explicit; go 1.21
+# cloud.google.com/go/logging v1.13.1
+## explicit; go 1.24.0
 cloud.google.com/go/logging
 cloud.google.com/go/logging/apiv2
 cloud.google.com/go/logging/apiv2/loggingpb
