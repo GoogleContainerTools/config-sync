@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	cloud.google.com/go/auth v0.17.0
 	cloud.google.com/go/compute/metadata v0.9.0
-	cloud.google.com/go/logging v1.13.0
+	cloud.google.com/go/logging v1.13.1
 	cloud.google.com/go/monitoring v1.24.3
 	cloud.google.com/go/trace v1.11.7
 	github.com/GoogleContainerTools/kpt-functions-catalog/functions/go/set-namespace v0.4.1-0.20220713210718-d955e7d3a800
@@ -70,7 +70,7 @@ require (
 
 require (
 	al.essio.dev/pkg/shellescape v1.5.1 // indirect
-	cloud.google.com/go v0.120.0 // indirect
+	cloud.google.com/go v0.121.6 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/iam v1.5.2 // indirect
 	cloud.google.com/go/longrunning v0.6.7 // indirect
