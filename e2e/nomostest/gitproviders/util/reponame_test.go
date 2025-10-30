@@ -20,7 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSanitizeRepoName(t *testing.T) {
+func TestSanitizeGCPRepoName(t *testing.T) {
 	testCases := []struct {
 		testName     string
 		repoPrefix   string
@@ -32,6 +32,12 @@ func TestSanitizeRepoName(t *testing.T) {
 			repoPrefix:   "test",
 			repoName:     "test-ns/repo-sync",
 			expectedName: "cs-e2e-test-test-ns-repo-sync-19dcbc51",
+		},
+		{
+			testName:     "The expected name shouldn't have a double dash in it",
+			repoPrefix:   "my-test-cluster1",
+			repoName:     "config-management-system/root-sync",
+			expectedName: "cs-e2e-my-test-cluster1-config-management-system-root-a5af55f0",
 		},
 		{
 			testName:     "RepoSync test/ns-repo-sync should not collide with RepoSync test-ns/repo-sync",
@@ -49,14 +55,85 @@ func TestSanitizeRepoName(t *testing.T) {
 			testName:     "A very long repoName should be truncated",
 			repoPrefix:   "test",
 			repoName:     "config-management-system/root-sync-with-a-very-long-name",
-			expectedName: "cs-e2e-test-config-management-system-root-sync-with-a--0d0af6c0",
+			expectedName: "cs-e2e-test-config-management-system-root-sync-with-a-0d0af6c0",
+		},
+		{
+			testName:     "Empty repoPrefix",
+			repoPrefix:   "",
+			repoName:     "test-ns/repo-sync",
+			expectedName: "cs-e2e-test-ns-repo-sync-cf15cd55",
+		}, {
+			testName:     "Empty repoName",
+			repoPrefix:   "test",
+			repoName:     "",
+			expectedName: "",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.testName, func(t *testing.T) {
-			gotName := SanitizeRepoName(tc.repoPrefix, tc.repoName)
+			gotName := SanitizeGCPRepoName(tc.repoPrefix, tc.repoName)
 			assert.Equal(t, tc.expectedName, gotName)
+			assert.LessOrEqual(t, len(gotName), defaultRepoNameMaxLen)
+		})
+	}
+}
+
+func TestSanitizeBitbucketRepoName(t *testing.T) {
+	testCases := []struct {
+		testName     string
+		repoSuffix   string
+		repoName     string
+		expectedName string
+	}{
+		{
+			testName:     "RepoSync test-ns/repo-sync",
+			repoSuffix:   "test",
+			repoName:     "test-ns/repo-sync",
+			expectedName: "test-ns-repo-sync-test-3b350268",
+		},
+		{
+			testName:     "RepoSync test/ns-repo-sync should not collide with RepoSync test-ns/repo-sync",
+			repoSuffix:   "test",
+			repoName:     "test/ns-repo-sync",
+			expectedName: "test-ns-repo-sync-test-6831d08b",
+		},
+		{
+			testName:     "The expected name shouldn't have a double dash in it",
+			repoSuffix:   "test",
+			repoName:     "config-management-system/a-new-root-sync-with-ab-123",
+			expectedName: "config-management-system-a-new-root-sync-with-ab-123-da77fbd1",
+		},
+		{
+			testName:     "A very long repoSuffix should be truncated",
+			repoSuffix:   "kpt-config-sync-ci-main/autopilot-rapid-latest-10",
+			repoName:     "config-management-system/root-sync",
+			expectedName: "config-management-system-root-sync-kpt-config-sync-ci-6485bfa0",
+		},
+		{
+			testName:     "A very long repoName should be truncated",
+			repoSuffix:   "test",
+			repoName:     "config-management-system/root-sync-with-a-very-long-name",
+			expectedName: "config-management-system-root-sync-with-a-very-long-n-3b0dae1c",
+		},
+		{
+			testName:     "Empty repoSuffix",
+			repoSuffix:   "",
+			repoName:     "test-ns/repo-sync",
+			expectedName: "test-ns-repo-sync-08675d6b",
+		}, {
+			testName:     "Empty repoName",
+			repoSuffix:   "test",
+			repoName:     "",
+			expectedName: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.testName, func(t *testing.T) {
+			gotName := SanitizeBitbucketRepoName(tc.repoSuffix, tc.repoName)
+			assert.Equal(t, tc.expectedName, gotName)
+			assert.LessOrEqual(t, len(gotName), bitbucketRepoNameMaxLen)
 		})
 	}
 }

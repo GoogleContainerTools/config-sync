@@ -15,20 +15,20 @@
 package gitproviders
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 	"os/exec"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/GoogleContainerTools/config-sync/e2e"
-	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/retry"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/gitproviders/util"
 	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testlogger"
-	"github.com/google/uuid"
-	"go.uber.org/multierr"
 )
 
 const (
@@ -36,9 +36,6 @@ const (
 
 	// PrivateSSHKey is secret name of the private SSH key stored in the Cloud Secret Manager.
 	PrivateSSHKey = "config-sync-ci-ssh-private-key"
-
-	repoNameMaxLength = 62
-	localNameLength   = 30
 )
 
 // BitbucketClient is the client that calls the Bitbucket REST APIs.
@@ -48,16 +45,23 @@ type BitbucketClient struct {
 	refreshToken string
 	logger       *testlogger.TestLogger
 	workspace    string
+	// repoSuffix is used to avoid overlap
+	repoSuffix string
+	httpClient *http.Client
 }
 
 // newBitbucketClient instantiates a new Bitbucket client.
-func newBitbucketClient(logger *testlogger.TestLogger) (*BitbucketClient, error) {
+func newBitbucketClient(repoSuffix string, logger *testlogger.TestLogger) (*BitbucketClient, error) {
 	if *e2e.BitbucketWorkspace == "" {
 		return nil, errors.New("bitbucket workspace cannot be empty; set with -bitbucket-workspace flag or E2E_BITBUCKET_WORKSPACE env var")
 	}
 	client := &BitbucketClient{
-		logger:    logger,
-		workspace: *e2e.BitbucketWorkspace,
+		logger:     logger,
+		workspace:  *e2e.BitbucketWorkspace,
+		repoSuffix: repoSuffix,
+		httpClient: &http.Client{
+			Timeout: 10 * time.Second,
+		},
 	}
 
 	var err error
@@ -71,6 +75,10 @@ func newBitbucketClient(logger *testlogger.TestLogger) (*BitbucketClient, error)
 		return client, err
 	}
 	return client, nil
+}
+
+func (b *BitbucketClient) fullName(name string) string {
+	return util.SanitizeBitbucketRepoName(b.repoSuffix, name)
 }
 
 // Type returns the provider type.
@@ -93,25 +101,9 @@ func (b *BitbucketClient) SyncURL(name string) string {
 
 // CreateRepository calls the POST API to create a remote repository on Bitbucket.
 // The remote repo name is unique with a prefix of the local name.
-func (b *BitbucketClient) CreateRepository(localName string) (string, error) {
-	u, err := uuid.NewRandom()
-	if err != nil {
-		return "", fmt.Errorf("failed to generate a new UUID: %w", err)
-	}
-
-	// strip all hyphens from localName and uuid before appending
-	localName = strings.ReplaceAll(localName, "/", "")
-	localName = strings.ReplaceAll(localName, "-", "")
-	if len(localName) > localNameLength {
-		localName = localName[:localNameLength]
-	}
-
-	uuid := strings.ReplaceAll(u.String(), "-", "")
-
-	repoName := localName + uuid
-	if len(repoName) > repoNameMaxLength {
-		repoName = repoName[:repoNameMaxLength]
-	}
+func (b *BitbucketClient) CreateRepository(name string) (string, error) {
+	fullName := b.fullName(name)
+	repoURL := fmt.Sprintf("https://api.bitbucket.org/2.0/repositories/%s/%s", b.workspace, fullName)
 
 	// Create a remote repository on demand with a random localName.
 	accessToken, err := b.refreshAccessToken()
@@ -119,128 +111,134 @@ func (b *BitbucketClient) CreateRepository(localName string) (string, error) {
 		return "", err
 	}
 
-	out, err := exec.Command("curl", "-sX", "POST",
-		"-H", "Content-Type: application/json",
-		"-H", fmt.Sprintf("Authorization:Bearer %s", accessToken),
-		"-d", fmt.Sprintf("{\"scm\": \"git\",\"project\": {\"key\": \"%s\"},\"is_private\": \"true\"}", bitbucketProject),
-		fmt.Sprintf("https://api.bitbucket.org/2.0/repositories/%s/%s", b.workspace, repoName)).CombinedOutput()
-
+	// Check if repository already exists
+	resp, err := b.sendRequest(http.MethodGet, repoURL, accessToken, nil)
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", string(out), err)
+		return "", err
 	}
-	if strings.Contains(string(out), "\"type\": \"error\"") {
-		return "", errors.New(string(out))
+	if resp.StatusCode == http.StatusOK {
+		return fullName, nil
 	}
-	return repoName, nil
-}
 
-// DeleteRepositories calls the DELETE API to delete all remote repositories on Bitbucket.
-// It deletes multiple repos in a single function in order to reuse the access_token.
-func (b *BitbucketClient) DeleteRepositories(names ...string) error {
-	accessToken, err := b.refreshAccessToken()
+	payload := map[string]any{
+		"scm": "git",
+		"project": map[string]string{
+			"key": bitbucketProject,
+		},
+		"is_private": true,
+	}
+
+	// Marshal the data into JSON format
+	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
-		return err
+		return "", fmt.Errorf("error marshaling JSON: %w", err)
 	}
 
-	return b.deleteRepos(accessToken, names...)
-}
+	// Create new Bitbucket repository
+	resp, err = b.sendRequest(http.MethodPost, repoURL, accessToken, bytes.NewReader(jsonPayload))
 
-// TODO: This is a temporary workaround for the known issue
-// go/acm-e2e-testing#bitbucket-repository-deletion-failure
-// Until this is fixed, we are skipping removal of repos stuck in bad state
-func (b *BitbucketClient) deleteRepos(accessToken string, names ...string) error {
-	var errs error
-	for _, name := range names {
-		_, err := retry.Retry(30*time.Second, func() error {
-			return b.deleteSingleRepo(accessToken, name)
-		})
-		if err != nil {
-			// Skip repositories that are currently unavailable
-			if strings.Contains(err.Error(), "Repository currently not available") {
-				fmt.Printf("[BITBUCKET] Skipping repository %s: %v\n", name, err)
-				continue
-			}
-			errs = multierr.Append(errs, err)
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			// Log the error as just printing it might be missed.
+			b.logger.Infof("failed to close response body: %v\n", closeErr)
 		}
-	}
-	return errs
-}
-
-// deleteSingleRepo deletes a single repository
-func (b *BitbucketClient) deleteSingleRepo(accessToken, name string) error {
-	out, err := exec.Command("curl", "-sX", "DELETE",
-		"-H", fmt.Sprintf("Authorization:Bearer %s", accessToken),
-		fmt.Sprintf("https://api.bitbucket.org/2.0/repositories/%s/%s",
-			b.workspace, name)).CombinedOutput()
+	}()
 
 	if err != nil {
-		return fmt.Errorf("%s: %w", string(out), err)
+		return "", err
 	}
-	if len(out) != 0 {
-		return errors.New(string(out))
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("error reading response body: %w", err)
 	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to create repository: status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return fullName, nil
+}
+
+// sendRequest sends an HTTP request to the Bitbucket API.
+func (b *BitbucketClient) sendRequest(method, url, accessToken string, body io.Reader) (*http.Response, error) {
+	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return nil, fmt.Errorf("error creating request: %w", err)
+	}
+
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := b.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("error sending request: %w", err)
+	}
+
+	return resp, nil
+}
+
+// DeleteRepositories is a no-op because Bitbucket repo names are determined by the
+// test cluster name and RSync namespace and name, so they can be reset and reused
+// across test runs
+func (b *BitbucketClient) DeleteRepositories(_ ...string) error {
+	b.logger.Info("[BITBUCKET] Skip deletion of repos")
 	return nil
 }
 
-// DeleteObsoleteRepos deletes all repos that were created more than 24 hours ago.
+// DeleteObsoleteRepos is a no-op because Bitbucket repo names are determined by the
+// test cluster name and RSync namespace and name, so it can be reused if it
+// failed to be deleted after the test.
 func (b *BitbucketClient) DeleteObsoleteRepos() error {
-	accessToken, err := b.refreshAccessToken()
-	if err != nil {
-		return err
-	}
-
-	// Count total obsolete repos first
-	totalObsoleteRepos, err := b.countObsoleteRepos(accessToken)
-	if err != nil {
-		return err
-	}
-
-	// TODO: This is a temporary workaround for the known issue
-	// go/acm-e2e-testing#bitbucket-repository-deletion-failure
-	// Until this is fixed, we are skipping removal of repos stuck in bad state.
-	//
-	// The 1000 limit is a guestimation that does not exceed the 1GB limit of
-	// workspace for a free account. If that number is exceeded, engineer
-	// will need to replace the workspace until the root cause of unresponsive
-	// repo is known.
-	if totalObsoleteRepos > 1000 {
-		return fmt.Errorf("total number of obsolete repositories (%d) exceeds 1000, manual cleanup required", totalObsoleteRepos)
-	}
-
-	// Now delete the obsolete repos
-	page := 1
-	for page != -1 {
-		page, err = b.deleteObsoleteReposByPage(accessToken, page)
-		if err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
 func (b *BitbucketClient) refreshAccessToken() (string, error) {
-	out, err := exec.Command("curl", "-sX", "POST", "-u",
-		fmt.Sprintf("%s:%s", b.oauthKey, b.oauthSecret),
-		"https://bitbucket.org/site/oauth2/access_token",
-		"-d", "grant_type=refresh_token",
-		"-d", "refresh_token="+b.refreshToken).CombinedOutput()
+	tokenURL := "https://bitbucket.org/site/oauth2/access_token"
+	data := url.Values{}
+	data.Set("grant_type", "refresh_token")
+	data.Set("refresh_token", b.refreshToken)
 
+	req, err := http.NewRequest(http.MethodPost, tokenURL, strings.NewReader(data.Encode()))
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", string(out), err)
+		return "", fmt.Errorf("creating token refresh request: %w", err)
+	}
+
+	req.SetBasicAuth(b.oauthKey, b.oauthSecret)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := b.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("sending token refresh request: %w", err)
+	}
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			b.logger.Infof("failed to close response body: %v\n", closeErr)
+		}
+	}()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("reading token refresh response body: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("refresh token failed with status %d", resp.StatusCode)
 	}
 
 	var output map[string]interface{}
-	err = json.Unmarshal(out, &output)
-	if err != nil {
+	if err := json.Unmarshal(body, &output); err != nil {
 		return "", fmt.Errorf("unmarshalling refresh token response: %w", err)
 	}
 
 	accessToken, ok := output["access_token"]
 	if !ok {
-		return "", fmt.Errorf("no access_token: %s", string(out))
+		return "", fmt.Errorf("no access_token in response")
 	}
 
-	return accessToken.(string), nil
+	accessTokenStr, ok := accessToken.(string)
+	if !ok {
+		return "", fmt.Errorf("access_token is not a string: %T", accessToken)
+	}
+
+	return accessTokenStr, nil
 }
 
 // FetchCloudSecret fetches secret from Google Cloud Secret Manager.
@@ -254,95 +252,4 @@ func FetchCloudSecret(name string) (string, error) {
 		return "", fmt.Errorf("%s: %w", string(out), err)
 	}
 	return string(out), nil
-}
-
-func (b *BitbucketClient) deleteObsoleteReposByPage(accessToken string, page int) (int, error) {
-	repos, nextPage, err := b.getObsoleteReposByPage(accessToken, page)
-	if err != nil {
-		return -1, err
-	}
-
-	b.logger.Infof("Deleting the following repos: %s", strings.Join(repos, ", "))
-	err = b.deleteRepos(accessToken, repos...)
-	return nextPage, err
-}
-
-// countObsoleteRepos counts all obsolete repositories across all pages
-func (b *BitbucketClient) countObsoleteRepos(accessToken string) (int, error) {
-	totalObsoleteRepos := 0
-	page := 1
-	for page != -1 {
-		repos, nextPage, err := b.getObsoleteReposByPage(accessToken, page)
-		if err != nil {
-			return 0, err
-		}
-		totalObsoleteRepos += len(repos)
-		page = nextPage
-	}
-	return totalObsoleteRepos, nil
-}
-
-// getObsoleteReposByPage fetches obsolete repos for a given page
-func (b *BitbucketClient) getObsoleteReposByPage(accessToken string, page int) ([]string, int, error) {
-	out, err := exec.Command("curl", "-sX", "GET",
-		"-H", fmt.Sprintf("Authorization:Bearer %s", accessToken),
-		fmt.Sprintf(`https://api.bitbucket.org/2.0/repositories/%s?q=project.key="%s"&page=%d`,
-			b.workspace, bitbucketProject, page)).CombinedOutput()
-	if err != nil {
-		return nil, -1, fmt.Errorf("%s: %w", string(out), err)
-	}
-	return b.filterObsoleteRepos(out)
-}
-
-// filterObsoleteRepos extracts the names of the repos that were created more than 24 hours ago.
-func (b *BitbucketClient) filterObsoleteRepos(bytes []byte) ([]string, int, error) {
-	nextPage := -1
-	var response interface{}
-	if err := json.Unmarshal(bytes, &response); err != nil {
-		b.logger.Infof("error unmarshalling json in filterObsoleteRepos:\n%s\n", string(bytes))
-		return nil, nextPage, err
-	}
-
-	m := response.(map[string]interface{})
-	next, found := m["next"]
-	if found {
-		u, err := url.Parse(next.(string))
-		if err != nil {
-			return nil, nextPage, err
-		}
-		query, err := url.ParseQuery(u.RawQuery)
-		if err != nil {
-			return nil, nextPage, err
-		}
-		nextPage, err = strconv.Atoi(query.Get("page"))
-		if err != nil {
-			return nil, nextPage, err
-		}
-	}
-
-	values, found := m["values"]
-	if !found {
-		return nil, nextPage, errors.New("no repos returned")
-	}
-	var result []string
-	for _, r := range values.([]interface{}) {
-		repo := r.(map[string]interface{})
-		name, found := repo["name"]
-		if !found {
-			return nil, nextPage, errors.New("no name returned")
-		}
-		updatedOn, found := repo["updated_on"]
-		if !found {
-			return nil, nextPage, errors.New("no updated_on returned")
-		}
-		updatedTime, err := time.Parse(time.RFC3339, updatedOn.(string))
-		if err != nil {
-			return nil, nextPage, err
-		}
-		// Only list those repos that were created more than 24 hours ago
-		if time.Now().After(updatedTime.Add(24 * time.Hour)) {
-			result = append(result, name.(string))
-		}
-	}
-	return result, nextPage, nil
 }

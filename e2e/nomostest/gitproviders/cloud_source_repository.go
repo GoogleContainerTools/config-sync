@@ -50,7 +50,7 @@ func newCSRClient(repoPrefix string, shell *testshell.TestShell) *CSRClient {
 }
 
 func (c *CSRClient) fullName(name string) string {
-	return util.SanitizeRepoName("cs-e2e-"+c.repoPrefix, name)
+	return util.SanitizeGCPRepoName(c.repoPrefix, name)
 }
 
 // Type returns the provider type.

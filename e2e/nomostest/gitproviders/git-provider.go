@@ -51,7 +51,8 @@ type GitProvider interface {
 func NewGitProvider(t testing.NTB, provider, clusterName string, logger *testlogger.TestLogger, shell *testshell.TestShell) GitProvider {
 	switch provider {
 	case e2e.Bitbucket:
-		client, err := newBitbucketClient(logger)
+		repoSuffix := *e2e.GCPProject + "/" + clusterName
+		client, err := newBitbucketClient(repoSuffix, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
