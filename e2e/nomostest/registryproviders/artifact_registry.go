@@ -131,13 +131,13 @@ func (a *ArtifactRegistryProvider) createRepository() error {
 		return nil
 	}
 
-	_, err = a.gcloudClient.Gcloud("artifacts", "repositories",
+	out, err = a.gcloudClient.Gcloud("artifacts", "repositories",
 		"create", a.repositoryName,
 		"--repository-format", "docker",
 		"--location", a.location,
 		"--project", a.project)
 	if err != nil {
-		return fmt.Errorf("failed to create image repository: %w", err)
+		return fmt.Errorf("failed to create image repository: %w; output: %q", err, string(out))
 	}
 	return nil
 }
