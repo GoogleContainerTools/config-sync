@@ -34,8 +34,8 @@ func TestMultipleRemoteBranchesOutOfSync(t *testing.T) {
 		nt.T.Fatal(err)
 	}
 
-	nt.T.Log("Create an extra remote tracking branch")
-	nt.Must(rootSyncGitRepo.Push("HEAD:upstream/main"))
+	nt.T.Log("Create an extra branch on the remote repository")
+	nt.Must(rootSyncGitRepo.Push("HEAD:upstream/main", "-f"))
 
 	nt.T.Logf("Update the remote main branch by adding a test namespace")
 	nt.Must(rootSyncGitRepo.Add("acme/namespaces/hello/ns.yaml", k8sobjects.NamespaceObject("hello")))
