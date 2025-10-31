@@ -40,8 +40,10 @@ const (
 	tokenAuth      = configsync.AuthToken
 	gitSource      = configsync.GitSource
 	helmSource     = configsync.HelmSource
+	ociSource      = configsync.OciSource
 	gitSecretName  = "ssh-key"
 	helmSecretName = "token"
+	ociSecretName  = "token"
 	keyData        = "test-key"
 	tokenData      = "MWYyZDFlMmU2N2Rm"
 	updatedKeyData = "updated-test-key"
@@ -65,6 +67,11 @@ func repoSyncWithAuth(ns, name string, auth configsync.AuthType, sourceType conf
 			Auth:      auth,
 			SecretRef: &v1beta1.SecretReference{Name: helmSecretName},
 		}}
+	} else if sourceType == configsync.OciSource {
+		result.Spec.Oci = &v1beta1.Oci{
+			Auth:      auth,
+			SecretRef: &v1beta1.SecretReference{Name: ociSecretName},
+		}
 	}
 	return result
 }
@@ -89,6 +96,11 @@ func secretData(t *testing.T, data string, auth configsync.AuthType, sourceType 
 		t.Fatalf("failed to marshal test key: %v", err)
 	}
 	if auth == configsync.AuthToken && sourceType == configsync.HelmSource {
+		return map[string][]byte{
+			"username": key,
+			"password": key,
+		}
+	} else if auth == configsync.AuthToken && sourceType == configsync.OciSource {
 		return map[string][]byte{
 			"username": key,
 			"password": key,
@@ -186,6 +198,43 @@ func TestUpsertAuthSecret(t *testing.T) {
 			reposync:  repoSyncWithAuth(reposyncNs, reposyncName, tokenAuth, helmSource),
 			client:    fakeClient(t, secret(t, ReconcilerResourceName(nsReconcilerName, helmSecretName), keyData, tokenAuth, helmSource, core.Namespace(nsReconcilerKey.Namespace))),
 			wantKey:   types.NamespacedName{Namespace: nsReconcilerKey.Namespace, Name: ReconcilerResourceName(nsReconcilerName, helmSecretName)},
+			wantError: true,
+		},
+		{
+			name:     "Secret created for oci source",
+			reposync: repoSyncWithAuth(reposyncNs, reposyncName, tokenAuth, ociSource),
+			client:   fakeClient(t, secret(t, ociSecretName, tokenData, tokenAuth, ociSource, core.Namespace(reposyncNs))),
+			wantKey:  types.NamespacedName{Namespace: nsReconcilerKey.Namespace, Name: ReconcilerResourceName(nsReconcilerName, ociSecretName)},
+			wantSecret: secret(t, ReconcilerResourceName(nsReconcilerName, ociSecretName), tokenData, tokenAuth, ociSource,
+				core.Namespace(nsReconcilerKey.Namespace),
+				core.UID("1"), core.ResourceVersion("1"), core.Generation(1),
+			),
+		},
+		{
+			name:     "Secret updated for oci source",
+			reposync: repoSyncWithAuth(reposyncNs, reposyncName, tokenAuth, ociSource),
+			client: fakeClient(t, secret(t, ociSecretName, updatedKeyData, tokenAuth, ociSource, core.Namespace(reposyncNs)),
+				secret(t, ReconcilerResourceName(nsReconcilerName, ociSecretName), keyData, tokenAuth, ociSource,
+					core.Namespace(nsReconcilerKey.Namespace)),
+			),
+			wantKey: types.NamespacedName{Namespace: nsReconcilerKey.Namespace, Name: ReconcilerResourceName(nsReconcilerName, ociSecretName)},
+			wantSecret: secret(t, ReconcilerResourceName(nsReconcilerName, ociSecretName), updatedKeyData, tokenAuth, ociSource,
+				core.Namespace(nsReconcilerKey.Namespace),
+				core.UID("1"), core.ResourceVersion("2"), core.Generation(2),
+			),
+		},
+		{
+			name:      "Secret not found for oci source",
+			reposync:  repoSyncWithAuth(reposyncNs, reposyncName, tokenAuth, ociSource),
+			client:    fakeClient(t),
+			wantKey:   types.NamespacedName{Namespace: nsReconcilerKey.Namespace, Name: ReconcilerResourceName(nsReconcilerName, ociSecretName)},
+			wantError: true,
+		},
+		{
+			name:      "Secret not updated, secret not present for oci source",
+			reposync:  repoSyncWithAuth(reposyncNs, reposyncName, tokenAuth, ociSource),
+			client:    fakeClient(t, secret(t, ReconcilerResourceName(nsReconcilerName, ociSecretName), keyData, tokenAuth, ociSource, core.Namespace(nsReconcilerKey.Namespace))),
+			wantKey:   types.NamespacedName{Namespace: nsReconcilerKey.Namespace, Name: ReconcilerResourceName(nsReconcilerName, ociSecretName)},
 			wantError: true,
 		},
 	}

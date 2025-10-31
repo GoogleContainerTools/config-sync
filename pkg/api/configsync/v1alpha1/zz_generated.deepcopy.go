@@ -223,6 +223,11 @@ func (in *Oci) DeepCopyInto(out *Oci) {
 		*out = new(SecretReference)
 		**out = **in
 	}
+	if in.SecretRef != nil {
+		in, out := &in.SecretRef, &out.SecretRef
+		*out = new(SecretReference)
+		**out = **in
+	}
 	return
 }
 

@@ -261,6 +261,12 @@ func namespaceStrategyEnv(strategy configsync.NamespaceStrategy) corev1.EnvVar {
 	}
 }
 
+const (
+	// oci-sync container specific environment variables.
+	ociSyncName     = "OCI_SYNC_USERNAME"
+	ociSyncPassword = "OCI_SYNC_PASSWORD"
+)
+
 type ociOptions struct {
 	image           string
 	auth            configsync.AuthType
@@ -288,6 +294,36 @@ func ociSyncEnvs(opts ociOptions) []corev1.EnvVar {
 		})
 	}
 	return result
+}
+
+func ociSyncTokenAuthEnv(secretRef string) []corev1.EnvVar {
+	ociSyncUsername := &corev1.EnvVarSource{
+		SecretKeyRef: &corev1.SecretKeySelector{
+			LocalObjectReference: corev1.LocalObjectReference{
+				Name: secretRef,
+			},
+			Key: "username",
+		},
+	}
+
+	ociSyncPswd := &corev1.EnvVarSource{
+		SecretKeyRef: &corev1.SecretKeySelector{
+			LocalObjectReference: corev1.LocalObjectReference{
+				Name: secretRef,
+			},
+			Key: "password",
+		},
+	}
+	return []corev1.EnvVar{
+		{
+			Name:      ociSyncName,
+			ValueFrom: ociSyncUsername,
+		},
+		{
+			Name:      ociSyncPassword,
+			ValueFrom: ociSyncPswd,
+		},
+	}
 }
 
 const (

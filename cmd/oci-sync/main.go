@@ -52,6 +52,10 @@ var flOneTime = flag.Bool("one-time", util.EnvBool("OCI_SYNC_ONE_TIME", false),
 	"exit after the first sync")
 var flMaxSyncFailures = flag.Int("max-sync-failures", util.EnvInt("OCI_SYNC_MAX_SYNC_FAILURES", 0),
 	"the number of consecutive failures allowed before aborting (the first sync must succeed, -1 will retry forever after the initial sync)")
+var flUsername = flag.String("username", util.EnvString("OCI_SYNC_USERNAME", ""),
+	"the username to use for oci authentication")
+var flPassword = flag.String("password", util.EnvString("OCI_SYNC_PASSWORD", ""),
+	"the password or personal access token to use for oci authentication")
 
 func main() {
 	utillog.Setup()
@@ -89,25 +93,9 @@ func main() {
 	pollPeriod := util.WaitTime(*flWait)
 	backoff := util.SyncContainerBackoff(pollPeriod)
 
-	var authenticator authn.Authenticator
-	switch configsync.AuthType(*flAuth) {
-	case configsync.AuthNone:
-		authenticator = authn.Anonymous
-	case configsync.AuthGCPServiceAccount, configsync.AuthK8sServiceAccount, configsync.AuthGCENode:
-		authenticator = &oci.CredentialAuthenticator{
-			CredentialProvider: &auth.CachingCredentialProvider{
-				Scopes: auth.OCISourceScopes(),
-			},
-		}
-	default:
-		utillog.HandleError(log, true, "ERROR: --auth type must be one of %#v, but found %q",
-			[]configsync.AuthType{
-				configsync.AuthNone,
-				configsync.AuthGCPServiceAccount,
-				configsync.AuthK8sServiceAccount,
-				configsync.AuthGCENode,
-			},
-			*flAuth)
+	authenticator, err := getAuthenticator(configsync.AuthType(*flAuth))
+	if err != nil {
+		utillog.HandleError(log, true, "failed to create authenticator: %v", err)
 	}
 
 	fetcher := &oci.Fetcher{
@@ -169,4 +157,31 @@ func sleepForever() {
 	signal.Notify(c, os.Interrupt)
 	<-c
 	os.Exit(0)
+}
+
+func getAuthenticator(authType configsync.AuthType) (authn.Authenticator, error) {
+	switch authType {
+	case configsync.AuthNone:
+		return authn.Anonymous, nil
+	case configsync.AuthToken:
+		return &authn.Basic{
+			Username: *flUsername,
+			Password: *flPassword,
+		}, nil
+	case configsync.AuthGCPServiceAccount, configsync.AuthK8sServiceAccount, configsync.AuthGCENode:
+		return &oci.CredentialAuthenticator{
+			CredentialProvider: &auth.CachingCredentialProvider{
+				Scopes: auth.OCISourceScopes(),
+			},
+		}, nil
+	default:
+		return nil, fmt.Errorf("--auth type must be one of %#v, but found %q",
+			[]configsync.AuthType{
+				configsync.AuthNone,
+				configsync.AuthGCPServiceAccount,
+				configsync.AuthK8sServiceAccount,
+				configsync.AuthGCENode,
+				configsync.AuthToken,
+			}, authType)
+	}
 }

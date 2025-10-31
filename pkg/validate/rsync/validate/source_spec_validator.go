@@ -154,12 +154,22 @@ func OciSpec(oci *v1beta1.Oci, syncKind string) status.Error {
 	// will fail to apply.
 	switch oci.Auth {
 	case configsync.AuthGCENode, configsync.AuthK8sServiceAccount, configsync.AuthNone:
+		if oci.SecretRef != nil && oci.SecretRef.Name != "" {
+			return IllegalSecretRef(configsync.OciSource, syncKind)
+		}
 	case configsync.AuthGCPServiceAccount:
+		if oci.SecretRef != nil && oci.SecretRef.Name != "" {
+			return IllegalSecretRef(configsync.OciSource, syncKind)
+		}
 		if oci.GCPServiceAccountEmail == "" {
 			return MissingGCPSAEmail(configsync.OciSource, syncKind)
 		}
 		if !validGCPServiceAccountEmail(oci.GCPServiceAccountEmail) {
 			return InvalidGCPSAEmail(configsync.OciSource, syncKind)
+		}
+	case configsync.AuthToken:
+		if oci.SecretRef == nil || oci.SecretRef.Name == "" {
+			return MissingSecretRef(configsync.OciSource, syncKind)
 		}
 	default:
 		return InvalidOciAuthType(syncKind)

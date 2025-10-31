@@ -599,6 +599,7 @@ func (r *RepoSyncReconciler) mapMembershipToRepoSyncs(ctx context.Context, obj c
 // - `spec.git.secretRef.name`
 // - `spec.git.caCertSecretRef.name`
 // - `spec.helm.secretRef.name`
+// - `spec.oci.secretRef.name`
 // The update to the Secret object will trigger a reconciliation of the RepoSync objects.
 func (r *RepoSyncReconciler) mapSecretToRepoSyncs(ctx context.Context, secret client.Object) []reconcile.Request {
 	sRef := client.ObjectKeyFromObject(secret)
@@ -667,7 +668,7 @@ func (r *RepoSyncReconciler) mapSecretToRepoSyncs(ctx context.Context, secret cl
 		switch sRef.Name {
 		case repoSyncGitSecretName(&rs), repoSyncGitCACertSecretName(&rs),
 			repoSyncOCICACertSecretName(&rs), repoSyncHelmCACertSecretName(&rs),
-			repoSyncHelmSecretName(&rs):
+			repoSyncOciSecretName(&rs), repoSyncHelmSecretName(&rs):
 			attachedRSNames = append(attachedRSNames, rs.GetName())
 			requests = append(requests, reconcile.Request{
 				NamespacedName: client.ObjectKeyFromObject(&rs),
@@ -725,6 +726,19 @@ func repoSyncOCICACertSecretName(rs *v1beta1.RepoSync) string {
 		return ""
 	}
 	return rs.Spec.Oci.CACertSecretRef.Name
+}
+
+func repoSyncOciSecretName(rs *v1beta1.RepoSync) string {
+	if rs == nil {
+		return ""
+	}
+	if rs.Spec.Oci == nil {
+		return ""
+	}
+	if rs.Spec.Oci.SecretRef == nil {
+		return ""
+	}
+	return rs.Spec.Oci.SecretRef.Name
 }
 
 func repoSyncHelmCACertSecretName(rs *v1beta1.RepoSync) string {
@@ -1018,6 +1032,11 @@ func (r *RepoSyncReconciler) validateNamespaceSecret(ctx context.Context, repoSy
 		authType = repoSync.Spec.Helm.Auth
 		namespaceSecretName = v1beta1.GetSecretName(repoSync.Spec.Helm.SecretRef)
 	}
+	if repoSync.Spec.SourceType == configsync.OciSource {
+		authType = repoSync.Spec.Oci.Auth
+		namespaceSecretName = v1beta1.GetSecretName(repoSync.Spec.Oci.SecretRef)
+	}
+
 	if SkipForAuth(authType) {
 		// There is no Secret to check for the Config object.
 		return nil
@@ -1144,6 +1163,7 @@ func (r *RepoSyncReconciler) mutationsFor(ctx context.Context, rs *v1beta1.RepoS
 		case configsync.OciSource:
 			auth = rs.Spec.Oci.Auth
 			gcpSAEmail = rs.Spec.Oci.GCPServiceAccountEmail
+			secretRefName = v1beta1.GetSecretName(rs.Spec.Oci.SecretRef)
 			caCertSecretRefName = v1beta1.GetSecretName(rs.Spec.Oci.CACertSecretRef)
 		case configsync.HelmSource:
 			auth = rs.Spec.Helm.Auth
@@ -1223,6 +1243,9 @@ func (r *RepoSyncReconciler) mutationsFor(ctx context.Context, rs *v1beta1.RepoS
 				} else {
 					container.Env = append(container.Env, containerEnvs[container.Name]...)
 					container.VolumeMounts = volumeMounts(rs.Spec.Oci.Auth, caCertSecretRefName, rs.Spec.SourceType, container.VolumeMounts)
+					if authTypeToken(rs.Spec.Oci.Auth) {
+						container.Env = append(container.Env, ociSyncTokenAuthEnv(secretName)...)
+					}
 					injectFWICredsToContainer(&container, injectFWICreds)
 				}
 			case reconcilermanager.HelmSync:

@@ -292,12 +292,13 @@ spec:
                   auth:
                     description: |-
                       auth is the type of secret configured for access to the OCI package.
-                      Must be one of gcenode, gcpserviceaccount, k8sserviceaccount, or none.
+                      Must be one of gcenode, gcpserviceaccount, k8sserviceaccount, token, or none.
                       The validation of this is case-sensitive. Required.
                     enum:
                     - gcenode
                     - gcpserviceaccount
                     - k8sserviceaccount
+                    - token
                     - none
                     type: string
                   caCertSecretRef:
@@ -343,6 +344,16 @@ spec:
                       granularity, and it is easy to introduce a bug where it looks like the
                       code is dealing with seconds but its actually nanoseconds (or vice versa).
                     type: string
+                  secretRef:
+                    description: |-
+                      secretRef holds the authentication secret for accessing
+                      the OCI repository.
+                    nullable: true
+                    properties:
+                      name:
+                        description: name represents the secret name.
+                        type: string
+                    type: object
                 required:
                 - auth
                 - image
@@ -1405,12 +1416,13 @@ spec:
                   auth:
                     description: |-
                       auth is the type of secret configured for access to the OCI package.
-                      Must be one of gcenode, gcpserviceaccount, k8sserviceaccount, or none.
+                      Must be one of gcenode, gcpserviceaccount, k8sserviceaccount, token, or none.
                       The validation of this is case-sensitive. Required.
                     enum:
                     - gcenode
                     - gcpserviceaccount
                     - k8sserviceaccount
+                    - token
                     - none
                     type: string
                   caCertSecretRef:
@@ -1456,6 +1468,16 @@ spec:
                       granularity, and it is easy to introduce a bug where it looks like the
                       code is dealing with seconds but its actually nanoseconds (or vice versa).
                     type: string
+                  secretRef:
+                    description: |-
+                      secretRef holds the authentication secret for accessing
+                      the OCI repository.
+                    nullable: true
+                    properties:
+                      name:
+                        description: name represents the secret name.
+                        type: string
+                    type: object
                 required:
                 - auth
                 - image

@@ -111,6 +111,74 @@ func TestPublicOCI(t *testing.T) {
 	kustomizecomponents.ValidateAllTenants(nt, string(declared.RootScope), "../base", tenant)
 }
 
+// TestOCIARTokenAuth verifies Config Sync can pull Helm chart from private
+// Artifact Registry with Token auth type.
+//
+// Test pre-requisites:
+//   - Google service account
+//     `e2e-test-ar-reader@${GCP_PROJECT}.iam.gserviceaccount.com` is created
+//     with `roles/artifactregistry.reader` for accessing images in Artifact
+//     Registry.
+//   - A JSON key file is generated for this service account and stored in
+//     Secret Manager
+//
+// Test handles service account key rotation.
+func TestOCIARTokenAuth(t *testing.T) {
+	nt := nomostest.New(t,
+		nomostesting.SyncSourceOCI,
+		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured),
+		ntopts.RequireGKE(t),
+		ntopts.RequireOCIArtifactRegistry(t),
+	)
+	rootSyncID := nomostest.DefaultRootSyncID
+	rootSyncKey := rootSyncID.ObjectKey
+
+	gsaKeySecretID := "config-sync-ci-ar-key"
+	gsaEmail := registryproviders.ArtifactRegistryReaderEmail()
+	gsaName := registryproviders.ArtifactRegistryReaderName
+	gsaKeyFilePath, err := fetchServiceAccountKeyFile(nt, *e2e.GCPProject, gsaKeySecretID, gsaEmail, gsaName)
+	if err != nil {
+		nt.T.Fatal(err)
+	}
+
+	nt.T.Log("Creating kubernetes secret for authentication")
+	_, err = nt.Shell.Kubectl("create", "secret", "generic", "foo",
+		"--namespace", configsync.ControllerNamespace,
+		"--from-literal", "username=_json_key",
+		"--from-file", fmt.Sprintf("password=%s", gsaKeyFilePath))
+	if err != nil {
+		nt.T.Fatalf("failed to create secret, err: %v", err)
+	}
+	nt.T.Cleanup(func() {
+		nt.MustKubectl("delete", "secret", "foo", "-n", configsync.ControllerNamespace, "--ignore-not-found")
+	})
+
+	// OCI image will only contain the bookinfo-admin role
+	bookinfoRole := k8sobjects.RoleObject(core.Name("bookinfo-admin"))
+	image, err := nt.BuildAndPushOCIImage(rootSyncKey, registryproviders.ImageInputObjects(nt.Scheme, bookinfoRole))
+	if err != nil {
+		nt.T.Fatalf("failed to push oci image: %v", err)
+	}
+
+	nt.T.Log("Update RootSync to sync from a private Artifact Registry")
+	rs := nt.RootSyncObjectOCI(configsync.RootSyncName, image.OCIImageID().WithoutDigest(), "", image.Digest)
+	rs.Spec.Oci = &v1beta1.Oci{
+		Image: rs.Spec.Oci.Image,
+		Auth:  configsync.AuthToken,
+		SecretRef: &v1beta1.SecretReference{
+			Name: "foo",
+		},
+		Period: metav1.Duration{Duration: 5 * time.Second},
+	}
+	nt.Must(nt.KubeClient.Apply(rs))
+
+	nt.T.Log("Wait for RootSync to sync from an oci image chart")
+	nt.Must(nt.WatchForAllSyncs())
+
+	nt.T.Log("Validate Role from OCI image exists")
+	nt.Must(nt.Validate(bookinfoRole.Name, "default", &rbacv1.Role{}))
+}
+
 func TestSwitchFromGitToOciCentralized(t *testing.T) {
 	namespace := testNs
 	rootSyncID := nomostest.DefaultRootSyncID

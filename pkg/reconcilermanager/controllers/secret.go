@@ -41,6 +41,10 @@ func isUpsertedSecret(rs *v1beta1.RepoSync, secretName string) bool {
 	if shouldUpsertHelmSecret(rs) && secretName == ReconcilerResourceName(reconcilerName, v1beta1.GetSecretName(rs.Spec.Helm.SecretRef)) {
 		return true
 	}
+	if shouldUpsertOciSecret(rs) && secretName == ReconcilerResourceName(reconcilerName, v1beta1.GetSecretName(rs.Spec.Oci.SecretRef)) {
+		return true
+	}
+
 	return false
 }
 
@@ -74,6 +78,10 @@ func shouldUpsertHelmSecret(rs *v1beta1.RepoSync) bool {
 	return rs.Spec.SourceType == configsync.HelmSource && rs.Spec.Helm != nil && rs.Spec.Helm.SecretRef != nil && !SkipForAuth(rs.Spec.Helm.Auth)
 }
 
+func shouldUpsertOciSecret(rs *v1beta1.RepoSync) bool {
+	return rs.Spec.SourceType == configsync.OciSource && rs.Spec.Oci != nil && rs.Spec.Oci.SecretRef != nil && !SkipForAuth(rs.Spec.Oci.Auth)
+}
+
 // upsertAuthSecret creates or updates the auth secret in the
 // config-management-system namespace using an existing secret in the RepoSync
 // namespace.
@@ -93,6 +101,14 @@ func (r *reconcilerBase) upsertAuthSecret(ctx context.Context, rs *v1beta1.RepoS
 		userSecret, err := getUserSecret(ctx, r.client, nsSecretRef)
 		if err != nil {
 			return cmsSecretRef, fmt.Errorf("user secret required for helm client authentication: %w", err)
+		}
+		_, err = r.upsertSecret(ctx, cmsSecretRef, userSecret, labelMap)
+		return cmsSecretRef, err
+	case shouldUpsertOciSecret(rs):
+		nsSecretRef, cmsSecretRef := getSecretRefs(rsRef, reconcilerRef, v1beta1.GetSecretName(rs.Spec.Oci.SecretRef))
+		userSecret, err := getUserSecret(ctx, r.client, nsSecretRef)
+		if err != nil {
+			return cmsSecretRef, fmt.Errorf("user secret required for oci client authentication: %w", err)
 		}
 		_, err = r.upsertSecret(ctx, cmsSecretRef, userSecret, labelMap)
 		return cmsSecretRef, err
