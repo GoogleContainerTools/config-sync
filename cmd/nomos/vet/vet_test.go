@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/GoogleContainerTools/config-sync/cmd/nomos/flags"
@@ -50,6 +51,12 @@ func resetFlags() {
 	keepOutput = false
 	outPath = flags.DefaultHydrationOutput
 	flags.OutputFormat = flags.OutputYAML
+	flags.SkipAPIServerCheckForGroup = nil
+}
+
+func resetFlagExclusivityTestFlags() {
+	flags.SkipAPIServer = false
+	flags.SkipAPIServerCheckForGroup = nil
 }
 
 var examplesDir = cmpath.RelativeSlash("../../../examples")
@@ -175,6 +182,92 @@ func TestVet_MultiCluster(t *testing.T) {
 				// Execute wraps the string output as a simple error.
 				wantError := errors.New(tc.wantError.Error())
 				require.Equal(t, wantError, err)
+			}
+		})
+	}
+}
+
+func TestVet_FlagExclusivity(t *testing.T) {
+	testCases := []struct {
+		name                     string
+		flags                    []string
+		expectError              bool
+		expectedError            string
+		expectedWarning          string
+		expectGroupsToBeNil      bool
+		initialNoAPIServerGroups []string
+	}{
+		{
+			name:          "Both flags used, expect error",
+			flags:         []string{"--no-api-server-check", "--no-api-server-check-for-group=constraints.gatekeeper.sh"},
+			expectError:   true,
+			expectedError: fmt.Sprintf("cannot specify both --%s and --%s", flags.SkipAPIServerFlag, flags.NoAPIServerCheckForGroupFlag),
+		},
+		{
+			name:        "Only --no-api-server-check used",
+			flags:       []string{"--no-api-server-check"},
+			expectError: false,
+		},
+		{
+			name:                     "Only --no-api-server-check-for-group used",
+			flags:                    []string{"--no-api-server-check-for-group=constraints.gatekeeper.sh"},
+			expectError:              false,
+			initialNoAPIServerGroups: []string{"constraints.gatekeeper.sh"},
+		},
+		{
+			name:        "No flags used",
+			flags:       []string{},
+			expectError: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			resetFlags()
+			// We need a valid directory for the command to run, even though we're testing flag validation.
+			tmpDir, err := os.MkdirTemp("", "nomos-vet-test")
+			require.NoError(t, err)
+			t.Cleanup(func() {
+				err := os.RemoveAll(tmpDir)
+				require.NoError(t, err)
+			})
+
+			resetFlagExclusivityTestFlags()
+
+			// Set the flags for the current test case.
+			var groups []string
+			for _, f := range tc.flags {
+				if f == "--no-api-server-check" {
+					flags.SkipAPIServer = true
+				} else if strings.HasPrefix(f, "--no-api-server-check-for-group=") {
+					parts := strings.SplitN(f, "=", 2)
+					groups = append(groups, strings.Split(parts[1], ",")...)
+				}
+			}
+			flags.SkipAPIServerCheckForGroup = groups
+			if tc.initialNoAPIServerGroups != nil {
+				flags.SkipAPIServerCheckForGroup = tc.initialNoAPIServerGroups
+			}
+
+			output := new(bytes.Buffer)
+			Cmd.SetOut(output)
+			Cmd.SetErr(output)
+
+			err = Cmd.PreRunE(Cmd, nil)
+
+			if tc.expectError {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expectedError)
+			} else {
+				require.NoError(t, err)
+			}
+
+			if tc.expectedWarning != "" {
+				require.Equal(t, tc.expectedWarning, output.String())
+			}
+
+			if tc.expectGroupsToBeNil {
+				require.Nil(t, flags.SkipAPIServerCheckForGroup)
 			}
 		})
 	}

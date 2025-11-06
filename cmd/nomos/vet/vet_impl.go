@@ -36,13 +36,15 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/parse"
 	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
 	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/fileobjects"
 )
 
 type vetOptions struct {
-	Namespace        string
-	SourceFormat     configsync.SourceFormat
-	APIServerTimeout time.Duration
-	MaxObjectCount   int
+	Namespace               string
+	SourceFormat            configsync.SourceFormat
+	APIServerTimeout        time.Duration
+	MaxObjectCount          int
+	AllowUnknownKindMatcher fileobjects.ObjectMatcher
 }
 
 // vet runs nomos vet with the specified options.
@@ -102,6 +104,7 @@ func runVet(ctx context.Context, out io.Writer, opts vetOptions) error {
 	}
 	validateOpts.FieldManager = util.FieldManager
 	validateOpts.MaxObjectCount = opts.MaxObjectCount
+	validateOpts.AllowUnknownKindMatcher = opts.AllowUnknownKindMatcher
 
 	switch sourceFormat {
 	case configsync.SourceFormatHierarchy:
