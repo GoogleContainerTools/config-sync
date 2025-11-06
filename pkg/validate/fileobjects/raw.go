@@ -22,6 +22,7 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/reconciler/namespacecontroller"
 	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	utildiscovery "github.com/GoogleContainerTools/config-sync/pkg/util/discovery"
+	"github.com/GoogleContainerTools/config-sync/pkg/util/gvkutil"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
@@ -58,6 +59,8 @@ type Raw struct {
 	NSControllerState *namespacecontroller.State
 	// WebhookEnabled indicates whether Webhook configuration is enabled
 	WebhookEnabled bool
+	// SkippedGVKs is a list of GVK patterns to skip API server validation for.
+	SkippedGVKs []gvkutil.Pattern
 }
 
 // Scoped builds a Scoped collection of objects from the Raw objects.
@@ -78,9 +81,19 @@ func (r *Raw) Scoped() (*Scoped, status.MultiError) {
 		DynamicNSSelectorEnabled: r.DynamicNSSelectorEnabled,
 		NSControllerState:        r.NSControllerState,
 	}
+
 	for _, obj := range r.Objects {
 		s, err := scoper.GetObjectScope(obj)
 		if err != nil {
+			// For objects with matching GVKs, all errors from scoper.GetObjectScope are skipped.
+			// This includes, but is not limited to, unknown GVK errors such as KNV1021.
+			gk := obj.GroupVersionKind().GroupKind()
+
+			if gvkutil.Matches(gk, r.SkippedGVKs) {
+				klog.V(6).Infof("ignoring KNV1021 error for %s/%s due to --no-api-server-check-for-group flag: %v", gk.Group, gk.Kind, err)
+				continue // Skip appending this error
+			}
+
 			if r.AllowUnknownKinds {
 				klog.V(6).Infof("ignoring error: %v", err)
 			} else {

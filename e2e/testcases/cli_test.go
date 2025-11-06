@@ -1278,6 +1278,34 @@ func TestNomosStatusNameFilter(t *testing.T) {
 	}
 }
 
+func TestVetSkipGVK(t *testing.T) {
+	nt := nomostest.New(t, nomostesting.NomosCLI,
+		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured),
+	)
+
+	rootRepo := nt.SyncSourceGitReadWriteRepository(nomostest.DefaultRootSyncID)
+
+	nt.Must(rootRepo.Copy("../testdata/gatekeeper-skip-gvk", "acme"))
+	if err := rootRepo.CommitAndPush("add gatekeeper constraint template and constraint"); err != nil {
+		nt.T.Fatal(err)
+	}
+
+	// First, run `nomos vet` without the flag and expect a failure.
+	out, err := nt.Shell.Command("nomos", "vet", "--path", rootRepo.Root, "--source-format=unstructured").CombinedOutput()
+	if err == nil {
+		t.Fatal("expected `nomos vet` to fail but it passed")
+	}
+	// Check for KNV1021 error.
+	if !strings.Contains(string(out), "KNV1021") {
+		t.Fatalf("expected KNV1021 error, but got: %v", string(out))
+	}
+
+	// Now, run `nomos vet` with the flag and expect it to pass.
+	output, err := nt.Shell.Command("nomos", "vet", "--path", rootRepo.Root, "--source-format=unstructured", "--no-api-server-check-for-group=templates.gatekeeper.sh,constraints.gatekeeper.sh").CombinedOutput()
+	nt.Must(output, err)
+
+}
+
 func TestApiResourceFormatting(t *testing.T) {
 	nt := nomostest.New(t, nomostesting.NomosCLI)
 
@@ -1294,6 +1322,18 @@ func TestApiResourceFormatting(t *testing.T) {
 	header := strings.Fields(strings.Split(string(out), "\n")[0])
 
 	assert.Equal(t, columnName, header)
+}
+
+func TestVetFlagExclusion(t *testing.T) {
+	nt := nomostest.New(t, nomostesting.NomosCLI, ntopts.SkipConfigSyncInstall)
+
+	out, err := nt.Shell.Command("nomos", "vet", "--no-api-server-check", "--no-api-server-check-for-group=constraints.gatekeeper.sh").CombinedOutput()
+	if err != nil {
+		t.Fatalf("expected `nomos vet` to pass but it failed: %v", err)
+	}
+	if !strings.Contains(string(out), "Warning: --no-api-server-check is specified, so --no-api-server-check-for-group will be ignored.") {
+		t.Fatalf("expected warning message, but got: %v", string(out))
+	}
 }
 
 func TestNomosMigrate(t *testing.T) {
