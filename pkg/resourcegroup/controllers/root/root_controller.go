@@ -30,6 +30,7 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -92,7 +93,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if errors.IsNotFound(err) {
 			// If the ResourceGroup has been deleted, update the resMap
 			r.Logger(ctx).V(3).Info("Skipping update event: ResourceGroup not found")
-			return r.reconcile(ctx, req.NamespacedName, []v1alpha1.ObjMetadata{}, true)
+			if result, err := r.reconcile(ctx, req.NamespacedName, []v1alpha1.ObjMetadata{}, true); err != nil {
+				return result, err
+			}
+			// Send deletion event to channel so ResourceGroup controller can clean up metrics
+			r.Logger(ctx).V(3).Info("Sending deletion event to ResourceGroup controller")
+			r.channel <- event.GenericEvent{Object: &v1alpha1.ResourceGroup{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: req.NamespacedName.Namespace,
+					Name:      req.NamespacedName.Name,
+				},
+			}}
+			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
 	}
@@ -107,7 +119,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// ResourceGroup is in the process of being deleted, clean up the cache for this ResourceGroup
 	if resgroup.DeletionTimestamp != nil {
 		r.Logger(ctx).V(3).Info("Skipping update event: ResourceGroup being deleted")
-		return r.reconcile(ctx, req.NamespacedName, []v1alpha1.ObjMetadata{}, true)
+		if result, err := r.reconcile(ctx, req.NamespacedName, []v1alpha1.ObjMetadata{}, true); err != nil {
+			return result, err
+		}
+		// Send deletion event to channel so ResourceGroup controller can clean up metrics
+		r.Logger(ctx).V(3).Info("Sending deletion event to ResourceGroup controller")
+		r.channel <- event.GenericEvent{Object: resgroup}
+		return ctrl.Result{}, nil
 	}
 
 	resources := make([]v1alpha1.ObjMetadata, 0, len(resgroup.Spec.Resources)+len(resgroup.Spec.Subgroups))

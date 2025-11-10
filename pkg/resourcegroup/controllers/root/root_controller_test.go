@@ -223,12 +223,9 @@ func TestRootReconciler(t *testing.T) {
 		assert.Equal(t, 0, reconcilerKpt.watches.Len())
 	}, 5*time.Second, time.Second)
 
-	// Validate that the Root controller didn't send a channel event
-	select {
-	case e := <-reconcilerKpt.channel:
-		t.Fatalf("expected channel NOT to be sent an event, but got %+v", e)
-	default: // success
-	}
+	// Validate that the Root controller sent a deletion event to the channel
+	// This allows the ResourceGroup controller to clean up metrics
+	waitForEvent(t, reconcilerKpt.channel, 5*time.Second)
 
 	// Validate that the Root controller updated the resMap
 	assert.NotNil(t, reconcilerKpt.resMap)
