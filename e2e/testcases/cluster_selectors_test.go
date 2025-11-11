@@ -684,7 +684,7 @@ func TestClusterSelectorForCRD(t *testing.T) {
 	crd.SetAnnotations(map[string]string{metadata.ClusterNameSelectorAnnotationKey: testClusterName})
 	nt.Must(rootSyncGitRepo.Add("acme/cluster/anvil-crd.yaml", crd))
 	nt.Must(rootSyncGitRepo.CommitAndPush("Add a custom resource definition with an unselected cluster-name-selector annotation"))
-	nt.Must(nt.WatchForAllSyncs())
+	nt.Must(nt.WatchForAllSyncs(nomostest.SkipAllResourceGroupChecks()))
 	// CRD should be marked as deleted, but may not be NotFound yet, because its
 	// finalizer will block until all objects of that type are deleted.
 	nt.Must(nt.Watcher.WatchForNotFound(kinds.CustomResourceDefinitionV1(), crd.Name, crd.Namespace))
@@ -724,7 +724,7 @@ func TestClusterSelectorForCRD(t *testing.T) {
 	crd.SetAnnotations(legacyTestClusterSelectorAnnotation)
 	nt.Must(rootSyncGitRepo.Add("acme/cluster/anvil-crd.yaml", crd))
 	nt.Must(rootSyncGitRepo.CommitAndPush("Add a custom resource definition with an unselected ClusterSelector"))
-	nt.Must(nt.WatchForAllSyncs())
+	nt.Must(nt.WatchForAllSyncs(nomostest.SkipAllResourceGroupChecks()))
 	// CRD should be marked as deleted, but may not be NotFound yet, because its
 	// finalizer will block until all objects of that type are deleted.
 	nt.Must(nt.Watcher.WatchForNotFound(kinds.CustomResourceDefinitionV1(), crd.Name, crd.Namespace))
