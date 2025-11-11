@@ -93,18 +93,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if errors.IsNotFound(err) {
 			// If the ResourceGroup has been deleted, update the resMap
 			r.Logger(ctx).V(3).Info("Skipping update event: ResourceGroup not found")
-			if result, err := r.reconcile(ctx, req.NamespacedName, []v1alpha1.ObjMetadata{}, true); err != nil {
-				return result, err
-			}
-			// Send deletion event to channel so ResourceGroup controller can clean up metrics
-			r.Logger(ctx).V(3).Info("Sending deletion event to ResourceGroup controller")
-			r.channel <- event.GenericEvent{Object: &v1alpha1.ResourceGroup{
+			return r.sendDeletionEvent(ctx, req.NamespacedName, &v1alpha1.ResourceGroup{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: req.NamespacedName.Namespace,
 					Name:      req.NamespacedName.Name,
 				},
-			}}
-			return ctrl.Result{}, nil
+			})
 		}
 		return ctrl.Result{}, err
 	}
@@ -119,13 +113,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// ResourceGroup is in the process of being deleted, clean up the cache for this ResourceGroup
 	if resgroup.DeletionTimestamp != nil {
 		r.Logger(ctx).V(3).Info("Skipping update event: ResourceGroup being deleted")
-		if result, err := r.reconcile(ctx, req.NamespacedName, []v1alpha1.ObjMetadata{}, true); err != nil {
-			return result, err
-		}
-		// Send deletion event to channel so ResourceGroup controller can clean up metrics
-		r.Logger(ctx).V(3).Info("Sending deletion event to ResourceGroup controller")
-		r.channel <- event.GenericEvent{Object: resgroup}
-		return ctrl.Result{}, nil
+		return r.sendDeletionEvent(ctx, req.NamespacedName, resgroup)
 	}
 
 	resources := make([]v1alpha1.ObjMetadata, 0, len(resgroup.Spec.Resources)+len(resgroup.Spec.Subgroups))
@@ -148,6 +136,18 @@ func (r *Reconciler) reconcile(ctx context.Context, name types.NamespacedName,
 	if err := r.updateWatches(ctx, gks); err != nil {
 		return ctrl.Result{}, err
 	}
+	return ctrl.Result{}, nil
+}
+
+// sendDeletionEvent reconciles the deletion and sends a deletion event to the channel
+// so the ResourceGroup controller can clean up metrics.
+func (r *Reconciler) sendDeletionEvent(ctx context.Context, nn types.NamespacedName, eventObj client.Object) (ctrl.Result, error) {
+	if result, err := r.reconcile(ctx, nn, []v1alpha1.ObjMetadata{}, true); err != nil {
+		return result, err
+	}
+	// Send deletion event to channel so ResourceGroup controller can clean up metrics
+	r.Logger(ctx).V(3).Info("Sending deletion event to ResourceGroup controller")
+	r.channel <- event.GenericEvent{Object: eventObj}
 	return ctrl.Result{}, nil
 }
 
