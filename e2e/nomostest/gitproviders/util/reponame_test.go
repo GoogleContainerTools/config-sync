@@ -79,6 +79,53 @@ func TestSanitizeGCPRepoName(t *testing.T) {
 	}
 }
 
+func TestSanitizeGitlabRepoName(t *testing.T) {
+	testCases := []struct {
+		testName     string
+		repoSuffix   string
+		repoName     string
+		expectedName string
+	}{
+		{
+			testName:     "RepoSync test-ns/repo-sync",
+			repoSuffix:   "test",
+			repoName:     "test-ns/repo-sync",
+			expectedName: "test-ns-repo-sync-test-3b350268",
+		},
+		{
+			testName:     "RepoSync test/ns-repo-sync should not collide with RepoSync test-ns/repo-sync",
+			repoSuffix:   "test",
+			repoName:     "test/ns-repo-sync",
+			expectedName: "test-ns-repo-sync-test-6831d08b",
+		},
+		{
+			testName:     "A very long repoName should be truncated",
+			repoSuffix:   "test",
+			repoName:     "config-management-system/root-sync-with-a-very-long-name-that-is-definitely-going-to-be-way-too-long-for-gcp-or-bitbucket-but-not-for-gitlab-because-it-has-a-much-longer-limit-so-we-need-to-make-this-string-extra-long-to-test-truncation-logic-for-gitlab-as-well-just-in-case-someone-is-feeling-verbose",
+			expectedName: "config-management-system-root-sync-with-a-very-long-name-that-is-definitely-going-to-be-way-too-long-for-gcp-or-bitbucket-but-not-for-gitlab-because-it-has-a-much-longer-limit-so-we-need-to-make-this-string-extra-long-to-test-truncation-logic-for-b29fd62d",
+		},
+		{
+			testName:     "Empty repoSuffix",
+			repoSuffix:   "",
+			repoName:     "test-ns/repo-sync",
+			expectedName: "test-ns-repo-sync-08675d6b",
+		}, {
+			testName:     "Empty repoName",
+			repoSuffix:   "test",
+			repoName:     "",
+			expectedName: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.testName, func(t *testing.T) {
+			gotName := SanitizeGitlabRepoName(tc.repoSuffix, tc.repoName)
+			assert.Equal(t, tc.expectedName, gotName)
+			assert.LessOrEqual(t, len(gotName), gitlabProjectNameMaxLength)
+		})
+	}
+}
+
 func TestSanitizeBitbucketRepoName(t *testing.T) {
 	testCases := []struct {
 		testName     string

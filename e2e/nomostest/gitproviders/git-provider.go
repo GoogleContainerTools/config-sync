@@ -58,7 +58,8 @@ func NewGitProvider(t testing.NTB, provider, clusterName string, logger *testlog
 		}
 		return client
 	case e2e.GitLab:
-		client, err := newGitlabClient()
+		repoSuffix := *e2e.GCPProject + "/" + clusterName
+		client, err := newGitlabClient(repoSuffix, logger)
 		if err != nil {
 			t.Fatal(err)
 		}

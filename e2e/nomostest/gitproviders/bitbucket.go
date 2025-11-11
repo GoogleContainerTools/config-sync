@@ -16,6 +16,7 @@ package gitproviders
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -35,7 +36,8 @@ const (
 	bitbucketProject = "CSCI"
 
 	// PrivateSSHKey is secret name of the private SSH key stored in the Cloud Secret Manager.
-	PrivateSSHKey = "config-sync-ci-ssh-private-key"
+	PrivateSSHKey           = "config-sync-ci-ssh-private-key"
+	bitbucketRequestTimeout = 10 * time.Second
 )
 
 // BitbucketClient is the client that calls the Bitbucket REST APIs.
@@ -59,9 +61,7 @@ func newBitbucketClient(repoSuffix string, logger *testlogger.TestLogger) (*Bitb
 		logger:     logger,
 		workspace:  *e2e.BitbucketWorkspace,
 		repoSuffix: repoSuffix,
-		httpClient: &http.Client{
-			Timeout: 10 * time.Second,
-		},
+		httpClient: &http.Client{},
 	}
 
 	var err error
@@ -112,7 +112,9 @@ func (b *BitbucketClient) CreateRepository(name string) (string, error) {
 	}
 
 	// Check if repository already exists
-	resp, err := b.sendRequest(http.MethodGet, repoURL, accessToken, nil)
+	getRequestCtx, getRequestCancel := context.WithTimeout(context.Background(), bitbucketRequestTimeout)
+	defer getRequestCancel()
+	resp, err := b.sendRequest(getRequestCtx, http.MethodGet, repoURL, accessToken, nil)
 	if err != nil {
 		return "", err
 	}
@@ -135,13 +137,15 @@ func (b *BitbucketClient) CreateRepository(name string) (string, error) {
 	}
 
 	// Create new Bitbucket repository
-	resp, err = b.sendRequest(http.MethodPost, repoURL, accessToken, bytes.NewReader(jsonPayload))
+	postRequestCtx, postRequestCancel := context.WithTimeout(context.Background(), bitbucketRequestTimeout)
+	resp, err = b.sendRequest(postRequestCtx, http.MethodPost, repoURL, accessToken, bytes.NewReader(jsonPayload))
 
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
 			// Log the error as just printing it might be missed.
 			b.logger.Infof("failed to close response body: %v\n", closeErr)
 		}
+		postRequestCancel()
 	}()
 
 	if err != nil {
@@ -159,8 +163,8 @@ func (b *BitbucketClient) CreateRepository(name string) (string, error) {
 }
 
 // sendRequest sends an HTTP request to the Bitbucket API.
-func (b *BitbucketClient) sendRequest(method, url, accessToken string, body io.Reader) (*http.Response, error) {
-	req, err := http.NewRequest(method, url, body)
+func (b *BitbucketClient) sendRequest(ctx context.Context, method, url, accessToken string, body io.Reader) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}

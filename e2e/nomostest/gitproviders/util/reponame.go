@@ -22,9 +22,10 @@ import (
 )
 
 const (
-	defaultRepoNameMaxLen   = 63
-	bitbucketRepoNameMaxLen = 62
-	repoNameHashLen         = 8
+	defaultRepoNameMaxLen      = 63
+	bitbucketRepoNameMaxLen    = 62
+	gitlabProjectNameMaxLength = 256
+	repoNameHashLen            = 8
 )
 
 // SanitizeGCPRepoName replaces all slashes with hyphens, and truncates the name.
@@ -61,6 +62,23 @@ func SanitizeBitbucketRepoName(repoSuffix, name string) string {
 	hashStr := hashName(fullName)
 
 	return sanitize(fullName, hashStr, bitbucketRepoNameMaxLen)
+}
+
+// SanitizeGitlabRepoName replaces all slashes with hyphens, and truncates the name for Gitlab.
+// repo name may contain between 3 and 256 lowercase letters, digits and hyphens.
+// The repo name will be of the form <name>-<repoSuffix>-<hash>
+func SanitizeGitlabRepoName(repoSuffix, name string) string {
+	if name == "" {
+		return name // Requires at least the base repo name
+	}
+
+	fullName := name
+	if repoSuffix != "" {
+		fullName += "-" + repoSuffix
+	}
+	hashStr := hashName(fullName)
+
+	return sanitize(fullName, hashStr, gitlabProjectNameMaxLength)
 }
 
 func hashName(fullName string) string {
