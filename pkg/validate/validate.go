@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/reconciler/namespacecontroller"
 	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	"github.com/GoogleContainerTools/config-sync/pkg/util/discovery"
+	"github.com/GoogleContainerTools/config-sync/pkg/util/gvkutil"
 	"github.com/GoogleContainerTools/config-sync/pkg/validate/fileobjects"
 	"github.com/GoogleContainerTools/config-sync/pkg/validate/final"
 	"github.com/GoogleContainerTools/config-sync/pkg/validate/raw"
@@ -91,6 +92,8 @@ type Options struct {
 	// MaxObjectCount is the maximum number of objects allowed in a single
 	// inventory. Validation is skipped when less than 1.
 	MaxObjectCount int
+	// SkippedGVKs is a list of GVK patterns to skip API server validation for.
+	SkippedGVKs []gvkutil.Pattern
 }
 
 // Hierarchical validates and hydrates the given FileObjects from a structured,
@@ -115,6 +118,7 @@ func Hierarchical(objs []ast.FileObject, opts Options) ([]ast.FileObject, status
 		Scheme:            opts.Scheme,
 		AllowUnknownKinds: opts.AllowUnknownKinds,
 		WebhookEnabled:    opts.WebhookEnabled,
+		SkippedGVKs:       opts.SkippedGVKs,
 	}
 
 	// nonBlockingErrs tracks the errors which do not block the apply stage
@@ -205,6 +209,7 @@ func Unstructured(ctx context.Context, c client.Client, objs []ast.FileObject, o
 		DynamicNSSelectorEnabled: opts.DynamicNSSelectorEnabled,
 		NSControllerState:        opts.NSControllerState,
 		WebhookEnabled:           opts.WebhookEnabled,
+		SkippedGVKs:              opts.SkippedGVKs,
 	}
 
 	// nonBlockingErrs tracks the errors which do not block the apply stage
