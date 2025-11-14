@@ -24,6 +24,7 @@ import (
 
 	"github.com/GoogleContainerTools/config-sync/e2e"
 	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/gitproviders/util"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/retry"
 	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testlogger"
 )
 
@@ -80,61 +81,67 @@ func (g *GitlabClient) SyncURL(name string) string {
 // CreateRepository calls the POST API to create a project/repository on Gitlab.
 // The remote repo name is unique with a prefix of the local name.
 func (g *GitlabClient) CreateRepository(name string) (string, error) {
-	fullName := g.fullName(name)
-	repoURL := fmt.Sprintf("https://gitlab.com/api/v4/projects?search=%s", fullName)
+	var fullName string
+	var err error
 
-	// Check if the repository already exists
-	getRequestCtx, getRequestCancel := context.WithTimeout(context.Background(), gitlabRequestTimeout)
-	defer getRequestCancel()
-	resp, err := g.sendRequest(getRequestCtx, http.MethodGet, repoURL, nil)
-	if err != nil {
-		return "", err
-	}
+	// Handles 429 errors with retry backoff
+	_, err = retry.Retry(4*time.Minute, func() error {
+		fullName = g.fullName(name)
+		repoURL := fmt.Sprintf("https://gitlab.com/api/v4/projects?search=%s", fullName)
 
-	if resp.StatusCode == http.StatusOK {
-		body, err := io.ReadAll(resp.Body)
+		// Check if the repository already exists
+		getRequestCtx, getRequestCancel := context.WithTimeout(context.Background(), gitlabRequestTimeout)
+		defer getRequestCancel()
+		resp, err := g.sendRequest(getRequestCtx, http.MethodGet, repoURL, nil)
 		if err != nil {
-			return "", fmt.Errorf("error reading response body: %w", err)
+			return err
 		}
 
-		var output []map[string]interface{}
-		if err := json.Unmarshal(body, &output); err != nil {
-			return "", fmt.Errorf("unmarshalling project search response: %w", err)
+		if resp.StatusCode == http.StatusOK {
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return fmt.Errorf("error reading response body: %w", err)
+			}
+
+			var output []map[string]interface{}
+			if err := json.Unmarshal(body, &output); err != nil {
+				return fmt.Errorf("unmarshalling project search response: %w", err)
+			}
+
+			// the assumption is that our project name is unique, so we'll get exactly 1 result
+			if len(output) > 0 {
+				return nil
+			}
+		} else {
+			return fmt.Errorf("failed to check if repository exists: status %d", resp.StatusCode)
 		}
 
-		// the assumption is that our project name is unique, so we'll get exactly 1 result
-		if len(output) > 0 {
-			return fullName, nil
-
+		// Creates repository
+		repoURL = fmt.Sprintf("https://gitlab.com/api/v4/projects?name=%s&namespace_id=%d&initialize_with_readme=true", fullName, groupID)
+		postRequestCtx, postRequestCancel := context.WithTimeout(context.Background(), gitlabRequestTimeout)
+		resp, err = g.sendRequest(postRequestCtx, http.MethodPost, repoURL, nil)
+		defer func() {
+			if closeErr := resp.Body.Close(); closeErr != nil {
+				g.logger.Infof("failed to close response body: %v\n", closeErr)
+			}
+			postRequestCancel()
+		}()
+		if err != nil {
+			return err
 		}
-	} else {
-		return "", fmt.Errorf("failed to check if repository exists: status %d", resp.StatusCode)
-	}
 
-	// Creates repository
-	repoURL = fmt.Sprintf("https://gitlab.com/api/v4/projects?name=%s&namespace_id=%d&initialize_with_readme=true", fullName, groupID)
-	postRequestCtx, postRequestCancel := context.WithTimeout(context.Background(), gitlabRequestTimeout)
-	resp, err = g.sendRequest(postRequestCtx, http.MethodPost, repoURL, nil)
-
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			g.logger.Infof("failed to close response body: %v\n", closeErr)
+		if resp.StatusCode != http.StatusCreated {
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return fmt.Errorf("error reading response body: %w", err)
+			}
+			return fmt.Errorf("failed to create repository: status %d: %s", resp.StatusCode, string(body))
 		}
-		postRequestCancel()
-	}()
+		return nil
+	})
 	if err != nil {
 		return "", err
 	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("error reading response body: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusCreated {
-		return "", fmt.Errorf("failed to create repository: status %d: %s", resp.StatusCode, string(body))
-	}
-
 	return fullName, nil
 }
 
