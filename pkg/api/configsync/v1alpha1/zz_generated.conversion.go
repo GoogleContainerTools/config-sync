@@ -635,6 +635,7 @@ func autoConvert_v1alpha1_Oci_To_v1beta1_Oci(in *Oci, out *v1beta1.Oci, s conver
 	out.Auth = configsync.AuthType(in.Auth)
 	out.GCPServiceAccountEmail = in.GCPServiceAccountEmail
 	out.CACertSecretRef = (*v1beta1.SecretReference)(unsafe.Pointer(in.CACertSecretRef))
+	out.SecretRef = (*v1beta1.SecretReference)(unsafe.Pointer(in.SecretRef))
 	return nil
 }
 
@@ -650,6 +651,7 @@ func autoConvert_v1beta1_Oci_To_v1alpha1_Oci(in *v1beta1.Oci, out *Oci, s conver
 	out.Auth = configsync.AuthType(in.Auth)
 	out.GCPServiceAccountEmail = in.GCPServiceAccountEmail
 	out.CACertSecretRef = (*SecretReference)(unsafe.Pointer(in.CACertSecretRef))
+	out.SecretRef = (*SecretReference)(unsafe.Pointer(in.SecretRef))
 	return nil
 }
 

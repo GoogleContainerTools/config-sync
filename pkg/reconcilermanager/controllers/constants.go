@@ -60,3 +60,11 @@ const (
 	// HelmSecretKeyUsername is the key at which a token's username is stored
 	HelmSecretKeyUsername = "username"
 )
+
+// OCI secret data key names
+const (
+	// OciSecretKeyPassword is the key at which a token's value is stored
+	OciSecretKeyPassword = "password"
+	// OciSecretKeyUsername is the key at which a token's username is stored
+	OciSecretKeyUsername = "username"
+)

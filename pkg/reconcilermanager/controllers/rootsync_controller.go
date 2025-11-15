@@ -1115,6 +1115,7 @@ func (r *RootSyncReconciler) mutationsFor(ctx context.Context, rs *v1beta1.RootS
 		case configsync.OciSource:
 			auth = rs.Spec.Oci.Auth
 			gcpSAEmail = rs.Spec.Oci.GCPServiceAccountEmail
+			secretRefName = v1beta1.GetSecretName(rs.Spec.Oci.SecretRef)
 			caCertSecretRefName = v1beta1.GetSecretName(rs.Spec.Oci.CACertSecretRef)
 		case configsync.HelmSource:
 			auth = rs.Spec.Helm.Auth
@@ -1191,6 +1192,9 @@ func (r *RootSyncReconciler) mutationsFor(ctx context.Context, rs *v1beta1.RootS
 				} else {
 					container.Env = append(container.Env, containerEnvs[container.Name]...)
 					container.VolumeMounts = volumeMounts(rs.Spec.Oci.Auth, caCertSecretRefName, rs.Spec.SourceType, container.VolumeMounts)
+					if authTypeToken(rs.Spec.Oci.Auth) {
+						container.Env = append(container.Env, ociSyncTokenAuthEnv(secretRefName)...)
+					}
 					injectFWICredsToContainer(&container, injectFWICreds)
 				}
 			case reconcilermanager.HelmSync:
