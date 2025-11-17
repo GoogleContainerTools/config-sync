@@ -118,8 +118,12 @@ func (b *BitbucketClient) CreateRepository(name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	if resp.StatusCode == http.StatusOK {
 		return fullName, nil
+	} else if resp.StatusCode != http.StatusNotFound {
+		// unexpected error when checking if repository exists
+		return "", fmt.Errorf("failed to check if repository exists: status %d", resp.StatusCode)
 	}
 
 	payload := map[string]any{
