@@ -22,13 +22,13 @@ import (
 	"time"
 
 	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	kptv1alpha1 "github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
 	"github.com/GoogleContainerTools/config-sync/pkg/applier/stats"
 	"github.com/GoogleContainerTools/config-sync/pkg/core"
 	"github.com/GoogleContainerTools/config-sync/pkg/declared"
 	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
 	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
 	m "github.com/GoogleContainerTools/config-sync/pkg/metrics"
-	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup"
 	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	"github.com/GoogleContainerTools/config-sync/pkg/syncer/differ"
 	"github.com/GoogleContainerTools/config-sync/pkg/syncer/metrics"
@@ -186,21 +186,25 @@ func NewSupervisor(cs *ClientSet, scope declared.Scope, syncName string, reconci
 // trying to add any new resources from source.
 func (s *supervisor) UpdateStatusMode(ctx context.Context) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		u := newInventoryUnstructured(s.syncName, s.syncNamespace)
-		key := client.ObjectKeyFromObject(u)
-		err := s.clientSet.Client.Get(ctx, key, u)
+		var rg kptv1alpha1.ResourceGroup
+		key := client.ObjectKey{
+			Name:      s.syncName,
+			Namespace: s.syncNamespace,
+		}
+		err := s.clientSet.Client.Get(ctx, key, &rg)
+
 		if err != nil {
 			// RG doesn't exist, it will be created by applier with appropriate status mode
 			if apierrors.IsNotFound(err) {
 				return nil
 			}
-			return status.APIServerErrorf(err, "failed to get %s: %s", u.GetKind(), key)
+			return status.APIServerErrorf(err, "failed to get %v: %s", rg.GetObjectKind().GroupVersionKind(), key)
 		}
-		if core.SetAnnotation(u, metadata.StatusModeAnnotationKey, s.clientSet.StatusMode.String()) {
-			klog.V(3).Infof("Updating %s annotation: %s: %s", u.GetKind(), metadata.StatusModeAnnotationKey, s.clientSet.StatusMode)
-			err := s.clientSet.Client.Update(ctx, u, client.FieldOwner(configsync.FieldManager))
+		if core.SetAnnotation(&rg, metadata.StatusModeAnnotationKey, s.clientSet.StatusMode.String()) {
+			klog.V(3).Infof("Updating %v annotation: %s: %s", rg.GetObjectKind().GroupVersionKind(), metadata.StatusModeAnnotationKey, s.clientSet.StatusMode)
+			err := s.clientSet.Client.Update(ctx, &rg, client.FieldOwner(configsync.FieldManager))
 			if err != nil {
-				return status.APIServerErrorf(err, "failed to update %s: %s", u.GetKind(), key)
+				return status.APIServerErrorf(err, "failed to update %v: %s", rg.GetObjectKind().GroupVersionKind(), key)
 			}
 		}
 		return nil
@@ -511,10 +515,15 @@ func handleMetrics(ctx context.Context, operation string, err error) {
 // checkInventoryObjectSize checks the inventory object size limit.
 // If it is close to the size limit 1M, log a warning.
 func (s *supervisor) checkInventoryObjectSize(ctx context.Context, c client.Client) {
-	u := newInventoryUnstructured(s.syncName, s.syncNamespace)
-	err := c.Get(ctx, client.ObjectKey{Namespace: s.syncNamespace, Name: s.syncName}, u)
+	var rg kptv1alpha1.ResourceGroup
+	key := client.ObjectKey{
+		Name:      s.syncName,
+		Namespace: s.syncNamespace,
+	}
+	err := c.Get(ctx, key, &rg)
+
 	if err == nil {
-		size, err := getObjectSize(u)
+		size, err := getObjectSize(&rg)
 		if err != nil {
 			klog.Warningf("Failed to marshal ResourceGroup %s/%s to get its size: %s", s.syncNamespace, s.syncName, err)
 		}
@@ -744,13 +753,6 @@ func (s *supervisor) Destroy(ctx context.Context, eventHandler func(Event)) (Obj
 	defer s.execMux.Unlock()
 
 	return s.destroyInner(ctx, eventHandler)
-}
-
-// newInventoryUnstructured creates an inventory object as an unstructured.
-func newInventoryUnstructured(name, namespace string) *unstructured.Unstructured {
-	id := InventoryID(name, namespace)
-	u := resourcegroup.Unstructured(name, namespace, id)
-	return u
 }
 
 // InventoryID returns the inventory id of an inventory object.

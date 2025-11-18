@@ -136,8 +136,8 @@ func removeFrom(all []object.ObjMetadata, toRemove []client.Object) []object.Obj
 	return results
 }
 
-func getObjectSize(u *unstructured.Unstructured) (int, error) {
-	data, err := json.Marshal(u)
+func getObjectSize(rg client.Object) (int, error) {
+	data, err := json.Marshal(rg)
 	if err != nil {
 		return 0, err
 	}

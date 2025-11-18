@@ -171,8 +171,8 @@ func TestRemoveFrom(t *testing.T) {
 }
 
 func TestGetObjectSize(t *testing.T) {
-	u := newInventoryUnstructured("inv-1", "test")
-	size, err := getObjectSize(u)
+	rg := k8sobjects.ResourceGroupObject("inv-1", "test")
+	size, err := getObjectSize(rg)
 	if err != nil {
 		t.Fatal(err)
 	}

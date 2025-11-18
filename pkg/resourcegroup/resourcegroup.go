@@ -15,36 +15,9 @@
 package resourcegroup
 
 import (
-	"fmt"
-
 	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
 	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"sigs.k8s.io/cli-utils/pkg/common"
 )
-
-// Unstructured creates a ResourceGroup object
-// TODO: Replace Unstructured with kptv1alpha1.ResourceGroup
-func Unstructured(name, namespace, id string) *unstructured.Unstructured {
-	groupVersion := fmt.Sprintf("%s/%s", v1alpha1.SchemeGroupVersionKind().Group, v1alpha1.SchemeGroupVersionKind().Version)
-	inventoryObj := &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": groupVersion,
-			"kind":       v1alpha1.SchemeGroupVersionKind().Kind,
-			"metadata": map[string]interface{}{
-				"name":      name,
-				"namespace": namespace,
-				"labels": map[string]interface{}{
-					common.InventoryLabel: id,
-				},
-			},
-			"spec": map[string]interface{}{
-				"resources": []interface{}{},
-			},
-		},
-	}
-	return inventoryObj
-}
 
 // GetSourceHash returns the source hash that is defined in the
 // source hash annotation.
