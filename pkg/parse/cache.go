@@ -34,10 +34,6 @@ import (
 //   - a force-resync happens, or
 //   - one of the watchers noticed a management conflict.
 type cacheForCommit struct {
-	// source tracks the state of the source repo.
-	// This field is only set after the reconciler successfully reads all the source files.
-	source *sourceState
-
 	// parse tracks the state of the parse stage.
 	parse *parseResult
 

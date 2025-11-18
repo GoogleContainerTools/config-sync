@@ -685,18 +685,17 @@ func TestRootReconciler_ParseAndUpdate(t *testing.T) {
 			}
 			state := &ReconcilerState{
 				status: reconcilerStatus.DeepCopy(),
-				cache: cacheForCommit{
-					source: &sourceState{
-						spec: GitSourceSpec{
-							Repo:     fileSource.SourceRepo,
-							Revision: fileSource.SourceRev,
-							Branch:   fileSource.SourceBranch,
-							Dir:      fileSource.SourceDir.SlashPath(),
-						},
-						commit:   testGitCommit,
-						syncPath: "/",
-						files:    files,
+				cache:  cacheForCommit{},
+				source: &sourceState{
+					spec: GitSourceSpec{
+						Repo:     fileSource.SourceRepo,
+						Revision: fileSource.SourceRev,
+						Branch:   fileSource.SourceBranch,
+						Dir:      fileSource.SourceDir.SlashPath(),
 					},
+					commit:   testGitCommit,
+					syncPath: "/",
+					files:    files,
 				},
 				syncErrorCache: NewSyncErrorCache(conflict.NewHandler(), fight.NewHandler()),
 			}
@@ -941,10 +940,9 @@ func TestRootReconciler_Parse_DeclaredFields(t *testing.T) {
 			}
 			tc.existingObjects = append(tc.existingObjects, k8sobjects.RootSyncObjectV1Beta1(rootSyncName))
 			state := &ReconcilerState{
-				status: &ReconcilerStatus{},
-				cache: cacheForCommit{
-					source: &sourceState{},
-				},
+				status:         &ReconcilerStatus{},
+				cache:          cacheForCommit{},
+				source:         &sourceState{},
 				syncErrorCache: NewSyncErrorCache(conflict.NewHandler(), fight.NewHandler()),
 			}
 			opts := &Options{
@@ -1229,10 +1227,9 @@ func TestRootReconciler_Parse_Discovery(t *testing.T) {
 				},
 			}
 			state := &ReconcilerState{
-				status: &ReconcilerStatus{},
-				cache: cacheForCommit{
-					source: &sourceState{},
-				},
+				status:         &ReconcilerStatus{},
+				cache:          cacheForCommit{},
+				source:         &sourceState{},
 				syncErrorCache: NewSyncErrorCache(conflict.NewHandler(), fight.NewHandler()),
 			}
 			opts := &Options{
@@ -1349,10 +1346,9 @@ func TestRootReconciler_Parse_SourceErrorMetricValidation(t *testing.T) {
 				},
 			}
 			state := &ReconcilerState{
-				status: &ReconcilerStatus{},
-				cache: cacheForCommit{
-					source: &sourceState{},
-				},
+				status:         &ReconcilerStatus{},
+				cache:          cacheForCommit{},
+				source:         &sourceState{},
 				syncErrorCache: NewSyncErrorCache(conflict.NewHandler(), fight.NewHandler()),
 			}
 			opts := &Options{
@@ -1467,10 +1463,9 @@ func TestRootReconciler_Update_ApplierErrorMetricValidation(t *testing.T) {
 				},
 			}
 			state := &ReconcilerState{
-				status: &ReconcilerStatus{},
-				cache: cacheForCommit{
-					source: &sourceState{},
-				},
+				status:         &ReconcilerStatus{},
+				cache:          cacheForCommit{},
+				source:         &sourceState{},
 				syncErrorCache: NewSyncErrorCache(conflict.NewHandler(), fight.NewHandler()),
 			}
 			opts := &Options{

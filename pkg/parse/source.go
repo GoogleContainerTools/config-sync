@@ -61,19 +61,6 @@ type Files struct {
 	FileSource
 }
 
-// sourceState contains all state read from the mounted source repo.
-type sourceState struct {
-	// spec is the source specification as read from the FileSource.
-	// This cache avoids re-generating the spec every time the status is updated.
-	spec SourceSpec
-	// commit is the commit read from the source of truth.
-	commit string
-	// syncPath is the absolute path to the sync directory that includes the configurations.
-	syncPath cmpath.Absolute
-	// files is the list of all observed files in the sync directory (recursively).
-	files []cmpath.Absolute
-}
-
 // readConfigFiles reads all the files under state.syncPath and sets state.files.
 // - if rendering is enabled, state.syncPath contains the hydrated files.
 // - if rendered is disabled, state.syncPath contains the source files.

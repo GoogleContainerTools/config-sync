@@ -1023,12 +1023,6 @@ func TestReconciler_Reconcile(t *testing.T) {
 				}
 				// Simulate fetch & parse success from current commit to ensure full-sync doesn't skip updating
 				state.cache = cacheForCommit{
-					source: &sourceState{
-						spec:     SourceSpecFromFileSource(fileSource, fileSource.SourceType, sourceCommit),
-						commit:   sourceCommit,
-						syncPath: cmpath.Absolute(filepath.Join(sourcePath, sourceCommit)),
-						files:    nil,
-					},
 					parse: &parseResult{
 						lastUpdateTime: lastCheckpointTime,
 					},
@@ -1036,6 +1030,12 @@ func TestReconciler_Reconcile(t *testing.T) {
 					applied:                  false,
 					watchesUpdated:           false,
 					needToRetry:              true,
+				}
+				state.source = &sourceState{
+					spec:     SourceSpecFromFileSource(fileSource, fileSource.SourceType, sourceCommit),
+					commit:   sourceCommit,
+					syncPath: cmpath.Absolute(filepath.Join(sourcePath, sourceCommit)),
+					files:    nil,
 				}
 				// Simulate sync error
 				state.syncErrorCache.AddApplyError(status.InternalError("apply error"))

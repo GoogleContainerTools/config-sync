@@ -83,16 +83,16 @@ func (u *Updater) Remediating() bool {
 // Any errors returned will be prepended with any known conflict errors from the
 // remediator. This is required to preserve errors that have been reported by
 // another reconciler.
-func (u *Updater) Update(ctx context.Context, cache *cacheForCommit) status.MultiError {
+func (u *Updater) Update(ctx context.Context, state *ReconcilerState) status.MultiError {
 	u.updateMux.Lock()
 	defer u.updateMux.Unlock()
 
-	return u.update(ctx, cache)
+	return u.update(ctx, state)
 }
 
 // update performs most of the work for `Update`, making it easier to
 // consistently prepend the conflict errors.
-func (u *Updater) update(ctx context.Context, cache *cacheForCommit) status.MultiError {
+func (u *Updater) update(ctx context.Context, state *ReconcilerState) status.MultiError {
 	// Stop remediator workers.
 	// This prevents objects been updated in the wrong order (dependencies).
 	// Continue watching previously declared objects and updating the queue.
@@ -102,50 +102,50 @@ func (u *Updater) update(ctx context.Context, cache *cacheForCommit) status.Mult
 	// Update the declared resources (source of truth for the Remediator).
 	// After this, any objects removed from the declared resources will no
 	// longer be remediated, if they drift.
-	if !cache.declaredResourcesUpdated {
-		objs := filesystem.AsCoreObjects(cache.parse.objsToApply)
-		_, err := u.declare(ctx, objs, cache.source.commit)
+	if !state.cache.declaredResourcesUpdated {
+		objs := filesystem.AsCoreObjects(state.cache.parse.objsToApply)
+		_, err := u.declare(ctx, objs, state.source.commit)
 		if err != nil {
 			return err
 		}
 		// Add new resources to the watch list, without removing old ones.
 		// This ensures controller conflicts are caught while the applier is running.
 		declaredGVKs, _ := u.Resources.DeclaredGVKs()
-		err = u.addWatches(ctx, declaredGVKs, cache.source.commit)
+		err = u.addWatches(ctx, declaredGVKs, state.source.commit)
 		if err != nil {
 			return err
 		}
 
 		// Only mark the declared resources as updated if there were no (non-blocking) parse errors.
 		// This ensures the update will be retried until parsing fully succeeds.
-		if cache.parse.parserErrs == nil {
-			cache.declaredResourcesUpdated = true
+		if state.cache.parse.parserErrs == nil {
+			state.cache.declaredResourcesUpdated = true
 		}
 	}
 
 	// Apply the declared resources
-	if !cache.applied {
-		if err := u.apply(ctx, cache.source.commit); err != nil {
+	if !state.cache.applied {
+		if err := u.apply(ctx, state.source.commit); err != nil {
 			return err
 		}
 		// Only mark the commit as applied if there were no (non-blocking) parse errors.
 		// This ensures the apply will be retried until parsing fully succeeds.
-		if cache.parse.parserErrs == nil {
-			cache.applied = true
+		if state.cache.parse.parserErrs == nil {
+			state.cache.applied = true
 		}
 	}
 
 	// Update the resource watches (triggers for the Remediator).
-	if !cache.watchesUpdated || u.needToUpdateWatch() {
+	if !state.cache.watchesUpdated || u.needToUpdateWatch() {
 		declaredGVKs, _ := u.Resources.DeclaredGVKs()
-		err := u.updateWatches(ctx, declaredGVKs, cache.source.commit)
+		err := u.updateWatches(ctx, declaredGVKs, state.source.commit)
 		if err != nil {
 			return err
 		}
 		// Only mark the watches as updated if there were no (non-blocking) parse errors.
 		// This ensures the update will be retried until parsing fully succeeds.
-		if cache.parse.parserErrs == nil {
-			cache.watchesUpdated = true
+		if state.cache.parse.parserErrs == nil {
+			state.cache.watchesUpdated = true
 		}
 	}
 

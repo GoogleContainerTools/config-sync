@@ -140,18 +140,18 @@ func (r *reconciler) Reconcile(ctx context.Context, trigger string) ReconcileRes
 	}
 
 	// Init cached source
-	if state.cache.source == nil {
-		state.cache.source = &sourceState{}
+	if state.source == nil {
+		state.source = &sourceState{}
 	}
 
 	// rendering is done, starts to read the source or hydrated configs.
-	oldSyncPath := state.cache.source.syncPath
+	oldSyncPath := state.source.syncPath
 	if errs := r.read(ctx, trigger, newSourceStatus, syncPath); errs != nil {
 		state.RecordFailure(opts.Clock, errs)
 		return result
 	}
 
-	newSyncPath := state.cache.source.syncPath
+	newSyncPath := state.source.syncPath
 
 	if newSyncPath != oldSyncPath {
 		// If the commit, branch, or sync dir changed and read succeeded,
@@ -418,7 +418,7 @@ func (r *reconciler) readFromSource(ctx context.Context, trigger string, srcStat
 		return newRenderStatus, newSourceStatus
 	}
 
-	if srcState.syncPath == recState.cache.source.syncPath {
+	if srcState.syncPath == recState.source.syncPath {
 		klog.V(4).Infof("Reconciler skipping listing source files; sync path unchanged: %s", srcState.syncPath.OSPath())
 		return newRenderStatus, newSourceStatus
 	}
@@ -461,7 +461,7 @@ func (r *reconciler) parse(ctx context.Context, trigger string) status.MultiErro
 		klog.V(3).Info("Parsing starting...")
 		start := opts.Clock.Now()
 		var objs []ast.FileObject
-		objs, parseErrs = r.parser.ParseSource(ctx, state.cache.source)
+		objs, parseErrs = r.parser.ParseSource(ctx, state.source)
 		if !opts.WebhookEnabled {
 			klog.V(3).Infof("Removing %s annotation as Admission Webhook is disabled", metadata.DeclaredFieldsKey)
 			for _, obj := range objs {
@@ -479,8 +479,8 @@ func (r *reconciler) parse(ctx context.Context, trigger string) status.MultiErro
 	// source errors or not. This confirms whether the fetch & parse stages
 	// succeeded, since they share the same RSync `status.source` fields.
 	newSourceStatus := &SourceStatus{
-		Spec:       state.cache.source.spec,
-		Commit:     state.cache.source.commit,
+		Spec:       state.source.spec,
+		Commit:     state.source.commit,
 		Errs:       parseErrs,
 		LastUpdate: nowMeta(opts.Clock),
 	}
@@ -504,7 +504,7 @@ func (r *reconciler) update(ctx context.Context, trigger string) status.MultiErr
 
 	klog.V(3).Info("Updater starting...")
 	start := opts.Clock.Now()
-	updateErrs := opts.Update(ctx, &state.cache)
+	updateErrs := opts.Update(ctx, state)
 	metrics.RecordParserDuration(ctx, trigger, "update", metrics.StatusTagKey(updateErrs), start)
 	klog.V(3).Info("Updater stopped")
 
@@ -521,7 +521,7 @@ func (r *reconciler) update(ctx context.Context, trigger string) status.MultiErr
 	syncStatus := &SyncStatus{
 		Spec:       state.status.SourceStatus.Spec,
 		Syncing:    false,
-		Commit:     state.cache.source.commit,
+		Commit:     state.source.commit,
 		Errs:       syncErrs,
 		LastUpdate: nowMeta(opts.Clock),
 	}
@@ -572,7 +572,7 @@ func (r *reconciler) startAsyncStatusUpdates(ctx context.Context) <-chan struct{
 				syncStatus := &SyncStatus{
 					Spec:       state.status.SourceStatus.Spec,
 					Syncing:    true,
-					Commit:     state.cache.source.commit,
+					Commit:     state.source.commit,
 					Errs:       state.SyncErrors(),
 					LastUpdate: nowMeta(opts.Clock),
 				}
