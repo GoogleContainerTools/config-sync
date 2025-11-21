@@ -28,7 +28,7 @@ require (
 	github.com/kylelemons/godebug v1.1.0
 	github.com/open-policy-agent/cert-controller v0.15.0
 	github.com/prometheus/client_golang v1.23.2
-	github.com/prometheus/common v0.67.3
+	github.com/prometheus/common v0.67.4
 	github.com/spf13/cobra v1.10.1
 	github.com/spyzhov/ajson v0.9.6
 	github.com/stretchr/testify v1.11.1
