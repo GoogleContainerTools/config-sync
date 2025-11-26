@@ -459,6 +459,98 @@ func TestNewSupervisor(t *testing.T) {
 	}
 }
 
+func TestHandleDisabledObjects(t *testing.T) {
+	exporter, err := testmetrics.NewTestExporter()
+	if err != nil {
+		t.Fatalf("Failed to create test exporter: %v", err)
+	}
+	defer exporter.ClearMetrics()
+
+	syncScope := declared.RootScope
+	syncName := configsync.RootSyncName
+	applySetID := "apply-set-id"
+
+	csm := metadata.ConfigSyncMetadata{
+		ApplySetID:      applySetID,
+		GitContextValue: "git-context",
+		ManagerValue:    "manager-value",
+		SourceHash:      "commit-hash",
+		InventoryID:     "inventory-id",
+	}
+
+	cm1 := k8sobjects.ConfigMapObject(core.Name("cm-1"), core.Namespace("test-namespace"))
+	cm2 := k8sobjects.ConfigMapObject(core.Name("cm-2"), core.Namespace("test-namespace"))
+
+	disabledObjs := []client.Object{cm1, cm2}
+
+	// Server-side objects with Config Sync metadata
+	serverCm1 := cm1.DeepCopy()
+	csm.SetConfigSyncMetadata(serverCm1)
+	serverCm2 := cm2.DeepCopy()
+	csm.SetConfigSyncMetadata(serverCm2)
+
+	serverObjs := []client.Object{serverCm1, serverCm2}
+	fakeClient := testingfake.NewClient(t, core.Scheme, serverObjs...)
+
+	objMetadata1, _ := object.RuntimeToObjMeta(cm1)
+	objMetadata2, _ := object.RuntimeToObjMeta(cm2)
+
+	fakeInvClient := inventory.NewFakeClient(object.ObjMetadataSet{objMetadata1, objMetadata2})
+
+	cs := &ClientSet{
+		Client:     fakeClient,
+		Mapper:     fakeClient.RESTMapper(),
+		InvClient:  fakeInvClient,
+		ApplySetID: applySetID,
+	}
+	applier := NewSupervisor(cs, syncScope, syncName, 5*time.Minute)
+
+	// Validates that the inventory has 2 objects before disabling
+	require.Len(t, fakeInvClient.Inv.GetObjectRefs(), 2, "expected inventory to contain 2 objects")
+
+	buildExpectedServerObj := func(baseObj client.Object) client.Object {
+		obj := baseObj.DeepCopyObject().(client.Object)
+		csm.SetConfigSyncMetadata(obj)
+		obj.SetUID("1")
+		obj.SetResourceVersion("1")
+		obj.SetGeneration(1)
+		return obj
+	}
+	expectedServerObjs := []client.Object{
+		buildExpectedServerObj(cm1),
+		buildExpectedServerObj(cm2),
+	}
+
+	// Validates the server objects before disabling
+	fakeClient.Check(t, expectedServerObjs...)
+
+	disabledCount, errs := applier.(*supervisor).handleDisabledObjects(t.Context(), disabledObjs)
+
+	// Verify disabling of objects was successful
+	require.Nil(t, errs, "expected no errors from handleDisabledObjects")
+	require.Equal(t, uint64(2), disabledCount, "expected disabled count to be 2")
+
+	// Verify inventory was updated to remove the objects
+	require.Empty(t, fakeInvClient.Inv.GetObjectRefs(), "expected inventory to be empty")
+
+	buildExpectedAbandonedObj := func(baseObj client.Object) client.Object {
+		obj := baseObj.DeepCopyObject().(client.Object)
+		obj.SetUID("1")
+		obj.SetResourceVersion("2")
+		obj.SetGeneration(1)
+		obj.SetLabels(map[string]string{})
+		obj.SetAnnotations(map[string]string{})
+		return obj
+	}
+	expectedServerObjs = []client.Object{
+		buildExpectedAbandonedObj(cm1),
+		buildExpectedAbandonedObj(cm2),
+	}
+
+	// Verify the server objects after disabling
+	fakeClient.Check(t, expectedServerObjs...)
+}
+
 func TestUpdateStatusMode(t *testing.T) {
 	syncName := "my-rs"
 	syncScope := declared.RootScope
