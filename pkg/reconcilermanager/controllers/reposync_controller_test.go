@@ -2987,19 +2987,26 @@ func validateRepoGeneratedResourcesDeleted(t *testing.T, fakeClient *syncerFake.
 }
 
 func TestMapSecretToRepoSyncs(t *testing.T) {
-	testSecretName := "ssh-test"
+	testSecretName := "test-secret"
 	caCertSecret := "cert-pub"
+	// Git RepoSyncs
 	rs1 := repoSyncWithGit("ns1", "rs1", reposyncRef(gitRevision), reposyncBranch(branch), reposyncSecretType(configsync.AuthSSH), reposyncSecretRef(reposyncSSHKey))
 	rs2 := repoSyncWithGit("ns1", "rs2", reposyncRef(gitRevision), reposyncBranch(branch), reposyncSecretType(configsync.AuthSSH), reposyncSecretRef(reposyncSSHKey))
 	rs3 := repoSyncWithGit("ns1", "rs3", reposyncRef(gitRevision), reposyncBranch(branch), reposyncSecretType(configsync.AuthSSH), reposyncSecretRef(testSecretName))
 	rs4 := repoSyncWithGit("ns1", "rs4", reposyncRef(gitRevision), reposyncBranch(branch), reposyncSecretType(configsync.AuthNone), reposyncCACert(configsync.GitSource, caCertSecret))
+
+	// OCI RepoSyncs
 	rs5 := repoSyncWithOCI("ns1", "rs5", reposyncOCIAuthType(configsync.AuthNone), reposyncCACert(configsync.OciSource, caCertSecret))
-	rs6 := repoSyncWithHelm("ns1", "rs6", reposyncHelmAuthType(configsync.AuthNone), reposyncCACert(configsync.HelmSource, caCertSecret))
+	rs6 := repoSyncWithOCI("ns1", "rs6", reposyncOCIAuthType(configsync.AuthToken), reposyncOciSecretRef(testSecretName))
+
+	// Helm RepoSyncs
+	rs7 := repoSyncWithHelm("ns1", "rs7", reposyncHelmAuthType(configsync.AuthNone), reposyncCACert(configsync.HelmSource, caCertSecret))
+	rs8 := repoSyncWithHelm("ns1", "rs8", reposyncHelmAuthType(configsync.AuthToken), reposyncHelmSecretRef(testSecretName))
 
 	ns1rs1ReconcilerName := core.NsReconcilerName(rs1.Namespace, rs1.Name)
 	ns1rs4ReconcilerName := core.NsReconcilerName(rs4.Namespace, rs4.Name)
 	ns1rs5ReconcilerName := core.NsReconcilerName(rs5.Namespace, rs5.Name)
-	ns1rs6ReconcilerName := core.NsReconcilerName(rs6.Namespace, rs6.Name)
+	ns1rs7ReconcilerName := core.NsReconcilerName(rs7.Namespace, rs7.Name)
 	serviceAccountToken := ns1rs1ReconcilerName + "-token-p29b5"
 	serviceAccount := k8sobjects.ServiceAccountObject(ns1rs1ReconcilerName, core.Namespace(nsReconcilerKey.Namespace))
 	serviceAccount.Secrets = []corev1.ObjectReference{{Name: serviceAccountToken}}
@@ -3034,12 +3041,7 @@ func TestMapSecretToRepoSyncs(t *testing.T) {
 				core.Namespace(nsReconcilerKey.Namespace),
 			),
 			want: []reconcile.Request{
-				{
-					NamespacedName: types.NamespacedName{
-						Name:      "rs1",
-						Namespace: "ns1",
-					},
-				},
+				namespacedName(rs1.Name, rs1.Namespace),
 			},
 		},
 		{
@@ -3049,12 +3051,7 @@ func TestMapSecretToRepoSyncs(t *testing.T) {
 				core.Namespace(configsync.ControllerNamespace),
 			),
 			want: []reconcile.Request{
-				{
-					NamespacedName: types.NamespacedName{
-						Name:      "rs4",
-						Namespace: "ns1",
-					},
-				},
+				namespacedName(rs4.Name, rs4.Namespace),
 			},
 		},
 		{
@@ -3064,27 +3061,17 @@ func TestMapSecretToRepoSyncs(t *testing.T) {
 				core.Namespace(configsync.ControllerNamespace),
 			),
 			want: []reconcile.Request{
-				{
-					NamespacedName: types.NamespacedName{
-						Name:      "rs5",
-						Namespace: "ns1",
-					},
-				},
+				namespacedName(rs5.Name, rs5.Namespace),
 			},
 		},
 		{
 			name: fmt.Sprintf("A helm caCertSecretRef from the %s namespace starting with %s, with a mapping RepoSync",
 				configsync.ControllerNamespace, core.NsReconcilerPrefix+"-"),
-			secret: k8sobjects.SecretObject(ReconcilerResourceName(ns1rs6ReconcilerName, caCertSecret),
+			secret: k8sobjects.SecretObject(ReconcilerResourceName(ns1rs7ReconcilerName, caCertSecret),
 				core.Namespace(configsync.ControllerNamespace),
 			),
 			want: []reconcile.Request{
-				{
-					NamespacedName: types.NamespacedName{
-						Name:      "rs6",
-						Namespace: "ns1",
-					},
-				},
+				namespacedName(rs7.Name, rs7.Namespace),
 			},
 		},
 		{
@@ -3100,12 +3087,7 @@ func TestMapSecretToRepoSyncs(t *testing.T) {
 				nsReconcilerKey.Namespace, core.NsReconcilerPrefix+"-"),
 			secret: k8sobjects.SecretObject(serviceAccountToken, core.Namespace(nsReconcilerKey.Namespace)),
 			want: []reconcile.Request{
-				{
-					NamespacedName: types.NamespacedName{
-						Name:      "rs1",
-						Namespace: "ns1",
-					},
-				},
+				namespacedName(rs1.Name, rs1.Namespace),
 			},
 		},
 		{
@@ -3117,59 +3099,31 @@ func TestMapSecretToRepoSyncs(t *testing.T) {
 			name:   fmt.Sprintf("A secret %s from the ns1 namespace with mapping RepoSyncs", reposyncSSHKey),
 			secret: k8sobjects.SecretObject(reposyncSSHKey, core.Namespace("ns1")),
 			want: []reconcile.Request{
-				{
-					NamespacedName: types.NamespacedName{
-						Name:      "rs1",
-						Namespace: "ns1",
-					},
-				},
-				{
-					NamespacedName: types.NamespacedName{
-						Name:      "rs2",
-						Namespace: "ns1",
-					},
-				},
+				namespacedName(rs1.Name, rs1.Namespace),
+				namespacedName(rs2.Name, rs2.Namespace),
 			},
 		},
 		{
 			name:   fmt.Sprintf("A secret %s from the ns1 namespace with mapping RepoSyncs", testSecretName),
 			secret: k8sobjects.SecretObject(testSecretName, core.Namespace("ns1")),
 			want: []reconcile.Request{
-				{
-					NamespacedName: types.NamespacedName{
-						Name:      "rs3",
-						Namespace: "ns1",
-					},
-				},
+				namespacedName(rs3.Name, rs3.Namespace),
+				namespacedName(rs6.Name, rs6.Namespace),
+				namespacedName(rs8.Name, rs8.Namespace),
 			},
 		},
 		{
 			name:   fmt.Sprintf("A caCertSecretRef %s from the ns1 namespace with mapping RepoSyncs", caCertSecret),
 			secret: k8sobjects.SecretObject(caCertSecret, core.Namespace("ns1")),
 			want: []reconcile.Request{
-				{
-					NamespacedName: types.NamespacedName{
-						Name:      "rs4",
-						Namespace: "ns1",
-					},
-				},
-				{
-					NamespacedName: types.NamespacedName{
-						Name:      "rs5",
-						Namespace: "ns1",
-					},
-				},
-				{
-					NamespacedName: types.NamespacedName{
-						Name:      "rs6",
-						Namespace: "ns1",
-					},
-				},
+				namespacedName(rs4.Name, rs4.Namespace),
+				namespacedName(rs5.Name, rs5.Namespace),
+				namespacedName(rs7.Name, rs7.Namespace),
 			},
 		},
 	}
 
-	_, _, testReconciler := setupNSReconciler(t, rs1, rs2, rs3, rs4, rs5, rs6, serviceAccount)
+	_, _, testReconciler := setupNSReconciler(t, rs1, rs2, rs3, rs4, rs5, rs6, rs7, rs8, serviceAccount)
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
