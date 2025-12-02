@@ -3123,14 +3123,22 @@ func validateRootGeneratedResourcesDeleted(t *testing.T, fakeClient *syncerFake.
 }
 
 func TestMapSecretToRootSyncs(t *testing.T) {
-	testSecretName := "ssh-test"
+	testSecretName := "test-secret"
 	caCertSecret := "cert-pub"
+	// Git RootSyncs
 	rs1 := rootSyncWithGit("rs-1", rootsyncRef(gitRevision), rootsyncBranch(branch), rootsyncSecretType(GitSecretConfigKeySSH), rootsyncSecretRef(rootsyncSSHKey))
 	rs2 := rootSyncWithGit("rs-2", rootsyncRef(gitRevision), rootsyncBranch(branch), rootsyncSecretType(GitSecretConfigKeySSH), rootsyncSecretRef(rootsyncSSHKey))
+
 	rs3 := rootSyncWithGit("rs-3", rootsyncRef(gitRevision), rootsyncBranch(branch), rootsyncSecretType(GitSecretConfigKeySSH), rootsyncSecretRef(testSecretName))
 	rs4 := rootSyncWithGit("rs-4", rootsyncRef(gitRevision), rootsyncBranch(branch), rootsyncSecretType(configsync.AuthNone), rootsyncCACert(configsync.GitSource, caCertSecret))
+
+	// OCI RootSyncs
 	rs5 := rootSyncWithOCI("rs-5", rootsyncOCIAuthType(configsync.AuthNone), rootsyncCACert(configsync.OciSource, caCertSecret))
-	rs6 := rootSyncWithHelm("rs-6", rootsyncHelmAuthType(configsync.AuthNone), rootsyncCACert(configsync.HelmSource, caCertSecret))
+	rs6 := rootSyncWithOCI("rs-6", rootsyncOCIAuthType(configsync.AuthToken), rootsyncOciSecretRef(testSecretName))
+
+	// Helm RootSyncs
+	rs7 := rootSyncWithHelm("rs-7", rootsyncHelmAuthType(configsync.AuthNone), rootsyncCACert(configsync.HelmSource, caCertSecret))
+	rs8 := rootSyncWithHelm("rs-8", rootsyncHelmAuthType(configsync.AuthToken), rootsyncHelmSecretRef(testSecretName))
 
 	testCases := []struct {
 		name   string
@@ -3156,59 +3164,31 @@ func TestMapSecretToRootSyncs(t *testing.T) {
 			name:   fmt.Sprintf("A secret %q from the %s namespace NOT starting with %s", rootsyncSSHKey, configsync.ControllerNamespace, core.NsReconcilerPrefix+"-"),
 			secret: k8sobjects.SecretObject(rootsyncSSHKey, core.Namespace(configsync.ControllerNamespace)),
 			want: []reconcile.Request{
-				{
-					NamespacedName: types.NamespacedName{
-						Name:      "rs-1",
-						Namespace: configsync.ControllerNamespace,
-					},
-				},
-				{
-					NamespacedName: types.NamespacedName{
-						Name:      "rs-2",
-						Namespace: configsync.ControllerNamespace,
-					},
-				},
+				namespacedName(rs1.Name, configsync.ControllerNamespace),
+				namespacedName(rs2.Name, configsync.ControllerNamespace),
 			},
 		},
 		{
 			name:   fmt.Sprintf("A secret %q from the %s namespace NOT starting with %s", testSecretName, configsync.ControllerNamespace, core.NsReconcilerPrefix+"-"),
 			secret: k8sobjects.SecretObject(testSecretName, core.Namespace(configsync.ControllerNamespace)),
 			want: []reconcile.Request{
-				{
-					NamespacedName: types.NamespacedName{
-						Name:      "rs-3",
-						Namespace: configsync.ControllerNamespace,
-					},
-				},
+				namespacedName(rs3.Name, configsync.ControllerNamespace),
+				namespacedName(rs6.Name, configsync.ControllerNamespace),
+				namespacedName(rs8.Name, configsync.ControllerNamespace),
 			},
 		},
 		{
 			name:   fmt.Sprintf("A caCertSecretRef %s from the c-m-s namespace with mapping RootSyncs", caCertSecret),
 			secret: k8sobjects.SecretObject(caCertSecret, core.Namespace(configsync.ControllerNamespace)),
 			want: []reconcile.Request{
-				{
-					NamespacedName: types.NamespacedName{
-						Name:      "rs-4",
-						Namespace: configsync.ControllerNamespace,
-					},
-				},
-				{
-					NamespacedName: types.NamespacedName{
-						Name:      "rs-5",
-						Namespace: configsync.ControllerNamespace,
-					},
-				},
-				{
-					NamespacedName: types.NamespacedName{
-						Name:      "rs-6",
-						Namespace: configsync.ControllerNamespace,
-					},
-				},
+				namespacedName(rs4.Name, configsync.ControllerNamespace),
+				namespacedName(rs5.Name, configsync.ControllerNamespace),
+				namespacedName(rs7.Name, configsync.ControllerNamespace),
 			},
 		},
 	}
 
-	_, _, testReconciler := setupRootReconciler(t, rs1, rs2, rs3, rs4, rs5, rs6)
+	_, _, testReconciler := setupRootReconciler(t, rs1, rs2, rs3, rs4, rs5, rs7, rs6, rs8)
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()

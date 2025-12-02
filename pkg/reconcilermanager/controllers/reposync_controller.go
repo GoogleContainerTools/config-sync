@@ -1025,14 +1025,14 @@ func (r *RepoSyncReconciler) validateHelmDependencies(ctx context.Context, rs *v
 func (r *RepoSyncReconciler) validateNamespaceSecret(ctx context.Context, repoSync *v1beta1.RepoSync, reconcilerName string) status.Error {
 	var authType configsync.AuthType
 	var namespaceSecretName string
-	if repoSync.Spec.SourceType == configsync.GitSource {
+	switch repoSync.Spec.SourceType {
+	case configsync.GitSource:
 		authType = repoSync.Spec.Auth
 		namespaceSecretName = v1beta1.GetSecretName(repoSync.Spec.SecretRef)
-	} else if repoSync.Spec.SourceType == configsync.HelmSource {
+	case configsync.HelmSource:
 		authType = repoSync.Spec.Helm.Auth
 		namespaceSecretName = v1beta1.GetSecretName(repoSync.Spec.Helm.SecretRef)
-	}
-	if repoSync.Spec.SourceType == configsync.OciSource {
+	case configsync.OciSource:
 		authType = repoSync.Spec.Oci.Auth
 		namespaceSecretName = v1beta1.GetSecretName(repoSync.Spec.Oci.SecretRef)
 	}

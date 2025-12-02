@@ -111,7 +111,7 @@ func TestPublicOCI(t *testing.T) {
 	kustomizecomponents.ValidateAllTenants(nt, string(declared.RootScope), "../base", tenant)
 }
 
-// TestOCIARTokenAuth verifies Config Sync can pull Helm chart from private
+// TestOCIARTokenAuth verifies Config Sync can pull an OCI image from a private
 // Artifact Registry with Token auth type.
 //
 // Test pre-requisites:
@@ -369,6 +369,57 @@ func TestOciSyncWithDigest(t *testing.T) {
 	if err == nil {
 		nt.T.Fatal("expected no source error code but found one")
 	}
+}
+
+// TestOCILocalRegistryTokenAuth can run only run on KinD clusters.
+// It tests RootSync can pull from a private OCI registry using basic auth.
+func TestOCILocalRegistryTokenAuth(t *testing.T) {
+	rootSyncID := nomostest.DefaultRootSyncID
+	nt := nomostest.New(t, nomostesting.SyncSourceOCI,
+		ntopts.SyncWithGitSource(rootSyncID, ntopts.Unstructured),
+		ntopts.RequireLocalOCIProvider)
+
+	nt.T.Log("Create OCI credentials secret")
+	secretName := "oci-creds"
+	secret := k8sobjects.SecretObject(
+		secretName,
+		core.Namespace(configsync.ControllerNamespace),
+	)
+	secret.Type = corev1.SecretTypeBasicAuth
+	secret.StringData = map[string]string{
+		corev1.BasicAuthUsernameKey: nomostest.RegistryUsername,
+		corev1.BasicAuthPasswordKey: nomostest.RegistryPassword,
+	}
+	nt.Must(nt.KubeClient.Create(secret))
+	nt.T.Cleanup(func() {
+		nt.Must(nt.KubeClient.Delete(secret))
+	})
+
+	// OCI image will only contain the bookinfo-admin role
+	bookinfoRole := k8sobjects.RoleObject(core.Name("bookinfo-admin"))
+	image, err := nt.BuildAndPushOCIImage(rootSyncID.ObjectKey, registryproviders.ImageInputObjects(nt.Scheme, bookinfoRole))
+	if err != nil {
+		nt.T.Fatalf("failed to push oci image: %v", err)
+	}
+
+	// Get the image URL and replace the registry address with the authenticated one
+	authImageID := image.OCIImageID().WithoutDigest()
+	authImageID.Registry = fmt.Sprintf("%s.%s", nomostest.TestRegistryServerAuthenticated, nomostest.TestRegistryNamespace)
+
+	nt.T.Log("Set the RootSync to sync from the authenticated registry without providing credentials")
+	rs := nt.RootSyncObjectOCI(rootSyncID.Name, authImageID, "", image.Digest)
+	rs.Spec.Oci.Auth = configsync.AuthNone
+	nt.Must(nt.KubeClient.Apply(rs))
+	nt.Must(nt.Watcher.WatchForRootSyncSourceError(rootSyncID.Name, status.SourceErrorCode, "Authorization Required"))
+
+	nt.T.Log("Set the RootSync to sync from the authenticated registry with credentials")
+	nt.MustMergePatch(rs, fmt.Sprintf(`{"spec": {"oci": {"auth": "token", "secretRef": {"name": "%s"}}}}`,
+		secretName))
+
+	nt.Must(nt.WatchForAllSyncs())
+
+	nt.T.Log("Validate Role from OCI image exists")
+	nt.Must(nt.Validate(bookinfoRole.Name, "default", &rbacv1.Role{}))
 }
 
 /*

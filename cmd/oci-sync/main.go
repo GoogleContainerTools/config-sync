@@ -87,6 +87,12 @@ func main() {
 		utillog.HandleError(log, true, "ERROR: --timeout must be greater than 0")
 	}
 
+	if *flUsername != "" {
+		if *flPassword == "" {
+			utillog.HandleError(log, true, "ERROR: --password must be set when --username is specified")
+		}
+	}
+
 	initialSync := true
 	imageFromSpecHasDigest := oci.HasDigest(*flImage)
 	failCount := 0
