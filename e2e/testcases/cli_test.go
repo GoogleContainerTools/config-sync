@@ -1278,6 +1278,34 @@ func TestNomosStatusNameFilter(t *testing.T) {
 	}
 }
 
+func TestVetSkipGVK(t *testing.T) {
+	nt := nomostest.New(t, nomostesting.NomosCLI,
+		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured),
+	)
+
+	rootRepo := nt.SyncSourceGitReadWriteRepository(nomostest.DefaultRootSyncID)
+
+	nt.Must(rootRepo.Copy("../testdata/gatekeeper-skip-gvk", "acme"))
+	if _, err := rootRepo.Git("commit", "-m", "add gatekeeper constraint template and constraint"); err != nil {
+		nt.T.Fatal(err)
+	}
+
+	// First, run `nomos vet` without the flag and expect a failure.
+	out, err := nt.Shell.Command("nomos", "vet", "--path", rootRepo.Root, "--source-format=unstructured").CombinedOutput()
+	if err == nil {
+		t.Fatal("expected `nomos vet` to fail but it passed")
+	}
+	// Check for KNV1021 error.
+	if !strings.Contains(string(out), "KNV1021") {
+		t.Fatalf("expected KNV1021 error, but got: %v", string(out))
+	}
+
+	// Now, run `nomos vet` with the flag and expect it to pass.
+	output, err := nt.Shell.Command("nomos", "vet", "--path", rootRepo.Root, "--source-format=unstructured", "--no-api-server-check-for-group=templates.gatekeeper.sh,constraints.gatekeeper.sh").CombinedOutput()
+	nt.Must(output, err)
+
+}
+
 func TestApiResourceFormatting(t *testing.T) {
 	nt := nomostest.New(t, nomostesting.NomosCLI)
 

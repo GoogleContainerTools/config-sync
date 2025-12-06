@@ -35,6 +35,7 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	"github.com/GoogleContainerTools/config-sync/pkg/util/discovery"
 	"github.com/GoogleContainerTools/config-sync/pkg/validate"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/fileobjects"
 	"github.com/GoogleContainerTools/config-sync/pkg/vet"
 	"github.com/Masterminds/semver"
 	clientdiscovery "k8s.io/client-go/discovery"
@@ -310,7 +311,9 @@ func ValidateOptions(rootDir cmpath.Absolute, apiServerTimeout time.Duration) (v
 	options.PolicyDir = cmpath.RelativeOS(rootDir.OSPath())
 	options.BuildScoper = discovery.ScoperBuilder(serverResourcer,
 		vet.AddCachedAPIResources(rootDir.Join(vet.APIResourcesPath)))
-	options.AllowUnknownKinds = flags.SkipAPIServer
+	if flags.SkipAPIServer {
+		options.AllowUnknownKindMatcher = &fileobjects.MatchAll{}
+	}
 	return options, nil
 }
 

@@ -40,6 +40,9 @@ const (
 	// SkipAPIServerFlag is the flag name for SkipAPIServer below.
 	SkipAPIServerFlag = "no-api-server-check"
 
+	// NoAPIServerCheckForGroupFlag is the flag name for SkipAPIServerCheckForGroup below.
+	NoAPIServerCheckForGroupFlag = "no-api-server-check-for-group"
+
 	// OutputYAML specifies exporting the output in YAML format.
 	OutputYAML = "yaml"
 
@@ -63,6 +66,9 @@ var (
 
 	// SkipAPIServer directs whether to try to contact the API Server for checks.
 	SkipAPIServer bool
+
+	// SkipAPIServerCheckForGroup contains the list of API Groups to skip API server validation for.
+	SkipAPIServerCheckForGroup []string
 
 	// SourceFormat indicates the format of the Git repository.
 	SourceFormat string
@@ -99,6 +105,12 @@ func AddPath(cmd *cobra.Command) {
 func AddSkipAPIServerCheck(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&SkipAPIServer, SkipAPIServerFlag, false,
 		"If true, disables talking to the API Server for discovery.")
+}
+
+// AddNoAPIServerCheckForGroup adds the --no-api-server-check-for-group flag.
+func AddNoAPIServerCheckForGroup(cmd *cobra.Command) {
+	cmd.Flags().StringSliceVar(&SkipAPIServerCheckForGroup, NoAPIServerCheckForGroupFlag, nil,
+		"Accepts a comma-separated list of API Groups will be skipped during processing")
 }
 
 // AllClusters returns true if all clusters should be processed.

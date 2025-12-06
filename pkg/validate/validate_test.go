@@ -46,6 +46,7 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/testing/discoverytest"
 	"github.com/GoogleContainerTools/config-sync/pkg/testing/openapitest"
 	"github.com/GoogleContainerTools/config-sync/pkg/util/discovery"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/fileobjects"
 	"github.com/GoogleContainerTools/config-sync/pkg/validate/raw/validate"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -249,7 +250,7 @@ func TestHierarchical(t *testing.T) {
 		{
 			name: "CR without CRD and allow unknown kinds",
 			options: Options{
-				AllowUnknownKinds: true,
+				AllowUnknownKindMatcher: &fileobjects.MatchAll{},
 			},
 			objs: []ast.FileObject{
 				k8sobjects.Repo(),
@@ -1244,6 +1245,70 @@ func TestUnstructured(t *testing.T) {
 					csmetadata.WithManagementMode(csmetadata.ManagementDisabled),
 					core.Annotation(csmetadata.SourcePathAnnotationKey, dir+"/foo/validator.yaml")),
 			},
+		},
+		{
+			name: "CR without CRD and skip unknown kinds",
+			options: Options{
+				Scope: declared.RootScope,
+				AllowUnknownKindMatcher: &fileobjects.GroupMatcher{
+					Groups: []string{"anthos.cloud.google.com"},
+				},
+			},
+			objs: []ast.FileObject{
+				k8sobjects.UnstructuredAtPath(
+					schema.GroupVersionKind{
+						Group:   "anthos.cloud.google.com",
+						Version: "v1alpha1",
+						Kind:    "Foo",
+					},
+					"foo/foo.yaml",
+					core.Namespace("foo")),
+			},
+			want: []ast.FileObject{
+				k8sobjects.UnstructuredAtPath(
+					schema.GroupVersionKind{
+						Group:   "anthos.cloud.google.com",
+						Version: "v1alpha1",
+						Kind:    "Foo",
+					},
+					"foo/foo.yaml",
+					core.Namespace("foo"),
+					core.Label(csmetadata.DeclaredVersionLabel, "v1alpha1"),
+					core.Annotation(csmetadata.UnknownScopeAnnotationKey, csmetadata.UnknownScopeAnnotationValue),
+					core.Annotation(csmetadata.SourcePathAnnotationKey, dir+"/foo/foo.yaml")),
+			},
+		}, {
+			name: "CR without CRD and skip unknown kinds (no match)",
+			options: Options{
+				Scope: declared.RootScope,
+				AllowUnknownKindMatcher: &fileobjects.GroupMatcher{
+					Groups: []string{"no.match.google.com"},
+				},
+			},
+			objs: []ast.FileObject{
+				k8sobjects.UnstructuredAtPath(
+					schema.GroupVersionKind{
+						Group:   "anthos.cloud.google.com",
+						Version: "v1alpha1",
+						Kind:    "Foo",
+					},
+					"foo/foo.yaml",
+					core.Namespace("foo")),
+			},
+			want: []ast.FileObject{
+				k8sobjects.UnstructuredAtPath(
+					schema.GroupVersionKind{
+						Group:   "anthos.cloud.google.com",
+						Version: "v1alpha1",
+						Kind:    "Foo",
+					},
+					"foo/foo.yaml",
+					core.Namespace("foo"),
+					core.Label(csmetadata.DeclaredVersionLabel, "v1alpha1"),
+					core.Annotation(csmetadata.UnknownScopeAnnotationKey, csmetadata.UnknownScopeAnnotationValue),
+					core.Annotation(csmetadata.SourcePathAnnotationKey, dir+"/foo/foo.yaml")),
+			},
+			wantErrs: status.FakeMultiError(status.UnknownKindErrorCode),
 		},
 		{
 			name:    "duplicate objects fails",
