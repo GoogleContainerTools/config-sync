@@ -669,7 +669,7 @@ func (r *RootSyncReconciler) mapSecretToRootSyncs(ctx context.Context, secret cl
 		switch sRef.Name {
 		case rootSyncGitSecretName(&rs), rootSyncGitCACertSecretName(&rs),
 			rootSyncOCICACertSecretName(&rs), rootSyncHelmCACertSecretName(&rs),
-			rootSyncHelmSecretName(&rs):
+			rootSyncOCISecretName(&rs), rootSyncHelmSecretName(&rs):
 			attachedRSNames = append(attachedRSNames, rs.GetName())
 			requests = append(requests, reconcile.Request{
 				NamespacedName: client.ObjectKeyFromObject(&rs),
@@ -746,6 +746,19 @@ func rootSyncHelmSecretName(rs *v1beta1.RootSync) string {
 		return ""
 	}
 	return rs.Spec.Helm.SecretRef.Name
+}
+
+func rootSyncOCISecretName(rs *v1beta1.RootSync) string {
+	if rs == nil {
+		return ""
+	}
+	if rs.Spec.Oci == nil {
+		return ""
+	}
+	if rs.Spec.Oci.SecretRef == nil {
+		return ""
+	}
+	return rs.Spec.Oci.SecretRef.Name
 }
 
 func (r *RootSyncReconciler) populateContainerEnvs(ctx context.Context, rs *v1beta1.RootSync, reconcilerName string) (map[string][]corev1.EnvVar, error) {
@@ -1115,6 +1128,7 @@ func (r *RootSyncReconciler) mutationsFor(ctx context.Context, rs *v1beta1.RootS
 		case configsync.OciSource:
 			auth = rs.Spec.Oci.Auth
 			gcpSAEmail = rs.Spec.Oci.GCPServiceAccountEmail
+			secretRefName = v1beta1.GetSecretName(rs.Spec.Oci.SecretRef)
 			caCertSecretRefName = v1beta1.GetSecretName(rs.Spec.Oci.CACertSecretRef)
 		case configsync.HelmSource:
 			auth = rs.Spec.Helm.Auth
@@ -1191,6 +1205,9 @@ func (r *RootSyncReconciler) mutationsFor(ctx context.Context, rs *v1beta1.RootS
 				} else {
 					container.Env = append(container.Env, containerEnvs[container.Name]...)
 					container.VolumeMounts = volumeMounts(rs.Spec.Oci.Auth, caCertSecretRefName, rs.Spec.SourceType, container.VolumeMounts)
+					if authTypeToken(rs.Spec.Oci.Auth) {
+						container.Env = append(container.Env, ociSyncTokenAuthEnv(secretRefName)...)
+					}
 					injectFWICredsToContainer(&container, injectFWICreds)
 				}
 			case reconcilermanager.HelmSync:
