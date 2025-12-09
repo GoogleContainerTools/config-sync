@@ -37,6 +37,9 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
 	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
 	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	rgmetrics "github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/metrics"
+	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
+	prometheusmodel "github.com/prometheus/common/model"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -755,6 +758,241 @@ func deleteObject(nt *nomostest.NT, obj client.Object) error {
 		return err
 	}
 	return nil
+}
+
+// TestReconcilerFinalizer_ResourceGroupMetricsReset tests that when a ResourceGroup
+// is deleted, all resource-related metrics are reset to 0.
+func TestReconcilerFinalizer_ResourceGroupMetricsReset(t *testing.T) {
+	nt := nomostest.New(t, nomostesting.MultiRepos,
+		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured))
+	rootSyncID := nomostest.DefaultRootSyncID
+	rootSyncKey := rootSyncID.ObjectKey
+	rootSyncGitRepo := nt.SyncSourceGitReadWriteRepository(rootSyncID)
+
+	deployment1NN := types.NamespacedName{Name: "helloworld-1", Namespace: testNs}
+	namespace1NN := types.NamespacedName{Name: testNs}
+	safetyNamespace1NN := types.NamespacedName{Name: rootSyncGitRepo.SafetyNSName}
+
+	nt.T.Cleanup(func() {
+		cleanupSingleLevel(nt,
+			rootSyncKey,
+			deployment1NN,
+			namespace1NN, safetyNamespace1NN)
+	})
+
+	// Add namespace to RootSync
+	namespace1 := k8sobjects.NamespaceObject(namespace1NN.Name)
+	nt.Must(rootSyncGitRepo.Add(nomostest.StructuredNSPath(namespace1NN.Name, namespace1NN.Name), namespace1))
+
+	// Add deployment-helloworld-1 to RootSync
+	deployment1Path := nomostest.StructuredNSPath(deployment1NN.Namespace, "deployment-helloworld-1")
+	deployment1 := loadDeployment(nt, "../testdata/deployment-helloworld.yaml")
+	deployment1.SetName(deployment1NN.Name)
+	deployment1.SetNamespace(deployment1NN.Namespace)
+	nt.Must(rootSyncGitRepo.Add(deployment1Path, deployment1))
+	nt.Must(rootSyncGitRepo.CommitAndPush("Adding deployment helloworld-1 to RootSync"))
+	nt.Must(nt.WatchForAllSyncs())
+	nt.Must(nt.Watcher.WatchForCurrentStatus(kinds.Deployment(), deployment1.Name, deployment1.Namespace))
+
+	// Wait for ResourceGroup to be reconciled and metrics to be recorded
+	nt.Must(nt.Watcher.WatchObject(kinds.ResourceGroup(), rootSyncKey.Name, rootSyncKey.Namespace,
+		testwatcher.WatchPredicates(
+			testpredicates.StatusEquals(nt.Scheme, kstatus.CurrentStatus),
+		)))
+
+	nt.T.Log("Verifying resourcegroup metrics are non-zero before deletion")
+	nt.Must(validateResourceGroupMetricsNonZero(nt, rootSyncKey))
+
+	// Tail reconciler logs and print if there's an error.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go nomostest.TailReconcilerLogs(ctx, nt, nomostest.RootReconcilerObjectKey(rootSyncKey.Name))
+
+	// Delete the RootSync
+	nt.T.Log("Deleting RootSync")
+	rootSync := k8sobjects.RootSyncObjectV1Beta1(rootSyncKey.Name)
+	err := nt.KubeClient.Delete(rootSync)
+	if err != nil {
+		nt.T.Fatal(err)
+	}
+
+	nt.Must(nt.Watcher.WatchForNotFound(kinds.ResourceGroup(), rootSyncKey.Name, rootSyncKey.Namespace))
+
+	// Verify resourcegroup metrics are reset to 0
+	nt.T.Log("Verifying resourcegroup metrics are reset to 0 after deletion")
+	nt.Must(validateResourceGroupMetricsReset(nt, rootSyncKey))
+}
+
+// validateResourceGroupMetricsNonZero verifies that resourcegroup metrics are non-zero
+func validateResourceGroupMetricsNonZero(nt *nomostest.NT, rgNN types.NamespacedName) error {
+	return nomostest.ValidateMetrics(nt,
+		resourceGroupMetricHasValueAtLeast(nt, rgmetrics.ResourceCountName, rgNN, 1),
+		resourceGroupMetricHasValueAtLeast(nt, rgmetrics.ReadyResourceCountName, rgNN, 1),
+		resourceGroupMetricHasValueAtLeast(nt, rgmetrics.NamespaceCountName, rgNN, 1),
+	)
+}
+
+// validateResourceGroupMetricsReset verifies that all resourcegroup metrics are reset to 0
+func validateResourceGroupMetricsReset(nt *nomostest.NT, rgNN types.NamespacedName) error {
+	return nomostest.ValidateMetrics(nt,
+		resourceGroupMetricHasValue(nt, rgmetrics.ResourceCountName, rgNN, 0),
+		resourceGroupMetricHasValue(nt, rgmetrics.ReadyResourceCountName, rgNN, 0),
+		resourceGroupMetricHasValue(nt, rgmetrics.NamespaceCountName, rgNN, 0),
+		resourceGroupMetricHasValue(nt, rgmetrics.ClusterScopedResourceCountName, rgNN, 0),
+		resourceGroupMetricHasValue(nt, rgmetrics.CRDCountName, rgNN, 0),
+		resourceGroupMetricHasValue(nt, rgmetrics.KCCResourceCountName, rgNN, 0),
+		resourceGroupMetricHasValue(nt, rgmetrics.PipelineErrorName, rgNN, 0),
+	)
+}
+
+const (
+	prometheusConfigSyncMetricPrefix = "config_sync_"
+)
+
+// resourceGroupMetricHasValue returns a MetricsPredicate that validates a resourcegroup metric has the expected value.
+// If the expected value is zero, the metric must be zero or not found.
+func resourceGroupMetricHasValue(nt *nomostest.NT, metricName string, rgNN types.NamespacedName, value int64) nomostest.MetricsPredicate {
+	return func(ctx context.Context, v1api prometheusv1.API) error {
+		fullMetricName := fmt.Sprintf("%s%s", prometheusConfigSyncMetricPrefix, metricName)
+		labels := prometheusmodel.LabelSet{
+			prometheusmodel.LabelName("resourcegroup"): prometheusmodel.LabelValue(rgNN.String()),
+		}
+		query := fmt.Sprintf("%s%s", fullMetricName, labels)
+		return validateResourceGroupMetricValue(ctx, nt, v1api, query, float64(value), value == 0)
+	}
+}
+
+// resourceGroupMetricHasValueAtLeast returns a MetricsPredicate that validates a resourcegroup metric has at least the expected value.
+func resourceGroupMetricHasValueAtLeast(nt *nomostest.NT, metricName string, rgNN types.NamespacedName, value int64) nomostest.MetricsPredicate {
+	return func(ctx context.Context, v1api prometheusv1.API) error {
+		fullMetricName := fmt.Sprintf("%s%s", prometheusConfigSyncMetricPrefix, metricName)
+		labels := prometheusmodel.LabelSet{
+			prometheusmodel.LabelName("resourcegroup"): prometheusmodel.LabelValue(rgNN.String()),
+		}
+		query := fmt.Sprintf("%s%s", fullMetricName, labels)
+		return validateResourceGroupMetricValueAtLeast(ctx, nt, v1api, query, float64(value))
+	}
+}
+
+// validateResourceGroupMetricValue validates that a metric has the expected value.
+// If allowMissing is true and the metric doesn't exist, it's considered valid (for zero values).
+func validateResourceGroupMetricValue(ctx context.Context, nt *nomostest.NT, v1api prometheusv1.API, query string, value float64, allowMissing bool) error {
+	response, err := metricQueryNow(ctx, nt, v1api, query)
+	if err != nil {
+		if allowMissing {
+			return nil // Missing metric is acceptable when expecting zero
+		}
+		return err
+	}
+
+	switch result := response.(type) {
+	case prometheusmodel.Vector:
+		if len(result) == 0 {
+			if allowMissing {
+				return nil // No results is acceptable when expecting zero
+			}
+			return fmt.Errorf("no results from prometheus query: %s", query)
+		}
+		nt.Logger.Debugf("prometheus vector response:\n%s", result)
+		for _, sample := range result {
+			if sample.Value.Equal(prometheusmodel.SampleValue(value)) {
+				return nil
+			}
+		}
+		var values []prometheusmodel.SampleValue
+		for _, sample := range result {
+			values = append(values, sample.Value)
+		}
+		return fmt.Errorf("value %v not found in vector response %v for query: %s", value, values, query)
+	case prometheusmodel.Matrix:
+		if len(result) == 0 {
+			if allowMissing {
+				return nil // No results is acceptable when expecting zero
+			}
+			return fmt.Errorf("no results from prometheus query: %s", query)
+		}
+		nt.Logger.Debugf("prometheus matrix response:\n%s", result)
+		for _, samples := range result {
+			for _, sample := range samples.Values {
+				if sample.Value.Equal(prometheusmodel.SampleValue(value)) {
+					return nil
+				}
+			}
+		}
+		var values []prometheusmodel.SampleValue
+		for _, samples := range result {
+			for _, sample := range samples.Values {
+				values = append(values, sample.Value)
+			}
+		}
+		return fmt.Errorf("value %v not found in matrix response %v for query: %s", value, values, query)
+	default:
+		return fmt.Errorf("unsupported prometheus response: %T", response)
+	}
+}
+
+// validateResourceGroupMetricValueAtLeast validates that a metric has at least the expected value.
+func validateResourceGroupMetricValueAtLeast(ctx context.Context, nt *nomostest.NT, v1api prometheusv1.API, query string, value float64) error {
+	response, err := metricQueryNow(ctx, nt, v1api, query)
+	if err != nil {
+		return err
+	}
+
+	switch result := response.(type) {
+	case prometheusmodel.Vector:
+		if len(result) == 0 {
+			return fmt.Errorf("no results from prometheus query: %s", query)
+		}
+		nt.Logger.Debugf("prometheus vector response:\n%s", result)
+		for _, sample := range result {
+			if sample.Value >= prometheusmodel.SampleValue(value) {
+				return nil
+			}
+		}
+		var values []prometheusmodel.SampleValue
+		for _, sample := range result {
+			values = append(values, sample.Value)
+		}
+		return fmt.Errorf("value %v not found in vector response %v for query: %s", value, values, query)
+	case prometheusmodel.Matrix:
+		if len(result) == 0 {
+			return fmt.Errorf("no results from prometheus query: %s", query)
+		}
+		nt.Logger.Debugf("prometheus matrix response:\n%s", result)
+		for _, samples := range result {
+			for _, sample := range samples.Values {
+				if sample.Value >= prometheusmodel.SampleValue(value) {
+					return nil
+				}
+			}
+		}
+		var values []prometheusmodel.SampleValue
+		for _, samples := range result {
+			for _, sample := range samples.Values {
+				values = append(values, sample.Value)
+			}
+		}
+		return fmt.Errorf("value %v not found in matrix response %v for query: %s", value, values, query)
+	default:
+		return fmt.Errorf("unsupported prometheus response: %T", response)
+	}
+}
+
+// metricQueryNow performs the specified query with the default timeout.
+func metricQueryNow(ctx context.Context, nt *nomostest.NT, v1api prometheusv1.API, query string) (prometheusmodel.Value, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	nt.Logger.Debugf("prometheus query: %s", query)
+	response, warnings, err := v1api.Query(ctx, query, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	if len(warnings) > 0 {
+		nt.T.Logf("prometheus warnings: %v", warnings)
+	}
+
+	return response, nil
 }
 
 func loadDeployment(nt *nomostest.NT, path string) *appsv1.Deployment {

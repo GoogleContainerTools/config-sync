@@ -88,6 +88,10 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	err := r.client.Get(ctx, req.NamespacedName, rgObj)
 	if err != nil {
 		if errors.IsNotFound(err) {
+			// ResourceGroup has been deleted, reset all resource metrics to zero
+			// This ensures the metrics stop being emitted and can expire
+			r.Logger(ctx).V(3).Info("ResourceGroup not found, resetting all metrics")
+			resetResourceMetrics(ctx, req.NamespacedName)
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
@@ -95,6 +99,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	if rgObj.DeletionTimestamp != nil {
 		r.Logger(ctx).V(3).Info("Skipping ResourceGroup status update: ResourceGroup being deleted")
+		// ResourceGroup is being deleted, reset all resource metrics to zero
+		// This ensures the metrics stop being emitted and can expire
+		resetResourceMetrics(ctx, req.NamespacedName)
 		return ctrl.Result{}, nil
 	}
 
@@ -160,6 +167,18 @@ func updateResourceMetrics(ctx context.Context, nn types.NamespacedName, statuse
 	metrics.RecordClusterScopedResourceCount(ctx, nn, int64(clusterScopedCount))
 	metrics.RecordCRDCount(ctx, nn, int64(len(crds)))
 	metrics.RecordKCCResourceCount(ctx, nn, int64(kccCount))
+}
+
+// resetResourceMetrics resets all resource metrics to zero when a ResourceGroup is deleted.
+// This ensures the metrics stop being emitted and can expire.
+func resetResourceMetrics(ctx context.Context, nn types.NamespacedName) {
+	metrics.RecordReadyResourceCount(ctx, nn, 0)
+	metrics.RecordResourceCount(ctx, nn, 0)
+	metrics.RecordNamespaceCount(ctx, nn, 0)
+	metrics.RecordClusterScopedResourceCount(ctx, nn, 0)
+	metrics.RecordCRDCount(ctx, nn, 0)
+	metrics.RecordKCCResourceCount(ctx, nn, 0)
+	metrics.RecordPipelineError(ctx, nn, readinessComponent, false)
 }
 
 // updateStatusKptGroup updates the ResourceGroup status.
