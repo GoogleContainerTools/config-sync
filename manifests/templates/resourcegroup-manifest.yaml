@@ -171,11 +171,7 @@ data:
       # the GCE metadata service, if available.
       resourcedetection:
         detectors: [env, gcp]
-    extensions:
-      health_check:
-        endpoint: 0.0.0.0:13133
     service:
-      extensions: [health_check]
       pipelines:
         metrics:
           receivers: [otlp]
@@ -279,11 +275,6 @@ spec:
         - containerPort: 4317 # OTLP gRPC receiver port
         - containerPort: 4318 # OTLP HTTP receiver port
         - containerPort: 8888
-        - containerPort: 13133
-        readinessProbe:
-          httpGet:
-            path: /
-            port: 13133
         resources:
           requests:
             cpu: 10m
