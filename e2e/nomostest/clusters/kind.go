@@ -40,7 +40,7 @@ const (
 
 	// maxKindTries is the number of times to attempt to create a Kind cluster for
 	// a single test.
-	maxKindTries = 6
+	maxKindTries = 2
 )
 
 // KindCluster is a kind cluster for use in the e2e tests
@@ -171,6 +171,7 @@ func createKindCluster(p *cluster.Provider, name, kcfgPath string) error {
 				KubeadmConfigPatches: []string{
 					`
 kind: ClusterConfiguration
+apiVersion: kubeadm.k8s.io/v1beta3
 etcd:
   local:
     dataDir: /tmp/etcd
