@@ -20,7 +20,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
-	"time"
 
 	"github.com/GoogleContainerTools/config-sync/e2e"
 	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/docker"
@@ -83,7 +82,7 @@ func (c *KindCluster) Create() error {
 	c.initProvider()
 	tg := taskgroup.New()
 	tg.Go(func() error {
-		return createKindCluster(c.provider, c.Name, c.KubeConfigPath)
+		return createKindCluster(c.provider, c.Name, c.KubeConfigPath, c)
 	})
 	tg.Go(func() error {
 		return pullImages()
@@ -132,7 +131,7 @@ func (c *KindCluster) Hash() (string, error) {
 	return "N/A for KinD cluster", nil
 }
 
-func createKindCluster(p *cluster.Provider, name, kcfgPath string) error {
+func createKindCluster(p *cluster.Provider, name, kcfgPath string, c *KindCluster) error {
 	var err error
 	for i := 0; i < maxKindTries; i++ {
 		if i > 0 {
@@ -183,11 +182,12 @@ apiServer:
 			// Retain nodes for debugging logs.
 			cluster.CreateWithRetain(true),
 			// Wait for cluster to be ready before proceeding
-			cluster.CreateWithWaitForReady(10*time.Minute),
+			// cluster.CreateWithWaitForReady(10*time.Minute),
 		)
 		if err == nil {
 			return nil
 		}
+		c.T.Logf("Error occurred: %v", err)
 	}
 
 	// We failed to create the cluster maxKindTries times, so fail out.
