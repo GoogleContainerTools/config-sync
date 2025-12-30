@@ -181,7 +181,22 @@ func (g *ReadWriteRepository) Git(command ...string) ([]byte, error) {
 	args := []string{"git", "-C", g.Root}
 	args = append(args, command...)
 	g.Logger.Debugf("[repo %s] %s", path.Base(g.Root), strings.Join(args, " "))
-	out, err := exec.Command(args[0], args[1:]...).CombinedOutput()
+
+	cmd := exec.Command(args[0], args[1:]...)
+	// For SSH operations, set GIT_SSH_COMMAND to ensure git uses our SSH command
+	// This ensures the SSH command is used even if git config wasn't set correctly
+	if g.PrivateKeyPath != "" && len(command) > 0 {
+		cmdName := command[0]
+		if cmdName == "push" || cmdName == "pull" || cmdName == "fetch" || cmdName == "clone" {
+			// Build the SSH command directly instead of reading from git config
+			// This ensures it's always set correctly for OpenSSH 10.2+ compatibility
+			sshCommand := fmt.Sprintf("ssh -F /dev/null -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o CheckHostIP=no -o BatchMode=yes -o VerifyHostKeyDNS=no -o GlobalKnownHostsFile=/dev/null -o IdentitiesOnly=yes -i %s",
+				g.PrivateKeyPath)
+			cmd.Env = append(os.Environ(), "GIT_SSH_COMMAND="+sshCommand)
+		}
+	}
+	out, err := cmd.CombinedOutput()
+	// out, err := exec.Command(args[0], args[1:]...).CombinedOutput()
 	if err != nil {
 		if !g.Logger.IsDebugEnabled() {
 			g.Logger.Infof("[repo %s] %s", path.Base(g.Root), strings.Join(args, " "))
