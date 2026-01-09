@@ -82,7 +82,6 @@ spec:
         - containerPort: 4317 # OTLP gRPC receiver port.
         - containerPort: 4318 # OTLP HTTP receiver port.
         - containerPort: 8888  # Metrics.
-        - containerPort: 13133 # Health check
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
@@ -92,10 +91,6 @@ spec:
         volumeMounts:
         - name: otel-agent-config-vol
           mountPath: /conf
-        readinessProbe:
-          httpGet:
-            path: /
-            port: 13133 # Health Check extension default port.
         # These KUBE env vars help populate OTEL_RESOURCE_ATTRIBUTES which
         # is used by the otel-agent to populate resource attributes when
         # emiting metrics to the otel-collector. This is more efficient than
