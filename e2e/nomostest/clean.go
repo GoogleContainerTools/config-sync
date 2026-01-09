@@ -78,7 +78,7 @@ func Clean(nt *NT) error {
 	// This should help avoid deletion ordering edge cases.
 	running, err := isReconcilerManagerHealthy(nt)
 	if err != nil {
-		return err
+		return fmt.Errorf(`failed to check reconciler-manager status: %v`, err)
 	}
 	if running {
 		if err := uninstallAllPackages(nt); err != nil {
@@ -87,64 +87,67 @@ func Clean(nt *NT) error {
 	}
 	// Delete lingering APIService, as this will cause API discovery to fail
 	if err := deleteTestAPIServices(nt); err != nil {
-		return err
+		return fmt.Errorf(`failed to delete APIService: %v`, err)
 	}
 	// Delete remote repos that were created 24 hours ago on the Git provider.
 	if err := nt.GitProvider.DeleteObsoleteRepos(); err != nil {
-		return err
+		return fmt.Errorf(`failed to delete obsolete remote repos: %v`, err)
 	}
 	// Uninstall prometheus components
 	if err := uninstallPrometheus(nt); err != nil {
-		return err
+		return fmt.Errorf("failed to uninstall Prometheus: %v", err)
 	}
 	// The admission-webhook prevents deleting test resources. Hence we delete it before cleaning other resources.
 	if err := deleteAdmissionWebhook(nt); err != nil {
-		return err
+		return fmt.Errorf(`failed to delete admission webhook: %v`, err)
 	}
 	// Delete the reconciler-manager to stop reconcilers from being updated/re-created
 	if err := deleteReconcilerManager(nt); err != nil {
-		return err
+		return fmt.Errorf(`failed to delete reconciler-manager: %v`, err)
 	}
 	// Delete the reconcilers to stop syncing
 	if err := deleteReconcilersBySyncKind(nt, configsync.RepoSyncKind); err != nil {
-		return err
+		return fmt.Errorf(`failed to delete RepoSync reconcilers: %v`, err)
 	}
 	if err := deleteReconcilersBySyncKind(nt, configsync.RootSyncKind); err != nil {
-		return err
+		return fmt.Errorf(`failed to delete RootSync reconcilers: %v`, err)
 	}
 	// Delete RSync finalizers to unblock namespace deletion.
 	if err := disableRepoSyncDeletionPropagation(nt); err != nil {
-		return err
+		return fmt.Errorf(`failed to delete RepoSync finalizers: %v`, err)
 	}
 	if err := disableRootSyncDeletionPropagation(nt); err != nil {
-		return err
+		return fmt.Errorf(`failed to delete RootSync finalizers: %v`, err)
 	}
 	// Completely uninstall any remaining config-sync components
 	if err := uninstallConfigSync(nt); err != nil {
-		return err
+		return fmt.Errorf(`failed to uninstall Config Sync: %v`, err)
 	}
 	// Delete the resource-group-system namespace
 	if err := deleteResourceGroupController(nt); err != nil {
-		return err
+		return fmt.Errorf(`failed to delete resource group controller: %v`, err)
 	}
 	// Reset any modified system namespaces.
 	if err := resetSystemNamespaces(nt); err != nil {
-		return err
+		return fmt.Errorf(`failed to reset system namespaces: %v`, err)
 	}
 	// Delete objects with the test label
 	if err := deleteTestObjectsAndWait(nt); err != nil {
-		return err
+		return fmt.Errorf("failed to delete test objects: %v", err)
 	}
 	// Delete namespaces with the managed-by label
 	if err := deleteManagedNamespacesAndWait(nt); err != nil {
-		return err
+		return fmt.Errorf("failed to delete managed namespaces: %v", err)
 	}
 	// Delete ClusterRoleBindings managed by reconciler-manager
 	if err := deleteManagedClusterRoleBindingsAndWait(nt); err != nil {
-		return err
+		return fmt.Errorf(`failed to delete managed ClusterRoleBindings: %v`, err)
 	}
 	// Delete namespaces with the detach annotation
-	return deleteImplicitNamespacesAndWait(nt)
+	if err := deleteImplicitNamespacesAndWait(nt); err != nil {
+		return fmt.Errorf("failed to delete implicit namespaces: %v", err)
+	}
+	return nil
 }
 
 func isReconcilerManagerHealthy(nt *NT) (bool, error) {
