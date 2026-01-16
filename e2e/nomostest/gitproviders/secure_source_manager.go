@@ -42,6 +42,8 @@ type SSMClient struct {
 	region string
 	// repoPrefix is used to avoid overlap
 	repoPrefix string
+	// uniqueID is used to ensure the repository name is unique per test case
+	uniqueID string
 	// shell used for invoking CLI tools
 	shell *testshell.TestShell
 }
@@ -49,19 +51,24 @@ type SSMClient struct {
 var _ GitProvider = &SSMClient{}
 
 // newSSMClient instantiates a new SSM client.
-func newSSMClient(repoPrefix string, shell *testshell.TestShell, projectNumber string) *SSMClient {
+func newSSMClient(repoPrefix string, shell *testshell.TestShell, projectNumber string, uniqueID string) *SSMClient {
 	return &SSMClient{
 		project:       *e2e.GCPProject,
 		instanceID:    testing.SSMInstanceID,
 		region:        *e2e.SSMInstanceRegion,
 		repoPrefix:    repoPrefix,
+		uniqueID:      uniqueID,
 		shell:         shell,
 		projectNumber: projectNumber,
 	}
 }
 
 func (c *SSMClient) fullName(name string) string {
-	return util.SanitizeGCPRepoName(c.repoPrefix, name)
+	full := util.SanitizeGCPRepoName(c.repoPrefix, name)
+	if c.uniqueID != "" {
+		full = fmt.Sprintf("%s-%s", full, c.uniqueID)
+	}
+	return full
 }
 
 // Type returns the provider type.
@@ -135,9 +142,8 @@ func (c *SSMClient) DeleteRepositories(names ...string) error {
 	return nil
 }
 
-// DeleteObsoleteRepos is a no-op because SSM repo names are determined by the
-// test cluster name and RSync namespace and name, so it can be reused if it
-// failed to be deleted after the test.
+// DeleteObsoleteRepos is a no-op because SSM repo names are unique per test
+// run and should be cleaned up at the end of the test.
 func (c *SSMClient) DeleteObsoleteRepos() error {
 	return nil
 }
