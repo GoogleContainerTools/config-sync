@@ -121,17 +121,11 @@ func (c *SSMClient) CreateRepository(name string) (string, error) {
 	return fullName, nil
 }
 
-// DeleteRepositories calls the gcloud SDK to delete the provided repositories from SSM.
-func (c *SSMClient) DeleteRepositories(names ...string) error {
-	for _, name := range names {
-		_, err := c.shell.ExecWithDebug("gcloud", "beta", "source-manager", "repos",
-			"delete", name,
-			"--region", c.region,
-			"--project", c.project)
-		if err != nil {
-			return fmt.Errorf("deleting source repository: %w", err)
-		}
-	}
+// DeleteRepositories is a no-op because SSM repo names are determined by the
+// test cluster name and RSync namespace and name, so it can be reused if it
+// failed to be deleted after the test.
+func (c *SSMClient) DeleteRepositories(_ ...string) error {
+	c.shell.Logger.Info("[SSM] Skip deletion of repos")
 	return nil
 }
 
