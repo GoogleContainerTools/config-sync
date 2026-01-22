@@ -130,3 +130,8 @@ func (e SubResourceErrorClient) Update(_ context.Context, _ client.Object, _ ...
 func (e SubResourceErrorClient) Patch(_ context.Context, _ client.Object, _ client.Patch, _ ...client.SubResourcePatchOption) error {
 	return e.error
 }
+
+// Apply implements client.SubResourceWriter
+func (e SubResourceErrorClient) Apply(ctx context.Context, obj runtime.ApplyConfiguration, opts ...client.SubResourceApplyOption) error {
+	return e.error
+}
