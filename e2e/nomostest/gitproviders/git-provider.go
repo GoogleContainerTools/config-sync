@@ -74,7 +74,8 @@ func NewGitProvider(t testing.NTB, provider, clusterName string, logger *testlog
 
 		projectNumber := strings.Split(string(out), "\n")[0]
 
-		return newSSMClient(clusterName, shell, projectNumber)
+		// Add suffix for repoPrefix to fix SSM testgrid failure
+		return newSSMClient(clusterName+"-v2", shell, projectNumber)
 	default:
 		return &LocalProvider{}
 	}
