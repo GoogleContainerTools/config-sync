@@ -132,6 +132,6 @@ func (e SubResourceErrorClient) Patch(_ context.Context, _ client.Object, _ clie
 }
 
 // Apply implements client.SubResourceWriter
-func (e SubResourceErrorClient) Apply(ctx context.Context, obj runtime.ApplyConfiguration, opts ...client.SubResourceApplyOption) error {
+func (e SubResourceErrorClient) Apply(_ context.Context, _ runtime.ApplyConfiguration, _ ...client.SubResourceApplyOption) error {
 	return e.error
 }
