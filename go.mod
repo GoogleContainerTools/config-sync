@@ -41,7 +41,7 @@ require (
 	go.uber.org/zap v1.27.1
 	golang.org/x/exp v0.0.0-20241217172543-b2144cdd0a67
 	golang.org/x/mod v0.32.0
-	google.golang.org/api v0.261.0
+	google.golang.org/api v0.262.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.34.3
 	k8s.io/apiextensions-apiserver v0.34.3
