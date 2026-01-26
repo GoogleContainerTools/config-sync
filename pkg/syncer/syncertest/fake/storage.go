@@ -43,6 +43,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/cli-utils/pkg/testutil"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -1041,10 +1042,66 @@ func (ms *MemoryStorage) Watch(_ context.Context, exampleList client.ObjectList,
 	klog.V(6).Infof("Watching %s (Options: %+v)",
 		kinds.ObjectSummary(exampleList), opts)
 	watcher := NewWatcher(ms.watchSupervisor, gvk.GroupKind(), exampleList, opts)
-	// TODO: Should Client.Watch's context.Done cancel the background stream or just the initial request?
-	// If yes, StartWatcher needs to take a context.
-	// client-go's FakeDynamicClient.Watch seems to just ignore the context, so that's what we're doing here too.
-	watcher.Start(context.Background())
+
+	if opts.Raw != nil && ptr.Deref(opts.Raw.SendInitialEvents, false) {
+		// Start the watcher before sending initial events, so it's ready to receive them.
+		watcher.Start(context.Background())
+
+		// Send initial events asynchronously to avoid blocking the Watch call.
+		go func() {
+			ms.lock.RLock()
+			defer ms.lock.RUnlock()
+
+			// Get the current set of objects
+			for _, obj := range ms.listObjects(gvk.GroupKind()) {
+				// Convert to a unstructured object with optional version conversion
+				uObj, err := kinds.ToUnstructuredWithVersion(obj, gvk, ms.scheme)
+				if err != nil {
+					klog.Errorf("Failed to convert object for initial watch events: %v", err)
+					continue
+				}
+				// Skip objects that don't match the ListOptions filters
+				ok, err := matchesListFilters(uObj, opts, ms.scheme)
+				if err != nil {
+					klog.Errorf("Failed to filter object for initial watch events: %v", err)
+					continue
+				}
+				if !ok {
+					continue
+				}
+				// Send synthetic Added event
+				watcher.inCh <- watch.Event{
+					Type:   watch.Added,
+					Object: uObj,
+				}
+			}
+
+			// Send bookmark marking end of initial events.
+			// Reflector requires this to consider the watch synced when using SendInitialEvents.
+			bookmarkObj, err := kinds.NewObjectForGVK(gvk, ms.scheme)
+			if err != nil {
+				klog.Errorf("Failed to create bookmark object for initial watch events: %v", err)
+				return
+			}
+			cObj, err := kinds.ObjectAsClientObject(bookmarkObj)
+			if err != nil {
+				klog.Errorf("Failed to convert bookmark object to client object for initial watch events: %v", err)
+				return
+			}
+			// Use an empty ResourceVersion if none was specified
+			cObj.SetResourceVersion(opts.Raw.ResourceVersion)
+			core.SetAnnotation(cObj, metav1.InitialEventsAnnotationKey, "true")
+			watcher.inCh <- watch.Event{
+				Type:   watch.Bookmark,
+				Object: cObj,
+			}
+		}()
+	} else {
+		// TODO: Should Client.Watch's context.Done cancel the background stream or just the initial request?
+		// If yes, StartWatcher needs to take a context.
+		// client-go's FakeDynamicClient.Watch seems to just ignore the context, so that's what we're doing here too.
+		watcher.Start(context.Background())
+	}
 	return watcher, nil
 }
 

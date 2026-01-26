@@ -119,7 +119,7 @@ func (c *Cache) Start(ctx context.Context) error {
 	<-ctx.Done()
 
 	c.mux.RLock()
-	defer c.mux.RLock()
+	defer c.mux.RUnlock()
 	// Stop the informers
 	c.informerCtxCancel()
 
@@ -129,6 +129,14 @@ func (c *Cache) Start(ctx context.Context) error {
 // WaitForCacheSync returns true when the cached informers are all synced.
 // Returns false if the context is done first.
 func (c *Cache) WaitForCacheSync(ctx context.Context) bool {
+	if !c.waitForStart(ctx) {
+		return false
+	}
+
+	return k8scache.WaitForCacheSync(ctx.Done(), c.HasSyncedFuncs()...)
+}
+
+func (c *Cache) waitForStart(ctx context.Context) bool {
 	select {
 	case <-c.startWait:
 		return true
