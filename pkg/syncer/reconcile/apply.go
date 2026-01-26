@@ -113,6 +113,8 @@ func (c *clientApplier) Create(ctx context.Context, intendedState *unstructured.
 	if intendedState.GroupVersionKind().GroupKind() == kinds.APIService().GroupKind() {
 		err = c.create(ctx, intendedState)
 	} else {
+		//nolint:staticcheck // allow deprecated field for backwards compatibility
+		//TODO: Refactor to remove the usage of the deprecated field
 		if err1 := c.client.Patch(ctx, intendedState, client.Apply, client.FieldOwner(configsync.FieldManager)); err1 != nil {
 			switch {
 			case meta.IsNoMatchError(err1), apierrors.IsNotFound(err1):
@@ -249,6 +251,8 @@ func (c *clientApplier) update(ctx context.Context, intendedState, currentState 
 	objCopy := intendedState.DeepCopy()
 	// Run the server-side apply dryrun first.
 	// If the returned object doesn't change, skip running server-side apply.
+	//nolint:staticcheck // allow deprecated field for backwards compatibility
+	//TODO: Refactor to remove the usage of the deprecated field
 	err := c.client.Patch(ctx, objCopy, client.Apply, client.FieldOwner(configsync.FieldManager), client.ForceOwnership, client.DryRunAll)
 	if err != nil {
 		return nil, err
@@ -258,6 +262,8 @@ func (c *clientApplier) update(ctx context.Context, intendedState, currentState 
 	}
 
 	start := time.Now()
+	//nolint:staticcheck // allow deprecated field for backwards compatibility
+	//TODO: Refactor to remove the usage of the deprecated field
 	err = c.client.Patch(ctx, intendedState, client.Apply, client.FieldOwner(configsync.FieldManager), client.ForceOwnership)
 	duration := time.Since(start).Seconds()
 	metrics.APICallDuration.WithLabelValues("update", metrics.StatusLabel(err)).Observe(duration)

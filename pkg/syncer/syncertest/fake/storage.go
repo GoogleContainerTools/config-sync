@@ -984,6 +984,8 @@ func (ms *MemoryStorage) validatePatchOptions(opts *client.PatchOptions, patch c
 			return fmt.Errorf("invalid dry run option: %+v", opts.DryRun)
 		}
 	}
+	//nolint:staticcheck // allow deprecated field for backwards compatibility
+	//TODO: Refactor to remove the usage of the deprecated field
 	if patch != client.Apply && opts.Force != nil {
 		return fmt.Errorf("invalid force option: Forbidden: may not be specified for non-apply patch")
 	}

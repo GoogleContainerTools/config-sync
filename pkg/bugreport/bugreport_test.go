@@ -84,7 +84,7 @@ func TestNew(t *testing.T) {
 		{
 			name:             "no configmanagement object",
 			client:           fake.NewClientBuilder().WithScheme(core.Scheme).WithObjects().Build(),
-			clientset:        k8sfake.NewSimpleClientset(),
+			clientset:        k8sfake.NewClientset(),
 			expectedErrCount: 0,
 			expectedOutput:   "ConfigManagement object not found\n",
 			checkFn: func(t *testing.T, br *BugReporter) {
@@ -96,7 +96,7 @@ func TestNew(t *testing.T) {
 		{
 			name:             "multi-repo",
 			client:           fake.NewClientBuilder().WithObjects(cmMultiRepo).Build(),
-			clientset:        k8sfake.NewSimpleClientset(),
+			clientset:        k8sfake.NewClientset(),
 			expectedErrCount: 0,
 			expectedOutput:   "",
 			checkFn: func(t *testing.T, br *BugReporter) {
@@ -115,7 +115,7 @@ func TestNew(t *testing.T) {
 		{
 			name:             "mono-repo",
 			client:           fake.NewClientBuilder().WithObjects(cmMonoRepo).Build(),
-			clientset:        k8sfake.NewSimpleClientset(),
+			clientset:        k8sfake.NewClientset(),
 			expectedErrCount: 0,
 			expectedOutput: "\x1b[33mNotice: The cluster \"context\" is still running in the legacy mode.\n" +
 				"Run `nomos migrate` to enable multi-repo mode. " +
@@ -131,7 +131,7 @@ func TestNew(t *testing.T) {
 			name: "kubeconfig error",
 
 			client:           fake.NewClientBuilder().Build(),
-			clientset:        k8sfake.NewSimpleClientset(),
+			clientset:        k8sfake.NewClientset(),
 			expectedErrCount: 1,
 			expectedOutput:   "ConfigManagement object not found\n",
 			contextErr:       errors.New("context error"),
@@ -158,7 +158,7 @@ func TestNew(t *testing.T) {
 						}
 					},
 				}).Build(),
-			clientset:        k8sfake.NewSimpleClientset(),
+			clientset:        k8sfake.NewClientset(),
 			expectedErrCount: 0,
 			expectedOutput:   "kind <<ConfigManagement>> is not registered with the cluster\n",
 		},
@@ -170,7 +170,7 @@ func TestNew(t *testing.T) {
 						return errors.New("generic get error")
 					},
 				}).Build(),
-			clientset:        k8sfake.NewSimpleClientset(),
+			clientset:        k8sfake.NewClientset(),
 			expectedErrCount: 1,
 			expectedOutput:   "",
 		},
