@@ -254,30 +254,33 @@ func (fw *Watcher) handleEvents(ctx context.Context) {
 			// since those events are being sent on parallel goroutines.
 			if event.Type != watch.Error {
 				obj := event.Object.(client.Object)
-				// parse ResourceVersion as int
-				newRV, err := strconv.Atoi(obj.GetResourceVersion())
-				if err != nil {
-					err = fmt.Errorf("invalid ResourceVersion %q for object %s: %w", obj.GetResourceVersion(), kinds.ObjectSummary(obj), err)
-					fw.sendEvent(ctx, watch.Event{
-						Type:   watch.Error,
-						Object: &apierrors.NewInternalError(err).ErrStatus,
-					})
-					continue
-				}
-				uid := obj.GetUID()
-				if event.Type == watch.Modified {
-					oldRV := lastSeenVersions[uid]
-					if newRV <= oldRV {
-						// drop event - newer ResourceVersion already sent
-						klog.Warningf("Watcher.handleEvents: dropping event (old ResourceVersion): %s",
-							log.AsJSON(event))
+				rvStr := obj.GetResourceVersion()
+				if rvStr != "" {
+					// parse ResourceVersion as int
+					newRV, err := strconv.Atoi(rvStr)
+					if err != nil {
+						err = fmt.Errorf("invalid ResourceVersion %q for object %s: %w", rvStr, kinds.ObjectSummary(obj), err)
+						fw.sendEvent(ctx, watch.Event{
+							Type:   watch.Error,
+							Object: &apierrors.NewInternalError(err).ErrStatus,
+						})
 						continue
 					}
+					uid := obj.GetUID()
+					if event.Type == watch.Modified {
+						oldRV := lastSeenVersions[uid]
+						if newRV <= oldRV {
+							// drop event - newer ResourceVersion already sent
+							klog.Warningf("Watcher.handleEvents: dropping event (old ResourceVersion): %s",
+								log.AsJSON(event))
+							continue
+						}
+					}
+					// Store the last known ResourceVersion for future comparison.
+					// Store even if deleted, in case a modified event is received afterwards.
+					// TODO: Garbage collect uid entries after deletion (probably not necessary for unit tests)
+					lastSeenVersions[uid] = newRV
 				}
-				// Store the last known ResourceVersion for future comparison.
-				// Store even if deleted, in case a modified event is received afterwards.
-				// TODO: Garbage collect uid entries after deletion (probably not necessary for unit tests)
-				lastSeenVersions[uid] = newRV
 			}
 
 			// Input event received.
@@ -306,18 +309,21 @@ func (fw *Watcher) sendEvent(ctx context.Context, event watch.Event) {
 		}
 		event.Object = obj
 
-		// Check if input object matches list option filters
-		matches, err = matchesListFilters(event.Object, fw.options, fw.scheme)
-		if err != nil {
-			fw.sendEvent(ctx, watch.Event{
-				Type:   watch.Error,
-				Object: &apierrors.NewInternalError(err).ErrStatus,
-			})
-			return
-		}
-		if !matches {
-			// No match
-			return
+		// Check if input object matches list option filters.
+		// Skip for Bookmark events, as they may not match filters.
+		if event.Type != watch.Bookmark {
+			matches, err = matchesListFilters(event.Object, fw.options, fw.scheme)
+			if err != nil {
+				fw.sendEvent(ctx, watch.Event{
+					Type:   watch.Error,
+					Object: &apierrors.NewInternalError(err).ErrStatus,
+				})
+				return
+			}
+			if !matches {
+				// No match
+				return
+			}
 		}
 	}
 
