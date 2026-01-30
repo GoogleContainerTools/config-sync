@@ -25,6 +25,7 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -38,6 +39,14 @@ const testGitServerImage = testing.TestInfraArtifactRepositoryAddress + "/git-se
 const testGitHTTPServer = "http-git-server"
 const testGitHTTPServerImage = testing.TestInfraArtifactRepositoryAddress + "/http-git-server:v1.0.0-b3b4984cd"
 const safeToEvictAnnotation = "cluster-autoscaler.kubernetes.io/safe-to-evict"
+
+// Resource requirements for Autopilot clusters
+const (
+	gitServerCPURequest        = "100m"
+	gitServerMemoryRequest     = "128Mi"
+	httpGitServerCPURequest    = "50m"
+	httpGitServerMemoryRequest = "64Mi"
+)
 
 func testGitServerSelector() map[string]string {
 	// Note that maps are copied by reference into objects.
@@ -88,7 +97,7 @@ func setupGit(nt *NT) error {
 // The git-server almost always comes up before 40 seconds, but we give it a
 // full minute in the callback to be safe.
 func installGitServer(nt *NT) error {
-	objs := gitServer()
+	objs := gitServer(nt)
 
 	for _, o := range objs {
 		if err := nt.KubeClient.Apply(o); err != nil {
@@ -100,12 +109,12 @@ func installGitServer(nt *NT) error {
 	return nt.Watcher.WatchForCurrentStatus(kinds.Deployment(), testGitServer, testGitNamespace)
 }
 
-func gitServer() []client.Object {
+func gitServer(nt *NT) []client.Object {
 	// Remember that we've already created the git-server's Namespace since the
 	// SSH key must exist before we apply the Deployment.
 	objs := []client.Object{
 		gitService(),
-		gitDeployment(),
+		gitDeployment(nt),
 	}
 	return objs
 }
@@ -125,12 +134,94 @@ func gitService() *corev1.Service {
 	return service
 }
 
-func gitDeployment() *appsv1.Deployment {
+func gitDeployment(nt *NT) *appsv1.Deployment {
 	deployment := k8sobjects.DeploymentObject(core.Name(testGitServer),
 		core.Namespace(testGitNamespace),
 		core.Labels(testGitServerSelector()),
 	)
 	gitGID := int64(1000)
+
+	// Define containers with base configuration
+	containers := []corev1.Container{
+		{
+			Name:  testGitServer,
+			Image: testGitServerImage,
+			Ports: []corev1.ContainerPort{{ContainerPort: 22}},
+			VolumeMounts: []corev1.VolumeMount{
+				{Name: "keys", MountPath: "/git-server/keys"},
+				{Name: "repos", MountPath: "/git-server/repos"},
+			},
+			// Restart the container if 6 probes fail
+			LivenessProbe: newTCPSocketProbe(22, 6),
+			// Mark pod as unready if 2 probes fail
+			ReadinessProbe: newTCPSocketProbe(22, 2),
+		},
+		{
+			Name:  testGitHTTPServer,
+			Image: testGitHTTPServerImage,
+			Ports: []corev1.ContainerPort{{ContainerPort: 443}},
+			VolumeMounts: []corev1.VolumeMount{
+				{Name: "repos", MountPath: "/git-server/repos"},
+				{Name: "ssl-cert", MountPath: "/etc/nginx/ssl"},
+			},
+			// Restart the container if 6 probes fail
+			LivenessProbe: newTCPSocketProbe(443, 6),
+			// Mark pod as unready if 2 probes fail
+			ReadinessProbe: newTCPSocketProbe(443, 2),
+		},
+	}
+
+	// Configure pod spec
+	podSpec := corev1.PodSpec{
+		Volumes: []corev1.Volume{
+			{Name: "keys", VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{SecretName: gitServerSecretName},
+			}},
+			{Name: "repos", VolumeSource: corev1.VolumeSource{EmptyDir: nil}},
+			{Name: "ssl-cert", VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{SecretName: privateCertSecretName(GitSyncSource)},
+			}},
+		},
+		Containers:       containers,
+		ImagePullSecrets: []corev1.LocalObjectReference{},
+		SecurityContext: &corev1.PodSecurityContext{
+			FSGroup: &gitGID,
+		},
+	}
+
+	// Add resource requirements and explicit nodeSelector for Autopilot clusters
+	// Autopilot requires both requests and limits, and they must be equal
+	// Explicitly set empty nodeSelector to avoid node affinity/selector mismatches
+	// with Autopilot's optimize-utilization-scheduler
+	if nt.IsGKEAutopilot {
+		// Create resource lists for git-server container (requests and limits are equal for Autopilot)
+		gitServerResources := corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse(gitServerCPURequest),
+			corev1.ResourceMemory: resource.MustParse(gitServerMemoryRequest),
+		}
+		// Set resource requests and limits for git-server container
+		podSpec.Containers[0].Resources = corev1.ResourceRequirements{
+			Requests: gitServerResources,
+			Limits:   gitServerResources,
+		}
+
+		// Create resource lists for http-git-server container (requests and limits are equal for Autopilot)
+		httpGitServerResources := corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse(httpGitServerCPURequest),
+			corev1.ResourceMemory: resource.MustParse(httpGitServerMemoryRequest),
+		}
+		// Set resource requests and limits for http-git-server container
+		podSpec.Containers[1].Resources = corev1.ResourceRequirements{
+			Requests: httpGitServerResources,
+			Limits:   httpGitServerResources,
+		}
+
+		// Explicitly set empty nodeSelector to ensure no node affinity/selector constraints
+		// This prevents Autopilot's optimize-utilization-scheduler from applying implicit constraints
+		// that could cause "didn't match Pod's node affinity/selector" errors
+		podSpec.NodeSelector = map[string]string{}
+	}
+
 	deployment.Spec = appsv1.DeploymentSpec{
 		MinReadySeconds: 2,
 		Strategy:        appsv1.DeploymentStrategy{Type: appsv1.RecreateDeploymentStrategyType},
@@ -142,49 +233,7 @@ func gitDeployment() *appsv1.Deployment {
 					safeToEvictAnnotation: "false",
 				},
 			},
-			Spec: corev1.PodSpec{
-				Volumes: []corev1.Volume{
-					{Name: "keys", VolumeSource: corev1.VolumeSource{
-						Secret: &corev1.SecretVolumeSource{SecretName: gitServerSecretName},
-					}},
-					{Name: "repos", VolumeSource: corev1.VolumeSource{EmptyDir: nil}},
-					{Name: "ssl-cert", VolumeSource: corev1.VolumeSource{
-						Secret: &corev1.SecretVolumeSource{SecretName: privateCertSecretName(GitSyncSource)},
-					}},
-				},
-				Containers: []corev1.Container{
-					{
-						Name:  testGitServer,
-						Image: testGitServerImage,
-						Ports: []corev1.ContainerPort{{ContainerPort: 22}},
-						VolumeMounts: []corev1.VolumeMount{
-							{Name: "keys", MountPath: "/git-server/keys"},
-							{Name: "repos", MountPath: "/git-server/repos"},
-						},
-						// Restart the container if 6 probes fail
-						LivenessProbe: newTCPSocketProbe(22, 6),
-						// Mark pod as unready if 2 probes fail
-						ReadinessProbe: newTCPSocketProbe(22, 2),
-					},
-					{
-						Name:  testGitHTTPServer,
-						Image: testGitHTTPServerImage,
-						Ports: []corev1.ContainerPort{{ContainerPort: 443}},
-						VolumeMounts: []corev1.VolumeMount{
-							{Name: "repos", MountPath: "/git-server/repos"},
-							{Name: "ssl-cert", MountPath: "/etc/nginx/ssl"},
-						},
-						// Restart the container if 6 probes fail
-						LivenessProbe: newTCPSocketProbe(443, 6),
-						// Mark pod as unready if 2 probes fail
-						ReadinessProbe: newTCPSocketProbe(443, 2),
-					},
-				},
-				ImagePullSecrets: []corev1.LocalObjectReference{},
-				SecurityContext: &corev1.PodSecurityContext{
-					FSGroup: &gitGID,
-				},
-			},
+			Spec: podSpec,
 		},
 	}
 	return deployment
