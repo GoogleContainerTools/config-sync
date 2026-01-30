@@ -207,6 +207,10 @@ func (s *subResourceWriter) Create(_ context.Context, _ client.Object, _ client.
 	panic("Create not implemented for SubResourceWriter")
 }
 
+func (s *subResourceWriter) Apply(_ context.Context, _ runtime.ApplyConfiguration, _ ...client.SubResourceApplyOption) error {
+	panic("Apply not implemented for SubResourceWriter")
+}
+
 // Check reports an error to `t` if the passed objects in wants do not match the
 // expected set of objects in the fake.Client, and only the passed updates to
 // Status fields were recorded.

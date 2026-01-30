@@ -124,6 +124,8 @@ func (tc *KubeClient) Apply(obj client.Object, opts ...client.PatchOption) error
 	tc.Logger.Debugf("applying %s", kinds.ObjectSummary(obj))
 	AddTestLabel(obj)
 	opts = append(opts, client.FieldOwner(FieldManager), client.ForceOwnership)
+	//nolint:staticcheck // allow deprecated field for backwards compatibility
+	//TODO: Refactor to remove the usage of the deprecated field
 	return tc.Client.Patch(tc.Context, obj, client.Apply, opts...)
 }
 

@@ -416,6 +416,8 @@ func applyAutoPilotKeepAlive(nt *NT) error {
 	// to avoid adding the test label, to avoid deletion during cleanup
 	nt.Logger.Infof("applying %s", yamlPath)
 	patchOpts := []client.PatchOption{client.FieldOwner(FieldManager), client.ForceOwnership}
+	//nolint:staticcheck // allow deprecated field for backwards compatibility
+	//TODO: Refactor to remove the usage of the deprecated field
 	if err := nt.KubeClient.Client.Patch(nt.Context, uObj, client.Apply, patchOpts...); err != nil {
 		return fmt.Errorf("failed to apply %s: %w", kinds.ObjectSummary(uObj), err)
 	}

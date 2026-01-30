@@ -62,6 +62,7 @@ func newTestClusterClient(t *testing.T, client client.Client, k8sClient kubernet
 			Sync:   v1.RepoSyncStatus{LatestToken: "abc1234"},
 		},
 	}
+	//nolint:staticcheck // allow deprecated function for backwards compatibility
 	csClient := csfake.NewSimpleClientset(repoObj)
 
 	var dynamicObjs []runtime.Object

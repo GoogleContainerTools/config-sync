@@ -70,6 +70,7 @@ BUILD_IMAGE_TARGETS := $(patsubst %,__build-image-%,$(IMAGES))
 $(BUILD_IMAGE_TARGETS): "$(HELM)" "$(KUSTOMIZE)"
 	@echo "+++ Building the $(subst __build-image-,,$@) image: $(call gen_image_tag,$(subst __build-image-,,$@))"
 	@docker buildx build $(DOCKER_BUILD_QUIET) \
+		--load \
 		--target $(subst __build-image-,,$@) \
 		-t $(call gen_image_tag,$(subst __build-image-,,$@)) \
 		-f build/all/Dockerfile \
