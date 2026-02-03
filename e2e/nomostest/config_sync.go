@@ -78,6 +78,16 @@ const (
 	shortSyncPollingPeriod = 5 * time.Second
 )
 
+// InstallMethod defines how Config Sync should be installed
+type InstallMethod string
+
+const (
+	// InstallMethodApply uses server-side apply (default)
+	InstallMethodApply InstallMethod = "apply"
+	// InstallMethodUpdate uses client-side update
+	InstallMethodUpdate InstallMethod = "update"
+)
+
 var (
 	// baseDir is the path to the Nomos repository root from test case files.
 	//
@@ -230,16 +240,36 @@ func parseConfigSyncManifests(nt *NT) ([]client.Object, error) {
 }
 
 // InstallConfigSync installs ConfigSync on the test cluster
-func InstallConfigSync(nt *NT) error {
-	nt.T.Log("[SETUP] Installing Config Sync")
+func InstallConfigSync(nt *NT, method InstallMethod) error {
+	nt.T.Log("[SETUP] Installing Config Sync using method: ", method)
 	objs, err := parseConfigSyncManifests(nt)
 	if err != nil {
 		return err
 	}
 	for _, o := range objs {
 		nt.T.Logf("installConfigSync obj: %v", core.GKNN(o))
-		if err := nt.KubeClient.Apply(o); err != nil {
-			return err
+		switch method {
+		case InstallMethodApply:
+			if err := nt.KubeClient.Apply(o); err != nil {
+				return err
+			}
+		case InstallMethodUpdate:
+			currentObj := o.DeepCopyObject().(client.Object)
+			if err := nt.KubeClient.Get(currentObj.GetName(), currentObj.GetNamespace(), currentObj); err != nil {
+				if apierrors.IsNotFound(err) {
+					if err := nt.KubeClient.Create(o); err != nil {
+						return err
+					}
+				} else {
+					return err
+				}
+			} else {
+				// Attach existing resourceVersion to the object
+				o.SetResourceVersion(currentObj.GetResourceVersion())
+				if err := nt.KubeClient.Update(o); err != nil {
+					return err
+				}
+			}
 		}
 	}
 	return nil

@@ -385,7 +385,7 @@ func FreshTestEnv(t nomostesting.NTB, opts *ntopts.New) *NT {
 		return setupRegistry(nt)
 	})
 	tg.Go(func() error {
-		return InstallConfigSync(nt)
+		return InstallConfigSync(nt, InstallMethodApply)
 	})
 	tg.Go(func() error {
 		return installPrometheus(nt)
