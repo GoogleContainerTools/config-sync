@@ -38,7 +38,7 @@ GO_DIR := $(OUTPUT_DIR)/go
 
 # Base image used for all golang containers
 # Uses trusted google-built golang image
-GOLANG_IMAGE_VERSION := 1.25.6
+GOLANG_IMAGE_VERSION := 1.25.7
 GOLANG_IMAGE := google-go.pkg.dev/golang:$(GOLANG_IMAGE_VERSION)
 # Base image used for debian containers
 # When updating you can use this command:
@@ -88,7 +88,7 @@ HELM_STAGING_DIR := $(OUTPUT_DIR)/third_party/helm
 COSIGN_VERSION := v2.4.1
 COSIGN := $(BIN_DIR)/cosign
 
-GIT_SYNC_VERSION := v4.4.2-gke.12__linux_amd64
+GIT_SYNC_VERSION := v4.4.2-gke.14__linux_amd64
 GIT_SYNC_IMAGE_NAME := gcr.io/config-management-release/git-sync:$(GIT_SYNC_VERSION)
 
 OTELCONTRIBCOL_VERSION := v0.127.0-gke.5
