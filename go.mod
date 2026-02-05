@@ -1,6 +1,6 @@
 module github.com/GoogleContainerTools/config-sync
 
-go 1.25.6
+go 1.25.7
 
 require (
 	cloud.google.com/go/auth v0.18.1
