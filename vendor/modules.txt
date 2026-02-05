@@ -1,8 +1,8 @@
 # al.essio.dev/pkg/shellescape v1.5.1
 ## explicit; go 1.18
 al.essio.dev/pkg/shellescape
-# cloud.google.com/go v0.121.6
-## explicit; go 1.23.0
+# cloud.google.com/go v0.123.0
+## explicit; go 1.24.0
 cloud.google.com/go
 # cloud.google.com/go/auth v0.18.1
 ## explicit; go 1.24.0
@@ -33,14 +33,14 @@ cloud.google.com/go/compute/metadata
 # cloud.google.com/go/iam v1.5.3
 ## explicit; go 1.24.0
 cloud.google.com/go/iam/apiv1/iampb
-# cloud.google.com/go/logging v1.13.1
+# cloud.google.com/go/logging v1.13.2
 ## explicit; go 1.24.0
 cloud.google.com/go/logging
 cloud.google.com/go/logging/apiv2
 cloud.google.com/go/logging/apiv2/loggingpb
 cloud.google.com/go/logging/internal
 cloud.google.com/go/logging/logadmin
-# cloud.google.com/go/longrunning v0.7.0
+# cloud.google.com/go/longrunning v0.8.0
 ## explicit; go 1.24.0
 cloud.google.com/go/longrunning
 cloud.google.com/go/longrunning/autogen
@@ -500,7 +500,7 @@ go.opencensus.io/trace/tracestate
 ## explicit; go 1.24.0
 go.opentelemetry.io/auto/sdk
 go.opentelemetry.io/auto/sdk/internal/telemetry
-# go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.61.0
+# go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.63.0
 ## explicit; go 1.23.0
 go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc
 go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc/internal
@@ -523,8 +523,8 @@ go.opentelemetry.io/otel/internal/global
 go.opentelemetry.io/otel/propagation
 go.opentelemetry.io/otel/semconv/v1.20.0
 go.opentelemetry.io/otel/semconv/v1.26.0
-go.opentelemetry.io/otel/semconv/v1.30.0
 go.opentelemetry.io/otel/semconv/v1.37.0
+go.opentelemetry.io/otel/semconv/v1.37.0/rpcconv
 go.opentelemetry.io/otel/semconv/v1.39.0
 go.opentelemetry.io/otel/semconv/v1.39.0/otelconv
 # go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.40.0
