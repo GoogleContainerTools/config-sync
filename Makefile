@@ -77,7 +77,7 @@ GO_JUNIT_REPORT := $(BIN_DIR)/go-junit-report
 GOLANGCI_LINT_VERSION := v1.63.4
 GOLANGCI_LINT := $(BIN_DIR)/golangci-lint
 
-KUSTOMIZE_VERSION := v5.4.2-gke.1
+KUSTOMIZE_VERSION := v5.4.2-gke.3
 KUSTOMIZE := $(BIN_DIR)/kustomize
 KUSTOMIZE_STAGING_DIR := $(OUTPUT_DIR)/third_party/kustomize
 
