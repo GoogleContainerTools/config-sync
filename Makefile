@@ -486,12 +486,9 @@ clean-helm:
 	@rm -rf $(HELM_STAGING_DIR)
 	@rm -rf $(HELM)
 
-"$(GOBIN)/kind":
-	# Build kind with CGO disabled so it can be used in containers without C installed.
-	CGO_ENABLED=0 go install sigs.k8s.io/kind
-
-"$(KIND)": "$(GOBIN)/kind" buildenv-dirs
-	cp $(GOBIN)/kind $(KIND)
+# Build kind with CGO disabled so it can be used in containers without C installed.
+"$(KIND)": buildenv-dirs
+	GOPATH="$(GO_DIR)" CGO_ENABLED=0 go install sigs.k8s.io/kind
 
 .PHONY: install-kind
 # install kind (user-friendly target alias)
@@ -505,18 +502,12 @@ clean-go-junit-report:
 # install go-junit-report (user-friendly target alias)
 install-go-junit-report: "$(GO_JUNIT_REPORT)"
 
-"$(GOBIN)/go-junit-report":
-	CGO_ENABLED=0 go install github.com/jstemmer/go-junit-report/v2
-
-"$(GO_JUNIT_REPORT)": "$(GOBIN)/go-junit-report" buildenv-dirs
-	cp $(GOBIN)/go-junit-report $(GO_JUNIT_REPORT)
+"$(GO_JUNIT_REPORT)": buildenv-dirs
+	GOPATH="$(GO_DIR)" CGO_ENABLED=0 go install github.com/jstemmer/go-junit-report/v2
 
 # Set CGO_ENABLED=0 for compatibility with containers missing glibc
-"$(GOBIN)/crane":
-	CGO_ENABLED=0 go install github.com/google/go-containerregistry/cmd/crane
-
-"$(CRANE)": "$(GOBIN)/crane" buildenv-dirs
-	cp $(GOBIN)/crane $(CRANE)
+"$(CRANE)": buildenv-dirs
+	GOPATH="$(GO_DIR)" CGO_ENABLED=0 go install github.com/google/go-containerregistry/cmd/crane
 
 .PHONY: install-crane
 # install crane (user-friendly target alias)
