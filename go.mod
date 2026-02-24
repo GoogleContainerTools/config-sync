@@ -21,7 +21,7 @@ require (
 	github.com/google/addlicense v1.2.0
 	github.com/google/gnostic-models v0.7.1
 	github.com/google/go-cmp v0.7.0
-	github.com/google/go-containerregistry v0.21.0
+	github.com/google/go-containerregistry v0.21.1
 	github.com/google/go-licenses/v2 v2.0.1
 	github.com/google/uuid v1.6.0
 	github.com/jstemmer/go-junit-report/v2 v2.1.0
