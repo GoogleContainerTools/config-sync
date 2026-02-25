@@ -1,23 +1,22 @@
 
+CONTROLLER_GEN_PATHS := \
+	paths="./pkg/api/configsync/v1alpha1" \
+	paths="./pkg/api/configsync/v1beta1" \
+	paths="./pkg/api/configmanagement/v1" \
+	paths="./pkg/api/kpt.dev/v1alpha1"
 
 .PHONY: generate
 # Generate DeepCopy and runtime.Object implementation methods.
 generate: "$(CONTROLLER_GEN)"
 	"$(CONTROLLER_GEN)" \
 		object:headerFile="hack/boilerplate.txt" \
-		paths="./pkg/api/configsync/v1alpha1" \
-		paths="./pkg/api/configsync/v1beta1" \
-		paths="./pkg/api/kpt.dev/v1alpha1" \
-		paths="./pkg/api/configmanagement/v1"
+		$(CONTROLLER_GEN_PATHS)
 
 .PHONY: configsync-crds
 # Generate configsync CRDs and then patch them with kustomize
 configsync-crds: "$(CONTROLLER_GEN)" "$(KUSTOMIZE)" "$(ADDLICENSE)"
 	"$(CONTROLLER_GEN)" crd \
-		paths="./pkg/api/configsync/v1alpha1" \
-		paths="./pkg/api/configsync/v1beta1" \
-		paths="./pkg/api/configmanagement/v1" \
-		paths="./pkg/api/kpt.dev/v1alpha1" \
+		$(CONTROLLER_GEN_PATHS) \
 		output:artifacts:config=./manifests \
 	&& mv ./manifests/configsync.gke.io_reposyncs.yaml ./manifests/patch/reposync-crd.yaml \
 	&& mv ./manifests/configsync.gke.io_rootsyncs.yaml ./manifests/patch/rootsync-crd.yaml \
@@ -51,15 +50,3 @@ install-controller-gen: "$(CONTROLLER_GEN)"
 .PHONY: clean-controller-gen
 clean-controller-gen:
 	@rm -rf $(CONTROLLER_GEN)
-
-.PHONY: generate-in-docker
-# Run make generate-in-docker in the docker buildenv container
-generate-in-docker: buildenv-dirs
-	@docker run $(DOCKER_RUN_ARGS) \
-		make generate
-
-.PHONY: configsync-crds-in-docker
-# Run make configsync-crds in the docker buildenv container
-configsync-crds-in-docker: buildenv-dirs
-	@docker run $(DOCKER_RUN_ARGS) \
-		make configsync-crds

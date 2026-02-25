@@ -81,10 +81,6 @@ $(BUILD_IMAGE_TARGETS): "$(HELM)" "$(KUSTOMIZE)"
 .PHONY: build-images
 build-images: $(BUILD_IMAGE_TARGETS)
 
-# Deprecated alias of build-images. Remove this once unused.
-.PHONY: build-images-multirepo
-build-images-multirepo: build-images
-
 .PHONY: auth-docker
 auth-docker:
 	@echo "+++ Using account:"
@@ -102,10 +98,6 @@ $(PUSH_IMAGE_TARGETS): auth-docker
 .PHONY: push-images
 push-images: $(PUSH_IMAGE_TARGETS)
 
-# Deprecated alias of push-images. Remove this once unused.
-.PHONY: push-images-multirepo
-push-images-multirepo: push-images
-
 # Targets for pulling individual images
 PULL_IMAGE_TARGETS := $(patsubst %,__pull-image-%,$(IMAGES))
 
@@ -117,10 +109,6 @@ $(PULL_IMAGE_TARGETS): auth-docker
 .PHONY: pull-images
 pull-images: $(PULL_IMAGE_TARGETS)
 
-# Deprecated alias of pull-images. Remove this once unused.
-.PHONY: pull-images-multirepo
-pull-images-multirepo: pull-images
-
 # Targets for retagging individual images
 RETAG_IMAGE_TARGETS := $(patsubst %,__retag-image-%,$(IMAGES))
 
@@ -131,10 +119,6 @@ $(RETAG_IMAGE_TARGETS):
 # Retags previously built Config Sync images
 .PHONY: retag-images
 retag-images: $(RETAG_IMAGE_TARGETS)
-
-# Deprecated alias of retag-images. Remove this once unused.
-.PHONY: retag-images-multirepo
-retag-images-multirepo: retag-images
 
 ###################################
 # Config Sync manifest

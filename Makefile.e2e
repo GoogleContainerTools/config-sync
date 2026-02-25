@@ -5,8 +5,6 @@ E2E_PARAMS := \
 	GCP_PROJECT=$(GCP_PROJECT) \
 	REGISTRY=$(REGISTRY) \
 
-GOTOPT2_BINARY := docker run -i -u $(UID):$(GID) $(BUILDENV_IMAGE) /bin/gotopt2
-
 GCP_ZONE ?= us-central1-a
 GKE_E2E_TIMEOUT ?= 6h
 # Configurable timeout for running the e2e tests on kind clusters.
