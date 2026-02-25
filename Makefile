@@ -299,6 +299,11 @@ all: buildenv-dirs
 	@docker run $(DOCKER_RUN_ARGS) \
 		make all-local
 
+# Run any make target in the docker buildenv container
+# e.g. make clientgen-in-docker -> docker run ... make clientgen
+%-in-docker: buildenv-dirs
+	@docker run $(DOCKER_RUN_ARGS) make $*
+
 .PHONY: all-local
 # Run tests, cleanup dependencies, and generate CRDs locally
 all-local: test deps clientgen configsync-crds
@@ -352,8 +357,7 @@ __test-presubmit: all-local
 
 # This is the entrypoint used by the ProwJob - runs using docker-in-docker.
 .PHONY: test-presubmit
-test-presubmit: pull-buildenv
-	@docker run $(DOCKER_RUN_ARGS) make __test-presubmit
+test-presubmit: pull-buildenv __test-presubmit-in-docker
 
 # Runs all tests.
 # This only runs on local dev environment not CI environment.
