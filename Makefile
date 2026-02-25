@@ -185,9 +185,6 @@ IMAGES := \
 	$(ASKPASS_IMAGE) \
 	$(RESOURCE_GROUP_IMAGE)
 
-# nomos binary for local run.
-NOMOS_LOCAL := $(BIN_DIR)/linux_amd64/nomos
-
 # Allows an interactive docker build or test session to be interrupted
 # by Ctrl-C.  This must be turned off in case of non-interactive runs,
 # like in CI/CD.
@@ -302,7 +299,7 @@ all: buildenv-dirs
 # Run any make target in the docker buildenv container
 # e.g. make clientgen-in-docker -> docker run ... make clientgen
 %-in-docker: buildenv-dirs
-	@docker run $(DOCKER_RUN_ARGS) make $*
+	@docker run $(DOCKER_RUN_ARGS) make "$*"
 
 .PHONY: all-local
 # Run tests, cleanup dependencies, and generate CRDs locally
