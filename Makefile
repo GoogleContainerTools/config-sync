@@ -185,9 +185,6 @@ IMAGES := \
 	$(ASKPASS_IMAGE) \
 	$(RESOURCE_GROUP_IMAGE)
 
-# nomos binary for local run.
-NOMOS_LOCAL := $(BIN_DIR)/linux_amd64/nomos
-
 # Allows an interactive docker build or test session to be interrupted
 # by Ctrl-C.  This must be turned off in case of non-interactive runs,
 # like in CI/CD.
