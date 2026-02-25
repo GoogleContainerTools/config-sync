@@ -89,6 +89,8 @@ HELM_STAGING_DIR := $(OUTPUT_DIR)/third_party/helm
 COSIGN_VERSION := v2.4.1
 COSIGN := $(BIN_DIR)/cosign
 
+# To automatically update, run this command:
+# UPDATE_TYPE=<latest-version|latest-build> make update-git-sync-image
 GIT_SYNC_VERSION := v4.4.2-gke.16__linux_amd64
 GIT_SYNC_IMAGE_NAME := gcr.io/config-management-release/git-sync:$(GIT_SYNC_VERSION)
 
@@ -540,6 +542,10 @@ print-%:
 .PHONY: update-debian-base-image
 update-debian-base-image:
 	@./scripts/update-debian-base-image.sh
+
+.PHONY: update-git-sync-image
+update-git-sync-image:
+	@./scripts/update-git-sync-image.sh
 
 ####################################################################################################
 # MANUAL TESTING COMMANDS
