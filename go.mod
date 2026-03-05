@@ -58,7 +58,7 @@ require (
 	k8s.io/kubernetes v1.35.2
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
 	sigs.k8s.io/cli-utils v0.37.3-0.20251021150641-5895ad6c17dd
-	sigs.k8s.io/controller-runtime v0.23.1
+	sigs.k8s.io/controller-runtime v0.23.3
 	sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20250517180713-32e5e9e948a5
 	sigs.k8s.io/controller-tools v0.18.0
 	sigs.k8s.io/kind v0.30.0
