@@ -38,7 +38,7 @@ GO_DIR := $(OUTPUT_DIR)/go
 
 # Base image used for all golang containers
 # Uses trusted google-built golang image
-GOLANG_IMAGE_VERSION := 1.25.7
+GOLANG_IMAGE_VERSION := 1.25.8
 GOLANG_IMAGE := google-go.pkg.dev/golang:$(GOLANG_IMAGE_VERSION)
 # Base image used for debian containers
 # When updating you can use this command:
@@ -82,7 +82,7 @@ KUSTOMIZE_VERSION := v5.4.2-gke.4
 KUSTOMIZE := $(BIN_DIR)/kustomize
 KUSTOMIZE_STAGING_DIR := $(OUTPUT_DIR)/third_party/kustomize
 
-HELM_VERSION := v3.18.6-gke.3
+HELM_VERSION := v3.20.0-gke.1
 HELM := $(BIN_DIR)/helm
 HELM_STAGING_DIR := $(OUTPUT_DIR)/third_party/helm
 
