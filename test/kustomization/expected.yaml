@@ -5938,9 +5938,6 @@ data:
             - /otelcontribcol
             args:
             - "--config=/conf/otel-agent-reconciler-config.yaml"
-            # The prometheus transformer appends `_ratio` to gauge metrics: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.86.0/pkg/translator/prometheus/normalize_name.go#L149
-            # Add the feature gate to enable metric suffix trimming.
-            - "--feature-gates=-pkg.translator.prometheus.NormalizeName"
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
@@ -6197,7 +6194,6 @@ spec:
       containers:
       - args:
         - --config=/conf/otel-collector-config.yaml
-        - --feature-gates=-pkg.translator.prometheus.NormalizeName
         command:
         - /otelcontribcol
         image: gcr.io/config-management-release/otelcontribcol:placeholder
@@ -6378,7 +6374,6 @@ spec:
           subPath: deployment.yaml
       - args:
         - --config=/conf/otel-agent-config.yaml
-        - --feature-gates=-pkg.translator.prometheus.NormalizeName
         command:
         - /otelcontribcol
         env:
@@ -6498,7 +6493,6 @@ spec:
           readOnlyRootFilesystem: true
       - args:
         - --config=/conf/otel-agent-config.yaml
-        - --feature-gates=-pkg.translator.prometheus.NormalizeName
         command:
         - /otelcontribcol
         env:
