@@ -91,7 +91,7 @@ COSIGN := $(BIN_DIR)/cosign
 
 # To automatically update, run this command:
 # UPDATE_TYPE=<latest-version|latest-build> make update-git-sync-image
-GIT_SYNC_VERSION := v4.4.2-gke.16__linux_amd64
+GIT_SYNC_VERSION := v4.4.2-gke.17__linux_amd64
 GIT_SYNC_IMAGE_NAME := gcr.io/config-management-release/git-sync:$(GIT_SYNC_VERSION)
 
 OTELCONTRIBCOL_VERSION := v0.133.0-gke.3
