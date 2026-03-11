@@ -40,7 +40,7 @@ require (
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.27.1
 	golang.org/x/exp v0.0.0-20241217172543-b2144cdd0a67
-	golang.org/x/mod v0.33.0
+	golang.org/x/mod v0.34.0
 	google.golang.org/api v0.271.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.35.2
