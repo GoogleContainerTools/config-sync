@@ -78,10 +78,14 @@ GO_JUNIT_REPORT := $(BIN_DIR)/go-junit-report
 GOLANGCI_LINT_VERSION := v1.63.4
 GOLANGCI_LINT := $(BIN_DIR)/golangci-lint
 
+# To automatically update, run this command:
+# UPDATE_TYPE=<latest-version|latest-build> make update-kustomize-image
 KUSTOMIZE_VERSION := v5.4.2-gke.5
 KUSTOMIZE := $(BIN_DIR)/kustomize
 KUSTOMIZE_STAGING_DIR := $(OUTPUT_DIR)/third_party/kustomize
 
+# To automatically update, run this command:
+# UPDATE_TYPE=<latest-version|latest-build> make update-helm-image
 HELM_VERSION := v3.20.0-gke.1
 HELM := $(BIN_DIR)/helm
 HELM_STAGING_DIR := $(OUTPUT_DIR)/third_party/helm
@@ -544,15 +548,23 @@ print-%:
 
 .PHONY: update-debian-base-image
 update-debian-base-image:
-	@./scripts/update-debian-base-image.sh
+	@./scripts/update-component-image.sh debian-base
 
 .PHONY: update-git-sync-image
 update-git-sync-image:
-	@./scripts/update-git-sync-image.sh
+	@./scripts/update-component-image.sh git-sync
 
 .PHONY: update-otelcontribcol-image
 update-otelcontribcol-image:
-	@./scripts/update-otelcontribcol-image.sh
+	@./scripts/update-component-image.sh otelcontribcol
+
+.PHONY: update-kustomize-image
+update-kustomize-image:
+	@./scripts/update-component-image.sh kustomize
+
+.PHONY: update-helm-image
+update-helm-image:
+	@./scripts/update-component-image.sh helm
 
 ####################################################################################################
 # MANUAL TESTING COMMANDS
