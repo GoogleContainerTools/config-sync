@@ -255,6 +255,46 @@ PATH := $(BIN_DIR):$(GOBIN):$(PATH)
 
 .DEFAULT_GOAL := all
 
+# Macro for tools installed via go install.
+# buildenv-dirs is a dependency for all tools
+# $(1): target binary path
+# $(2): go package to install
+# $(3): tool name for aliases (install-$(3), clean-$(3))
+# $(4): extra flags to pass to go install
+define go_install
+"$(1)": buildenv-dirs
+	GOPATH="$(GO_DIR)" $(4) go install $(2)
+
+.PHONY: install-$(3)
+install-$(3): "$(1)"
+
+.PHONY: clean-$(3)
+clean-$(3):
+	@rm -rf $(1)
+endef
+
+# Macro for tools installed via custom scripts (e.g., kustomize, helm).
+# $(1): target binary path
+# $(2): variable prefix (e.g. KUSTOMIZE for KUSTOMIZE_VERSION, KUSTOMIZE_STAGING_DIR)
+# $(3): tool name for aliases and script name (scripts/install-$(3).sh)
+define script_install
+"$(1)": buildenv-dirs
+	@$(2)_VERSION="$$($(2)_VERSION)" \
+		INSTALL_DIR="$(BIN_DIR)" \
+		TMPDIR="/tmp" \
+		OUTPUT_DIR="$(OUTPUT_DIR)" \
+		STAGING_DIR="$$($(2)_STAGING_DIR)" \
+		./scripts/install-$(3).sh
+
+.PHONY: install-$(3)
+install-$(3): "$(1)"
+
+.PHONY: clean-$(3)
+clean-$(3):
+	@rm -rf $$($(2)_STAGING_DIR)
+	@rm -rf $(1)
+endef
+
 .PHONY: $(OUTPUT_DIR)
 $(OUTPUT_DIR):
 	@echo "+++ Creating the local build output directory: $(OUTPUT_DIR)"
@@ -412,113 +452,17 @@ lint-license: "$(GO_LICENSES)"
 	@echo "\"$(GO_LICENSES)\" check --allowed_licenses=$(ALLOWED_LICENSES) \$$(go list all) ./vendor/... --ignore github.com/GoogleContainerTools/kpt"
 	@"$(GO_LICENSES)" check --allowed_licenses=$(ALLOWED_LICENSES) $(shell go list all) ./vendor/... --ignore github.com/GoogleContainerTools/kpt
 
-"$(GO_LICENSES)": buildenv-dirs
-	GOPATH="$(GO_DIR)" go install github.com/google/go-licenses/v2
-
-.PHONY: install-go-licenses
-# install go-licenses (user-friendly target alias)
-install-go-licenses: "$(GO_LICENSES)"
-
-.PHONY: clean-go-licenses
-clean-go-licenses:
-	@rm -rf $(GO_LICENSES)
-
-"$(ADDLICENSE)": buildenv-dirs
-	GOPATH="$(GO_DIR)" go install github.com/google/addlicense
-
-.PHONY: install-addlicense
-# install addlicense (user-friendly target alias)
-install-addlicense: "$(ADDLICENSE)"
-
-.PHONY: clean-addlicense
-clean-addlicense:
-	@rm -rf $(ADDLICENSE)
-
-"$(GOLANGCI_LINT)": buildenv-dirs
-	GOPATH="$(GO_DIR)" go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
-
-.PHONY: install-golangci-lint
-# install golangci-lint (user-friendly target alias)
-install-golangci-lint: "$(GOLANGCI_LINT)"
-
-.PHONY: clean-golangci-lint
-clean-golangci-lint:
-	@rm -rf $(GOLANGCI_LINT)
-
-"$(KUSTOMIZE)": buildenv-dirs
-	@KUSTOMIZE_VERSION="$(KUSTOMIZE_VERSION)" \
-		INSTALL_DIR="$(BIN_DIR)" \
-		TMPDIR="/tmp" \
-		OUTPUT_DIR="$(OUTPUT_DIR)" \
-		STAGING_DIR="$(KUSTOMIZE_STAGING_DIR)" \
-		./scripts/install-kustomize.sh
-
-.PHONY: clean-cosign
-clean-cosign:
-	@rm -rf $(COSIGN)
-
-.PHONY: install-cosign
-install-cosign: "$(COSIGN)"
-
-"$(COSIGN)": buildenv-dirs
-	GOPATH="$(GO_DIR)" CGO_ENABLED=0 go install github.com/sigstore/cosign/v2/cmd/cosign@$(COSIGN_VERSION)
-
-.PHONY: install-kustomize
-# install kustomize (user-friendly target alias)
-install-kustomize: "$(KUSTOMIZE)"
-
-.PHONY: clean-kustomize
-clean-kustomize:
-	@rm -rf $(KUSTOMIZE_STAGING_DIR)
-	@rm -rf $(KUSTOMIZE)
-
-"$(HELM)": buildenv-dirs
-	@HELM_VERSION="$(HELM_VERSION)" \
-		INSTALL_DIR="$(BIN_DIR)" \
-		TMPDIR="/tmp" \
-		OUTPUT_DIR="$(OUTPUT_DIR)" \
-		STAGING_DIR="$(HELM_STAGING_DIR)" \
-		./scripts/install-helm.sh
-
-.PHONY: install-helm
-# install helm (user-friendly target alias)
-install-helm: "$(HELM)"
-
-.PHONY: clean-helm
-clean-helm:
-	@rm -rf $(HELM_STAGING_DIR)
-	@rm -rf $(HELM)
-
-# Build kind with CGO disabled so it can be used in containers without C installed.
-"$(KIND)": buildenv-dirs
-	GOPATH="$(GO_DIR)" CGO_ENABLED=0 go install sigs.k8s.io/kind
-
-.PHONY: install-kind
-# install kind (user-friendly target alias)
-install-kind: "$(KIND)"
-
-.PHONY: clean-go-junit-report
-clean-go-junit-report:
-	@rm -rf $(GO_JUNIT_REPORT)
-
-.PHONY: install-go-junit-report
-# install go-junit-report (user-friendly target alias)
-install-go-junit-report: "$(GO_JUNIT_REPORT)"
-
-"$(GO_JUNIT_REPORT)": buildenv-dirs
-	GOPATH="$(GO_DIR)" CGO_ENABLED=0 go install github.com/jstemmer/go-junit-report/v2
-
-# Set CGO_ENABLED=0 for compatibility with containers missing glibc
-"$(CRANE)": buildenv-dirs
-	GOPATH="$(GO_DIR)" CGO_ENABLED=0 go install github.com/google/go-containerregistry/cmd/crane
-
-.PHONY: install-crane
-# install crane (user-friendly target alias)
-install-crane: "$(CRANE)"
-
-.PHONY: clean-crane
-clean-crane:
-	@rm -rf $(CRANE)
+# Creates Make rules for each tool
+$(eval $(call go_install,$(GO_LICENSES),github.com/google/go-licenses/v2,go-licenses))
+$(eval $(call go_install,$(ADDLICENSE),github.com/google/addlicense,addlicense))
+$(eval $(call go_install,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen,controller-gen))
+$(eval $(call go_install,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION),golangci-lint))
+$(eval $(call go_install,$(COSIGN),github.com/sigstore/cosign/v2/cmd/cosign@$(COSIGN_VERSION),cosign,CGO_ENABLED=0))
+$(eval $(call go_install,$(KIND),sigs.k8s.io/kind,kind,CGO_ENABLED=0))
+$(eval $(call go_install,$(GO_JUNIT_REPORT),github.com/jstemmer/go-junit-report/v2,go-junit-report,CGO_ENABLED=0))
+$(eval $(call go_install,$(CRANE),github.com/google/go-containerregistry/cmd/crane,crane,CGO_ENABLED=0))
+$(eval $(call script_install,$(KUSTOMIZE),KUSTOMIZE,kustomize))
+$(eval $(call script_install,$(HELM),HELM,helm))
 
 .PHONY: license-headers
 license-headers: "$(ADDLICENSE)"

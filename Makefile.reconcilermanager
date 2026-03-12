@@ -39,14 +39,3 @@ configsync-crds: "$(CONTROLLER_GEN)" "$(KUSTOMIZE)" "$(ADDLICENSE)"
 	&& rm ./manifests/patch/resourcegroup-crd.yaml \
 	&& rm ./manifests/configmanagement.gke.io_repoes.yaml \
 	&& "$(ADDLICENSE)" ./manifests
-
-"$(CONTROLLER_GEN)": buildenv-dirs
-	GOPATH="$(GO_DIR)" go install sigs.k8s.io/controller-tools/cmd/controller-gen
-
-.PHONY: install-controller-gen
-# install controller-gen (user-friendly target alias)
-install-controller-gen: "$(CONTROLLER_GEN)"
-
-.PHONY: clean-controller-gen
-clean-controller-gen:
-	@rm -rf $(CONTROLLER_GEN)
