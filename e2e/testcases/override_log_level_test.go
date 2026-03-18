@@ -107,15 +107,15 @@ func TestOverrideRootSyncLogLevel(t *testing.T) {
 
 	// try invalid log level value
 	maxError := "logLevel in body should be less than or equal to 10"
-	minError := "logLevel in body should be greater than or equal to 0"
+	minError := "logLevel in body should be greater than or equal to -10"
 
 	err := nt.KubeClient.MergePatch(rootSyncV1, `{"spec": {"override": {"logLevels": [{"containerName": "reconciler", "logLevel": 13}]}}}`)
 	if !strings.Contains(err.Error(), maxError) {
 		nt.T.Fatalf("Expecting invalid value error: %q, got %s", maxError, err.Error())
 	}
 
-	err = nt.KubeClient.MergePatch(rootSyncV1, `{"spec": {"override": {"logLevels": [{"containerName": "reconciler", "logLevel": -3}]}}}`)
-	if !strings.Contains(err.Error(), minError) {
+	err = nt.KubeClient.MergePatch(rootSyncV1, `{"spec": {"override": {"logLevels": [{"containerName": "reconciler", "logLevel": -13}]}}}`)
+	if err == nil || !strings.Contains(err.Error(), minError) {
 		nt.T.Fatalf("Expecting invalid value error: %q, got %s", minError, err.Error())
 	}
 }

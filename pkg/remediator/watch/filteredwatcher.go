@@ -385,7 +385,7 @@ func errorID(err error) string {
 // and an error indicating that a watch.Error event type is encountered and the
 // watch should be restarted.
 func (w *filteredWatcher) handle(ctx context.Context, event watch.Event) (string, bool, error) {
-	klog.Infof("Remediator handling watch event %v %v", event.Type, w.gvk)
+	klog.V(0).Infof("Remediator handling watch event %v %v", event.Type, w.gvk)
 	var deleted bool
 	switch event.Type {
 	case watch.Added, watch.Modified:
