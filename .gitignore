@@ -12,7 +12,6 @@
 /.vscode
 
 # AI agent
-/GEMINI.md
 /CLAUDE.md
 
 # Ignore unsued pulled-in contrib licenses since dep...
