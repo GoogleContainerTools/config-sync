@@ -141,9 +141,9 @@ fi
 TOOL_UTIL="${REPO_ROOT}/pkg/hydrate/tool_util.go"
 case "${COMPONENT}" in
   helm)
-    sed -i "s|HelmVersion = \".*\"|HelmVersion = \"${LATEST_TAG}\"|" "${TOOL_UTIL}"
+    sed -i "/HelmVersion =/ s/\".*\"/\"${LATEST_TAG}\"/" "${TOOL_UTIL}"
     ;;
   kustomize)
-    sed -i "s|KustomizeVersion = \".*\"|KustomizeVersion = \"${LATEST_TAG}\"|" "${TOOL_UTIL}"
+    sed -i "/KustomizeVersion =/ s/\".*\"/\"${LATEST_TAG}\"/" "${TOOL_UTIL}"
     ;;
 esac
