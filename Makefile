@@ -86,7 +86,7 @@ KUSTOMIZE_STAGING_DIR := $(OUTPUT_DIR)/third_party/kustomize
 
 # To automatically update, run this command:
 # UPDATE_TYPE=<latest-version|latest-build> make update-helm-image
-HELM_VERSION := v3.20.0-gke.1
+HELM_VERSION := v3.20.0-gke.2
 HELM := $(BIN_DIR)/helm
 HELM_STAGING_DIR := $(OUTPUT_DIR)/third_party/helm
 
@@ -100,7 +100,7 @@ GIT_SYNC_IMAGE_NAME := gcr.io/config-management-release/git-sync:$(GIT_SYNC_VERS
 
 # To automatically update, run this command:
 # UPDATE_TYPE=<latest-version|latest-build> make update-otelcontribcol-image
-OTELCONTRIBCOL_VERSION := v0.133.0-gke.4
+OTELCONTRIBCOL_VERSION := v0.133.0-gke.6
 OTELCONTRIBCOL_IMAGE_NAME := gcr.io/config-management-release/otelcontribcol:$(OTELCONTRIBCOL_VERSION)
 
 # Directory used for staging Docker contexts.

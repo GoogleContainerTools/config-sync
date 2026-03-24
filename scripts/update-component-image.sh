@@ -136,3 +136,14 @@ if [ "${COMPONENT}" == "debian-base" ]; then
 else
   sed -i "s|^${VAR_NAME} := .*|${VAR_NAME} := ${LATEST_TAG}|" Makefile
 fi
+
+# Keep recommended CLI versions in pkg/hydrate/tool_util.go in sync with image tags.
+TOOL_UTIL="${REPO_ROOT}/pkg/hydrate/tool_util.go"
+case "${COMPONENT}" in
+  helm)
+    sed -i "s|HelmVersion = \".*\"|HelmVersion = \"${LATEST_TAG}\"|" "${TOOL_UTIL}"
+    ;;
+  kustomize)
+    sed -i "s|KustomizeVersion = \".*\"|KustomizeVersion = \"${LATEST_TAG}\"|" "${TOOL_UTIL}"
+    ;;
+esac
