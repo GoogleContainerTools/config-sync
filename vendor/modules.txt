@@ -4,8 +4,8 @@ al.essio.dev/pkg/shellescape
 # cloud.google.com/go v0.123.0
 ## explicit; go 1.24.0
 cloud.google.com/go
-# cloud.google.com/go/auth v0.18.2
-## explicit; go 1.24.0
+# cloud.google.com/go/auth v0.19.0
+## explicit; go 1.25.0
 cloud.google.com/go/auth
 cloud.google.com/go/auth/credentials
 cloud.google.com/go/auth/credentials/internal/externalaccount
@@ -297,8 +297,8 @@ github.com/google/uuid
 ## explicit; go 1.24.11
 github.com/googleapis/enterprise-certificate-proxy/client
 github.com/googleapis/enterprise-certificate-proxy/client/util
-# github.com/googleapis/gax-go/v2 v2.17.0
-## explicit; go 1.24.0
+# github.com/googleapis/gax-go/v2 v2.18.0
+## explicit; go 1.25.0
 github.com/googleapis/gax-go/v2
 github.com/googleapis/gax-go/v2/apierror
 github.com/googleapis/gax-go/v2/apierror/internal/proto
@@ -710,8 +710,8 @@ google.golang.org/api/option/internaloption
 google.golang.org/api/support/bundler
 google.golang.org/api/transport/grpc
 google.golang.org/api/transport/http
-# google.golang.org/genproto v0.0.0-20260128011058-8636f8732409
-## explicit; go 1.24.0
+# google.golang.org/genproto v0.0.0-20260217215200-42d3e9bedb6d
+## explicit; go 1.25.0
 google.golang.org/genproto/googleapis/appengine/logging/v1
 google.golang.org/genproto/googleapis/cloud/audit
 google.golang.org/genproto/googleapis/iam/v1
@@ -719,8 +719,8 @@ google.golang.org/genproto/googleapis/logging/type
 google.golang.org/genproto/googleapis/type/calendarperiod
 google.golang.org/genproto/googleapis/type/expr
 google.golang.org/genproto/googleapis/type/timeofday
-# google.golang.org/genproto/googleapis/api v0.0.0-20260209200024-4cfbd4190f57
-## explicit; go 1.24.0
+# google.golang.org/genproto/googleapis/api v0.0.0-20260217215200-42d3e9bedb6d
+## explicit; go 1.25.0
 google.golang.org/genproto/googleapis/api
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/api/distribution
