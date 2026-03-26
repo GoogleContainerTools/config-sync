@@ -24,6 +24,9 @@ import (
 // Setup sets up default logging configs for Nomos applications and logs the preamble.
 func Setup() {
 	klog.InitFlags(nil)
+	// Opt into fixed stderrthreshold behavior (kubernetes/klog#212).
+	_ = flag.Set("legacy_stderr_threshold_behavior", "false")
+	_ = flag.Set("stderrthreshold", "INFO")
 	if err := flag.Set("logtostderr", "true"); err != nil {
 		klog.Fatal(err)
 	}

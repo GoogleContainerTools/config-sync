@@ -27,6 +27,9 @@ import (
 func InitFlags() {
 	// Register klog flags
 	klog.InitFlags(nil)
+	// Opt into fixed stderrthreshold behavior (kubernetes/klog#212).
+	_ = flag.Set("legacy_stderr_threshold_behavior", "false")
+	_ = flag.Set("stderrthreshold", "INFO")
 
 	// Override klog default values
 	if err := flag.Set("v", "1"); err != nil {

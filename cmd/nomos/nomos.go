@@ -70,6 +70,9 @@ func main() {
 
 	// Register klog flags
 	klog.InitFlags(fs)
+	// Opt into fixed stderrthreshold behavior (kubernetes/klog#212).
+	_ = fs.Set("legacy_stderr_threshold_behavior", "false")
+	_ = fs.Set("stderrthreshold", "INFO")
 
 	// Work around the controller-runtime init registering a --kubeconfig flag
 	// with no default value. Use the same default as kubectl instead.
