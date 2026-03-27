@@ -71,8 +71,12 @@ func main() {
 	// Register klog flags
 	klog.InitFlags(fs)
 	// Opt into fixed stderrthreshold behavior (kubernetes/klog#212).
-	_ = fs.Set("legacy_stderr_threshold_behavior", "false")
-	_ = fs.Set("stderrthreshold", "INFO")
+	if err := fs.Set("legacy_stderr_threshold_behavior", "false"); err != nil {
+		klog.Fatalf("Failed to set flag %q: %v", "legacy_stderr_threshold_behavior", err)
+	}
+	if err := fs.Set("stderrthreshold", "INFO"); err != nil {
+		klog.Fatalf("Failed to set flag %q: %v", "stderrthreshold", err)
+	}
 
 	// Work around the controller-runtime init registering a --kubeconfig flag
 	// with no default value. Use the same default as kubectl instead.
