@@ -17,6 +17,7 @@ package log
 import (
 	"flag"
 
+	logutil "github.com/GoogleContainerTools/config-sync/pkg/util/log"
 	"k8s.io/klog/v2"
 	"k8s.io/klog/v2/textlogger"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -27,13 +28,7 @@ import (
 func InitFlags() {
 	// Register klog flags
 	klog.InitFlags(nil)
-	// Opt into fixed stderrthreshold behavior (kubernetes/klog#212).
-	if err := flag.Set("legacy_stderr_threshold_behavior", "false"); err != nil {
-		klog.Fatalf("Failed to set flag %q: %v", "legacy_stderr_threshold_behavior", err)
-	}
-	if err := flag.Set("stderrthreshold", "INFO"); err != nil {
-		klog.Fatalf("Failed to set flag %q: %v", "stderrthreshold", err)
-	}
+	logutil.ConfigureKlog(nil)
 
 	// Override klog default values
 	if err := flag.Set("v", "1"); err != nil {

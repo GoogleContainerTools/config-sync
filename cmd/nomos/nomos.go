@@ -30,6 +30,7 @@ import (
 	"github.com/GoogleContainerTools/config-sync/cmd/nomos/vet"
 	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
 	"github.com/GoogleContainerTools/config-sync/pkg/client/restconfig"
+	logutil "github.com/GoogleContainerTools/config-sync/pkg/util/log"
 	pkgversion "github.com/GoogleContainerTools/config-sync/pkg/version"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/klog/v2"
@@ -70,13 +71,7 @@ func main() {
 
 	// Register klog flags
 	klog.InitFlags(fs)
-	// Opt into fixed stderrthreshold behavior (kubernetes/klog#212).
-	if err := fs.Set("legacy_stderr_threshold_behavior", "false"); err != nil {
-		klog.Fatalf("Failed to set flag %q: %v", "legacy_stderr_threshold_behavior", err)
-	}
-	if err := fs.Set("stderrthreshold", "INFO"); err != nil {
-		klog.Fatalf("Failed to set flag %q: %v", "stderrthreshold", err)
-	}
+	logutil.ConfigureKlog(fs)
 
 	// Work around the controller-runtime init registering a --kubeconfig flag
 	// with no default value. Use the same default as kubectl instead.

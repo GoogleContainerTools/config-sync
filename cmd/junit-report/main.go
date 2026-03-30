@@ -19,6 +19,7 @@ import (
 	"os"
 
 	"github.com/GoogleContainerTools/config-sync/cmd/junit-report/resetfailure"
+	logutil "github.com/GoogleContainerTools/config-sync/pkg/util/log"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 )
@@ -36,13 +37,7 @@ func init() {
 
 func main() {
 	klog.InitFlags(nil)
-	// Opt into fixed stderrthreshold behavior (kubernetes/klog#212).
-	if err := flag.Set("legacy_stderr_threshold_behavior", "false"); err != nil {
-		klog.Fatalf("Failed to set flag %q: %v", "legacy_stderr_threshold_behavior", err)
-	}
-	if err := flag.Set("stderrthreshold", "INFO"); err != nil {
-		klog.Fatalf("Failed to set flag %q: %v", "stderrthreshold", err)
-	}
+	logutil.ConfigureKlog(nil)
 	flag.Parse()
 
 	if err := rootCmd.Execute(); err != nil {
