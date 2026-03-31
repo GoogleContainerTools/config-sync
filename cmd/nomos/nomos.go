@@ -30,6 +30,7 @@ import (
 	"github.com/GoogleContainerTools/config-sync/cmd/nomos/vet"
 	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
 	"github.com/GoogleContainerTools/config-sync/pkg/client/restconfig"
+	logutil "github.com/GoogleContainerTools/config-sync/pkg/util/log"
 	pkgversion "github.com/GoogleContainerTools/config-sync/pkg/version"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/klog/v2"
@@ -70,6 +71,7 @@ func main() {
 
 	// Register klog flags
 	klog.InitFlags(fs)
+	logutil.ConfigureKlog(fs)
 
 	// Work around the controller-runtime init registering a --kubeconfig flag
 	// with no default value. Use the same default as kubectl instead.

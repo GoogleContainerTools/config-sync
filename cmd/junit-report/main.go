@@ -19,6 +19,7 @@ import (
 	"os"
 
 	"github.com/GoogleContainerTools/config-sync/cmd/junit-report/resetfailure"
+	logutil "github.com/GoogleContainerTools/config-sync/pkg/util/log"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 )
@@ -36,6 +37,7 @@ func init() {
 
 func main() {
 	klog.InitFlags(nil)
+	logutil.ConfigureKlog(nil)
 	flag.Parse()
 
 	if err := rootCmd.Execute(); err != nil {
