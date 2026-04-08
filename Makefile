@@ -38,7 +38,7 @@ GO_DIR := $(OUTPUT_DIR)/go
 
 # Base image used for all golang containers
 # Uses trusted google-built golang image
-GOLANG_IMAGE_VERSION := 1.25.8
+GOLANG_IMAGE_VERSION := 1.25.9
 GOLANG_IMAGE := google-go.pkg.dev/golang:$(GOLANG_IMAGE_VERSION)
 # Base image used for debian containers
 # When updating you can use this command:
@@ -80,13 +80,13 @@ GOLANGCI_LINT := $(BIN_DIR)/golangci-lint
 
 # To automatically update, run this command:
 # UPDATE_TYPE=<latest-version|latest-build> make update-kustomize-image
-KUSTOMIZE_VERSION := v5.4.2-gke.5
+KUSTOMIZE_VERSION := v5.4.2-gke.6
 KUSTOMIZE := $(BIN_DIR)/kustomize
 KUSTOMIZE_STAGING_DIR := $(OUTPUT_DIR)/third_party/kustomize
 
 # To automatically update, run this command:
 # UPDATE_TYPE=<latest-version|latest-build> make update-helm-image
-HELM_VERSION := v3.20.0-gke.2
+HELM_VERSION := v3.20.0-gke.3
 HELM := $(BIN_DIR)/helm
 HELM_STAGING_DIR := $(OUTPUT_DIR)/third_party/helm
 
@@ -95,12 +95,12 @@ COSIGN := $(BIN_DIR)/cosign
 
 # To automatically update, run this command:
 # UPDATE_TYPE=<latest-version|latest-build> make update-git-sync-image
-GIT_SYNC_VERSION := v4.4.2-gke.17__linux_amd64
+GIT_SYNC_VERSION := v4.4.2-gke.18__linux_amd64
 GIT_SYNC_IMAGE_NAME := gcr.io/config-management-release/git-sync:$(GIT_SYNC_VERSION)
 
 # To automatically update, run this command:
 # UPDATE_TYPE=<latest-version|latest-build> make update-otelcontribcol-image
-OTELCONTRIBCOL_VERSION := v0.133.0-gke.7
+OTELCONTRIBCOL_VERSION := v0.133.0-gke.8
 OTELCONTRIBCOL_IMAGE_NAME := gcr.io/config-management-release/otelcontribcol:$(OTELCONTRIBCOL_VERSION)
 
 # Directory used for staging Docker contexts.
