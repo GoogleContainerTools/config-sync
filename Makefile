@@ -434,10 +434,10 @@ vendor:
 deps: tidy vendor
 
 .PHONY: lint
-lint: lint-go lint-bash lint-yaml lint-license lint-license-headers
+lint: lint-go lint-bash lint-yaml lint-license lint-license-headers lint-post-sync
 
 .PHONY: lint-go
-lint-go: "$(GOLANGCI_LINT)" lint-post-sync
+lint-go: "$(GOLANGCI_LINT)"
 	./scripts/lint-go.sh $(NOMOS_GO_PKG)
 
 .PHONY: lint-bash
@@ -529,3 +529,4 @@ test-post-sync:
 lint-post-sync: "$(GOLANGCI_LINT)"
 	@echo "+++ Running golangci-lint on post-sync example"
 	@cd examples/post-sync && GOCACHE="$(OUTPUT_DIR)/.cache/go" XDG_CACHE_HOME="$(OUTPUT_DIR)/.cache" $(GOLANGCI_LINT) run --config .golangci.yaml && cd $(CURDIR)
+	@echo "+++ Linting post-sync example completed"
