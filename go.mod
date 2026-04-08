@@ -7,7 +7,7 @@ require (
 	cloud.google.com/go/compute/metadata v0.9.0
 	cloud.google.com/go/logging v1.13.2
 	cloud.google.com/go/monitoring v1.24.3
-	cloud.google.com/go/trace v1.11.7
+	cloud.google.com/go/trace v1.12.0
 	github.com/GoogleContainerTools/kpt-functions-catalog/functions/go/set-namespace v0.4.1-0.20220713210718-d955e7d3a800
 	github.com/GoogleContainerTools/kpt-functions-sdk/go/fn v0.0.0-20220706221933-7181f451a663
 	github.com/Masterminds/semver v1.5.0
@@ -108,7 +108,7 @@ require (
 	github.com/google/licenseclassifier/v2 v2.0.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.14 // indirect
-	github.com/googleapis/gax-go/v2 v2.19.0 // indirect
+	github.com/googleapis/gax-go/v2 v2.20.0 // indirect
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.28.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
@@ -165,9 +165,9 @@ require (
 	golang.org/x/time v0.15.0 // indirect
 	golang.org/x/tools v0.43.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
-	google.golang.org/genproto v0.0.0-20260316180232-0b37fe3546d5 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260316180232-0b37fe3546d5 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260319201613-d00831a3d3e7 // indirect
+	google.golang.org/genproto v0.0.0-20260319201613-d00831a3d3e7 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260401001100-f93e5f3e9f0f // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260401001100-f93e5f3e9f0f // indirect
 	google.golang.org/grpc v1.79.3 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
