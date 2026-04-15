@@ -15,6 +15,7 @@
 package internal
 
 import (
+	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -66,7 +67,7 @@ func (g *defaultResourceGetter) Metadata(path string) string {
 
 // ReadAll reads all content of the file as a string.
 func (g *defaultResourceGetter) ReadAll(path string) string {
-	bytes, err := os.ReadFile(path)
+	bytes, err := ioutil.ReadFile(path)
 	if err != nil {
 		return ""
 	}
