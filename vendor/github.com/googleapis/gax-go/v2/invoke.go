@@ -91,7 +91,6 @@ func invoke(ctx context.Context, call APICall, settings CallSettings, sp sleeper
 
 	if IsFeatureEnabled("METRICS") {
 		start := time.Now()
-		ctx = InjectTransportTelemetry(ctx, &TransportTelemetryData{})
 		defer func() {
 			recordMetric(ctx, settings, time.Since(start), err)
 		}()
