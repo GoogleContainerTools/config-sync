@@ -55,8 +55,8 @@ function cleanup() {
 trap cleanup EXIT
 
 echo "Downloading helm ${HELM_VERSION}"
-gsutil cp "${HELM_TARBALL_URL}" "${HELM_TARBALL}"
-gsutil cp "${HELM_CHECKSUM_URL}" "${HELM_CHECKSUM}"
+gcloud storage cp "${HELM_TARBALL_URL}" "${HELM_TARBALL}"
+gcloud storage cp "${HELM_CHECKSUM_URL}" "${HELM_CHECKSUM}"
 
 echo "Verifying helm checksum"
 echo "$(cat "${HELM_CHECKSUM}")  ${HELM_TARBALL}" | sha256sum -c
