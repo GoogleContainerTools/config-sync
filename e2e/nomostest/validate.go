@@ -17,12 +17,12 @@ package nomostest
 import (
 	"fmt"
 
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testpredicates"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/util/log"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"kpt.dev/configsync/e2e/nomostest/testpredicates"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/util/log"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

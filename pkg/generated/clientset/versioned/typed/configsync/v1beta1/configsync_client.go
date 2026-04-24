@@ -5,9 +5,9 @@ package v1beta1
 import (
 	http "net/http"
 
+	configsyncv1beta1 "github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	scheme "github.com/GoogleContainerTools/config-sync/pkg/generated/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
-	configsyncv1beta1 "kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	scheme "kpt.dev/configsync/pkg/generated/clientset/versioned/scheme"
 )
 
 type ConfigsyncV1beta1Interface interface {

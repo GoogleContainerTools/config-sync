@@ -20,13 +20,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/GoogleContainerTools/config-sync/cmd/nomos/status"
+	"github.com/GoogleContainerTools/config-sync/cmd/nomos/util"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"kpt.dev/configsync/cmd/nomos/status"
-	"kpt.dev/configsync/cmd/nomos/util"
-	"kpt.dev/configsync/pkg/api/configmanagement"
-	"kpt.dev/configsync/pkg/kinds"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 )

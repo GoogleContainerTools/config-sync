@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
-	"kpt.dev/configsync/pkg/resourcegroup/controllers/resourcemap"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/resourcemap"
 )
 
 // Manager records which GVK's are watched.

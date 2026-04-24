@@ -18,11 +18,11 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"kpt.dev/configsync/pkg/applier"
-	"kpt.dev/configsync/pkg/applyset"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/importer/analyzer/ast"
-	"kpt.dev/configsync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/applier"
+	"github.com/GoogleContainerTools/config-sync/pkg/applyset"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
 )
 
 // sourceContext contains the fields which identify where a resource is being synced from.

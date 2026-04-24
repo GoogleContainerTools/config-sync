@@ -21,14 +21,13 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/GoogleContainerTools/config-sync/cmd/nomos/util"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	kptv1alpha1 "github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
+	"github.com/GoogleContainerTools/config-sync/pkg/reposync"
+	"github.com/GoogleContainerTools/config-sync/pkg/rootsync"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"kpt.dev/configsync/cmd/nomos/util"
-	v1 "kpt.dev/configsync/pkg/api/configmanagement/v1"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	"kpt.dev/configsync/pkg/reposync"
-	"kpt.dev/configsync/pkg/rootsync"
 )
 
 const (
@@ -86,7 +85,7 @@ type RepoState struct {
 	errors            []string
 	// errorSummary summarizes the `errors` field.
 	errorSummary *v1beta1.ErrorSummary
-	resources    []resourceState
+	resources    []kptv1alpha1.ResourceStatus
 }
 
 func (r *RepoState) printRows(writer io.Writer) {
@@ -121,9 +120,9 @@ func (r *RepoState) printRows(writer io.Writer) {
 		}
 		for _, r := range r.resources {
 			if !hasSourceHash {
-				util.MustFprintf(writer, "%s\t%s\t%s\t%s\n", util.Indent, r.Namespace, r.String(), r.Status)
+				util.MustFprintf(writer, "%s\t%s\t%v\t%s\n", util.Indent, r.Namespace, resourceStatusToString(r), r.Status)
 			} else {
-				util.MustFprintf(writer, "%s\t%s\t%s\t%s\t%s\n", util.Indent, r.Namespace, r.String(), r.Status, r.SourceHash)
+				util.MustFprintf(writer, "%s\t%s\t%s\t%s\t%s\n", util.Indent, r.Namespace, resourceStatusToString(r), r.Status, r.SourceHash)
 			}
 			if len(r.Conditions) > 0 {
 				for _, condition := range r.Conditions {
@@ -197,114 +196,8 @@ func helmString(helm *v1beta1.HelmBase) string {
 	return helmStr
 }
 
-// monoRepoStatus converts the given Git config and mono-repo status into a RepoState.
-func monoRepoStatus(git *v1beta1.Git, status v1.RepoStatus) *RepoState {
-	errors := syncStatusErrors(status)
-	totalErrorCount := len(errors)
-
-	result := &RepoState{
-		scope:  "<root>",
-		git:    git,
-		status: getSyncStatus(status),
-		commit: commitHash(status.Sync.LatestToken),
-		errors: errors,
-	}
-
-	if totalErrorCount > 0 {
-		result.errorSummary = &v1beta1.ErrorSummary{
-			TotalCount:                totalErrorCount,
-			Truncated:                 false,
-			ErrorCountAfterTruncation: totalErrorCount,
-		}
-	}
-	return result
-}
-
-// getSyncStatus returns the given RepoStatus formatted as a short summary string.
-func getSyncStatus(status v1.RepoStatus) string {
-	if hasErrors(status) {
-		return util.ErrorMsg
-	}
-	if len(status.Sync.LatestToken) == 0 {
-		return pendingMsg
-	}
-	if status.Sync.LatestToken == status.Source.Token && len(status.Sync.InProgress) == 0 {
-		return syncedMsg
-	}
-	return pendingMsg
-}
-
-// hasErrors returns true if there are any config management errors present in the given RepoStatus.
-func hasErrors(status v1.RepoStatus) bool {
-	if len(status.Import.Errors) > 0 {
-		return true
-	}
-	for _, syncStatus := range status.Sync.InProgress {
-		if len(syncStatus.Errors) > 0 {
-			return true
-		}
-	}
-	return false
-}
-
-// syncStatusErrors returns all errors reported in the given RepoStatus as a single array.
-func syncStatusErrors(status v1.RepoStatus) []string {
-	var errs []string
-	for _, err := range status.Source.Errors {
-		errs = append(errs, err.ErrorMessage)
-	}
-	for _, err := range status.Import.Errors {
-		errs = append(errs, err.ErrorMessage)
-	}
-	for _, syncStatus := range status.Sync.InProgress {
-		for _, err := range syncStatus.Errors {
-			errs = append(errs, err.ErrorMessage)
-		}
-	}
-
-	if getResourceStatus(status.Sync.ResourceConditions) != v1.ResourceStateHealthy {
-		errs = append(errs, getResourceStatusErrors(status.Sync.ResourceConditions)...)
-	}
-
-	return errs
-}
-
-func getResourceStatus(resourceConditions []v1.ResourceCondition) v1.ResourceConditionState {
-	resourceStatus := v1.ResourceStateHealthy
-
-	for _, resourceCondition := range resourceConditions {
-
-		if resourceCondition.ResourceState.IsError() {
-			return v1.ResourceStateError
-		} else if resourceCondition.ResourceState.IsReconciling() {
-			resourceStatus = v1.ResourceStateReconciling
-		}
-	}
-
-	return resourceStatus
-}
-
-func getResourceStatusErrors(resourceConditions []v1.ResourceCondition) []string {
-	if len(resourceConditions) == 0 {
-		return nil
-	}
-
-	var syncErrors []string
-
-	for _, resourceCondition := range resourceConditions {
-		for _, rcError := range resourceCondition.Errors {
-			syncErrors = append(syncErrors, fmt.Sprintf("%v\t%v\tError: %v", resourceCondition.Kind, resourceCondition.NamespacedName, rcError))
-		}
-		for _, rcReconciling := range resourceCondition.ReconcilingReasons {
-			syncErrors = append(syncErrors, fmt.Sprintf("%v\t%v\tReconciling: %v", resourceCondition.Kind, resourceCondition.NamespacedName, rcReconciling))
-		}
-	}
-
-	return syncErrors
-}
-
 // namespaceRepoStatus converts the given RepoSync into a RepoState.
-func namespaceRepoStatus(rs *v1beta1.RepoSync, rg *unstructured.Unstructured, syncingConditionSupported bool) *RepoState {
+func namespaceRepoStatus(rs *v1beta1.RepoSync, rg *kptv1alpha1.ResourceGroup, syncingConditionSupported bool) *RepoState {
 	repostate := &RepoState{
 		scope:      rs.Namespace,
 		syncName:   rs.Name,
@@ -353,7 +246,7 @@ func namespaceRepoStatus(rs *v1beta1.RepoSync, rg *unstructured.Unstructured, sy
 					ErrorCountAfterTruncation: totalErrorCount,
 				}
 			}
-			resources, _ := resourceLevelStatus(rg)
+			resources := resourceLevelStatus(rg)
 			repostate.resources = resources
 		}
 	case syncingCondition.Status == metav1.ConditionTrue:
@@ -381,7 +274,7 @@ func namespaceRepoStatus(rs *v1beta1.RepoSync, rg *unstructured.Unstructured, sy
 			repostate.lastSyncTimestamp = rs.Status.Sync.LastUpdate
 		}
 		repostate.commit = syncingCondition.Commit
-		resources, _ := resourceLevelStatus(rg)
+		resources := resourceLevelStatus(rg)
 		repostate.resources = resources
 	default:
 		// The sync step finished with errors.
@@ -406,7 +299,7 @@ func namespaceRepoStatus(rs *v1beta1.RepoSync, rg *unstructured.Unstructured, sy
 }
 
 // RootRepoStatus converts the given RootSync into a RepoState.
-func RootRepoStatus(rs *v1beta1.RootSync, rg *unstructured.Unstructured, syncingConditionSupported bool) *RepoState {
+func RootRepoStatus(rs *v1beta1.RootSync, rg *kptv1alpha1.ResourceGroup, syncingConditionSupported bool) *RepoState {
 	repostate := &RepoState{
 		scope:      "<root>",
 		syncName:   rs.Name,
@@ -454,7 +347,7 @@ func RootRepoStatus(rs *v1beta1.RootSync, rg *unstructured.Unstructured, syncing
 					ErrorCountAfterTruncation: totalErrorCount,
 				}
 			}
-			resources, _ := resourceLevelStatus(rg)
+			resources := resourceLevelStatus(rg)
 			repostate.resources = resources
 		}
 	case syncingCondition.Status == metav1.ConditionTrue:
@@ -482,7 +375,7 @@ func RootRepoStatus(rs *v1beta1.RootSync, rg *unstructured.Unstructured, syncing
 			repostate.lastSyncTimestamp = rs.Status.Sync.LastUpdate
 		}
 		repostate.commit = syncingCondition.Commit
-		resources, _ := resourceLevelStatus(rg)
+		resources := resourceLevelStatus(rg)
 		repostate.resources = resources
 	default:
 		// The sync step finished with errors.

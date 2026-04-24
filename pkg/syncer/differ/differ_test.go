@@ -18,11 +18,11 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
 	"github.com/google/go-cmp/cmp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/metadata"
 )
 
 func buildUnstructured(opts ...func(*unstructured.Unstructured)) *unstructured.Unstructured {
@@ -63,12 +63,6 @@ func owned() func(*unstructured.Unstructured) {
 		owners := u.GetOwnerReferences()
 		owners = append(owners, metav1.OwnerReference{})
 		u.SetOwnerReferences(owners)
-	}
-}
-
-func preventDeletionUnstructured() func(*unstructured.Unstructured) {
-	return func(u *unstructured.Unstructured) {
-		preventDeletion(u)
 	}
 }
 
@@ -173,12 +167,6 @@ func TestDiffType(t *testing.T) {
 		{
 			name:       "in cluster only and owned, do nothing",
 			actual:     buildUnstructured(managedByConfigSync(), owned()),
-			expectType: NoOp,
-		},
-		{
-			name: "in cluster only and owned and prevent deletion, unmanage",
-			actual: buildUnstructured(managedByConfigSync(), owned(),
-				preventDeletionUnstructured()),
 			expectType: NoOp,
 		},
 	}

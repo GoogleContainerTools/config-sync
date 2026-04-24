@@ -15,11 +15,11 @@
 package declared
 
 import (
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	"k8s.io/apimachinery/pkg/util/validation"
-	"kpt.dev/configsync/pkg/api/configmanagement"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/status"
 )
 
 // RootScope is the scope that includes both cluster-scoped and namespace-scoped

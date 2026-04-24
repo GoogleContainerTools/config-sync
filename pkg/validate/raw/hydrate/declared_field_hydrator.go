@@ -19,17 +19,17 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/fileobjects"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/validate/fileobjects"
-	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
+	"sigs.k8s.io/structured-merge-diff/v6/fieldpath"
 )
 
 // DeclaredFields hydrates the given Raw objects by annotating each object with

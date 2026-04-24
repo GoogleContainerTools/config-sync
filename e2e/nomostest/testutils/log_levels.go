@@ -19,12 +19,12 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
 	appsv1 "k8s.io/api/apps/v1"
-	"kpt.dev/configsync/e2e/nomostest"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/kinds"
 )
 
 // UpdateRootSyncReconcilerLogLevel updates the LogLevel for a specific RootSync

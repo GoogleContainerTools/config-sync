@@ -23,11 +23,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/docker"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/retry"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
 	corev1 "k8s.io/api/core/v1"
-	"kpt.dev/configsync/e2e/nomostest/docker"
-	"kpt.dev/configsync/e2e/nomostest/retry"
-	"kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/pkg/reconcilermanager"
 )
 
 func connectToLocalRegistry(nt *NT) {

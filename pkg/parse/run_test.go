@@ -24,6 +24,30 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	applierfake "github.com/GoogleContainerTools/config-sync/pkg/applier/fake"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/hydrate"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem/cmpath"
+	fsfake "github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem/fake"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/metrics"
+	"github.com/GoogleContainerTools/config-sync/pkg/remediator/conflict"
+	remediatorfake "github.com/GoogleContainerTools/config-sync/pkg/remediator/fake"
+	"github.com/GoogleContainerTools/config-sync/pkg/rootsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/syncer/reconcile/fight"
+	syncerFake "github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest/fake"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/openapitest"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testmetrics"
+	"github.com/GoogleContainerTools/config-sync/pkg/util"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -31,28 +55,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/clock"
 	fakeclock "k8s.io/utils/clock/testing"
-	"kpt.dev/configsync/pkg/api/configmanagement"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	applierfake "kpt.dev/configsync/pkg/applier/fake"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/hydrate"
-	"kpt.dev/configsync/pkg/importer/analyzer/ast"
-	"kpt.dev/configsync/pkg/importer/filesystem"
-	"kpt.dev/configsync/pkg/importer/filesystem/cmpath"
-	fsfake "kpt.dev/configsync/pkg/importer/filesystem/fake"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/remediator/conflict"
-	remediatorfake "kpt.dev/configsync/pkg/remediator/fake"
-	"kpt.dev/configsync/pkg/rootsync"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/syncer/reconcile/fight"
-	syncerFake "kpt.dev/configsync/pkg/syncer/syncertest/fake"
-	"kpt.dev/configsync/pkg/testing/openapitest"
-	"kpt.dev/configsync/pkg/util"
 	"sigs.k8s.io/cli-utils/pkg/testutil"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -240,6 +242,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 		needRetry             bool
 		parseOutputs          []fsfake.ParserOutputs
 		expectedRootSyncFunc  func(sourcePath string) *v1beta1.RootSync
+		expectedMetrics       []testmetrics.MetricData
 	}{
 		{
 			name:                  "reconcile success with existing source commit directory",
@@ -295,6 +298,11 @@ func TestReconciler_Reconcile(t *testing.T) {
 					},
 				}
 				return rs
+			},
+			expectedMetrics: []testmetrics.MetricData{
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "source", "name": "", "reconciler": "root-sync"}},
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "rendering", "name": "", "reconciler": "root-sync"}},
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "sync", "name": "", "reconciler": "root-sync"}},
 			},
 		},
 		{
@@ -354,6 +362,11 @@ func TestReconciler_Reconcile(t *testing.T) {
 				}
 				return rs
 			},
+			expectedMetrics: []testmetrics.MetricData{
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "source", "name": "", "reconciler": "root-sync"}},
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "rendering", "name": "", "reconciler": "root-sync"}},
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "sync", "name": "", "reconciler": "root-sync"}},
+			},
 		},
 		{
 			name:                  "read retryable error because missing source commit directory",
@@ -396,6 +409,9 @@ func TestReconciler_Reconcile(t *testing.T) {
 				}
 				return rs
 			},
+			expectedMetrics: []testmetrics.MetricData{
+				{Name: metrics.PipelineErrorName, Value: 1, Labels: map[string]string{"component": "source", "name": "", "reconciler": "root-sync"}},
+			},
 		},
 		{
 			name:                  "fetch retriable error because git-sync error",
@@ -436,6 +452,9 @@ func TestReconciler_Reconcile(t *testing.T) {
 					},
 				}
 				return rs
+			},
+			expectedMetrics: []testmetrics.MetricData{
+				{Name: metrics.PipelineErrorName, Value: 1, Labels: map[string]string{"component": "source", "name": "", "reconciler": "root-sync"}},
 			},
 		},
 		{
@@ -483,6 +502,10 @@ func TestReconciler_Reconcile(t *testing.T) {
 					},
 				}
 				return rs
+			},
+			expectedMetrics: []testmetrics.MetricData{
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "source", "name": "", "reconciler": "root-sync"}},
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "rendering", "name": "", "reconciler": "root-sync"}},
 			},
 		},
 		{
@@ -538,6 +561,10 @@ func TestReconciler_Reconcile(t *testing.T) {
 				}
 				return rs
 			},
+			expectedMetrics: []testmetrics.MetricData{
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "source", "name": "", "reconciler": "root-sync"}},
+				{Name: metrics.PipelineErrorName, Value: 1, Labels: map[string]string{"component": "rendering", "name": "", "reconciler": "root-sync"}},
+			},
 		},
 		{
 			name:                  "parse blocking error because missing name without rendering",
@@ -550,6 +577,10 @@ func TestReconciler_Reconcile(t *testing.T) {
 						fmt.Errorf("missing field %q", "metadata.name")).
 						Build(),
 				},
+			},
+			expectedMetrics: []testmetrics.MetricData{
+				{Name: metrics.PipelineErrorName, Value: 1, Labels: map[string]string{"component": "source", "name": "", "reconciler": "root-sync"}},
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "rendering", "name": "", "reconciler": "root-sync"}},
 			},
 			expectedRootSyncFunc: func(_ string) *v1beta1.RootSync {
 				rs := rootSyncOutput.DeepCopy()
@@ -612,6 +643,10 @@ func TestReconciler_Reconcile(t *testing.T) {
 						Build(),
 				},
 			},
+			expectedMetrics: []testmetrics.MetricData{
+				{Name: metrics.PipelineErrorName, Value: 1, Labels: map[string]string{"component": "source", "name": "", "reconciler": "root-sync"}},
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "rendering", "name": "", "reconciler": "root-sync"}},
+			},
 			expectedRootSyncFunc: func(_ string) *v1beta1.RootSync {
 				rs := rootSyncOutput.DeepCopy()
 				// Create + Update (fetch success) + Update (render success) + Update (parse error)
@@ -668,6 +703,11 @@ func TestReconciler_Reconcile(t *testing.T) {
 							core.Annotation(metadata.SourcePathAnnotationKey, "namespaces/obj.yaml"),
 						)),
 				},
+			},
+			expectedMetrics: []testmetrics.MetricData{
+				{Name: metrics.PipelineErrorName, Value: 1, Labels: map[string]string{"component": "source", "name": "", "reconciler": "root-sync"}},
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "rendering", "name": "", "reconciler": "root-sync"}},
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "sync", "name": "", "reconciler": "root-sync"}},
 			},
 			expectedRootSyncFunc: func(_ string) *v1beta1.RootSync {
 				rs := rootSyncOutput.DeepCopy()
@@ -783,6 +823,11 @@ func TestReconciler_Reconcile(t *testing.T) {
 				}
 				return rs
 			},
+			expectedMetrics: []testmetrics.MetricData{
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "source", "name": "", "reconciler": "root-sync"}},
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "rendering", "name": "", "reconciler": "root-sync"}},
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "sync", "name": "", "reconciler": "root-sync"}},
+			},
 		},
 		{
 			name:                  "reconcile success without rendering",
@@ -841,6 +886,11 @@ func TestReconciler_Reconcile(t *testing.T) {
 				}
 				return rs
 			},
+			expectedMetrics: []testmetrics.MetricData{
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "source", "name": "", "reconciler": "root-sync"}},
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "rendering", "name": "", "reconciler": "root-sync"}},
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "sync", "name": "", "reconciler": "root-sync"}},
+			},
 		},
 		{
 			name:                  "render transient error because hydration enabled with wet source",
@@ -896,6 +946,10 @@ func TestReconciler_Reconcile(t *testing.T) {
 				}
 				return rs
 			},
+			expectedMetrics: []testmetrics.MetricData{
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "source", "name": "", "reconciler": "root-sync"}},
+				{Name: metrics.PipelineErrorName, Value: 1, Labels: map[string]string{"component": "rendering", "name": "", "reconciler": "root-sync"}},
+			},
 		},
 		{
 			name:                  "render transient error because hydration disabled with dry source",
@@ -950,6 +1004,10 @@ func TestReconciler_Reconcile(t *testing.T) {
 				}
 				return rs
 			},
+			expectedMetrics: []testmetrics.MetricData{
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "source", "name": "", "reconciler": "root-sync"}},
+				{Name: metrics.PipelineErrorName, Value: 1, Labels: map[string]string{"component": "rendering", "name": "", "reconciler": "root-sync"}},
+			},
 		},
 		{
 			name:    "reconcile success with full-sync after apply error",
@@ -965,12 +1023,6 @@ func TestReconciler_Reconcile(t *testing.T) {
 				}
 				// Simulate fetch & parse success from current commit to ensure full-sync doesn't skip updating
 				state.cache = cacheForCommit{
-					source: &sourceState{
-						spec:     SourceSpecFromFileSource(fileSource, fileSource.SourceType, sourceCommit),
-						commit:   sourceCommit,
-						syncPath: cmpath.Absolute(filepath.Join(sourcePath, sourceCommit)),
-						files:    nil,
-					},
 					parse: &parseResult{
 						lastUpdateTime: lastCheckpointTime,
 					},
@@ -978,6 +1030,12 @@ func TestReconciler_Reconcile(t *testing.T) {
 					applied:                  false,
 					watchesUpdated:           false,
 					needToRetry:              true,
+				}
+				state.source = &sourceState{
+					spec:     SourceSpecFromFileSource(fileSource, fileSource.SourceType, sourceCommit),
+					commit:   sourceCommit,
+					syncPath: cmpath.Absolute(filepath.Join(sourcePath, sourceCommit)),
+					files:    nil,
 				}
 				// Simulate sync error
 				state.syncErrorCache.AddApplyError(status.InternalError("apply error"))
@@ -1034,11 +1092,247 @@ func TestReconciler_Reconcile(t *testing.T) {
 				}
 				return rs
 			},
+			expectedMetrics: []testmetrics.MetricData{
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "source", "name": "", "reconciler": "root-sync"}},
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "rendering", "name": "", "reconciler": "root-sync"}},
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "sync", "name": "", "reconciler": "root-sync"}},
+			},
+		},
+		{
+			name:                  "pipeline error metric validation - source component error",
+			trigger:               triggerSync,
+			gitError:              "git sync permission issue",
+			expectedSourceChanged: false,
+			needRetry:             true,
+			parseOutputs:          nil, // parse should not be called
+			expectedRootSyncFunc: func(_ string) *v1beta1.RootSync {
+				rs := rootSyncOutput.DeepCopy()
+				// Create + Update (fetch error)
+				rs.ObjectMeta.ResourceVersion = "2"
+				rs.Status.Status.Source = v1beta1.SourceStatus{
+					Git: &v1beta1.GitStatus{
+						Repo:   fileSource.SourceRepo,
+						Branch: fileSource.SourceBranch,
+					},
+					LastUpdate: fakeMetaTime,
+					Errors: status.ToCSE(
+						status.SourceError.Wrap(
+							util.NewRetriableError(
+								fmt.Errorf("error in the git-sync container: %w",
+									fmt.Errorf("git sync permission issue")))).
+							Build(),
+					),
+					ErrorSummary: &v1beta1.ErrorSummary{TotalCount: 1, ErrorCountAfterTruncation: 1},
+				}
+				rs.Status.Conditions = []v1beta1.RootSyncCondition{
+					{
+						Type:               v1beta1.RootSyncSyncing,
+						Status:             metav1.ConditionFalse,
+						LastUpdateTime:     fakeMetaTime,
+						LastTransitionTime: fakeMetaTime,
+						Reason:             "Source",
+						Message:            "Source",
+						ErrorSourceRefs:    []v1beta1.ErrorSource{v1beta1.SourceError},
+						ErrorSummary:       &v1beta1.ErrorSummary{TotalCount: 1, ErrorCountAfterTruncation: 1},
+					},
+				}
+				return rs
+			},
+			expectedMetrics: []testmetrics.MetricData{
+				{Name: metrics.PipelineErrorName, Value: 1, Labels: map[string]string{"component": "source", "name": "", "reconciler": "root-sync"}},
+			},
+		},
+		{
+			name:                  "pipeline error metric validation - rendering component error",
+			trigger:               triggerSync,
+			renderingEnabled:      true,
+			hasKustomization:      true,
+			hydratedRootExist:     true,
+			hydrationDone:         true,
+			imageVerified:         true,
+			hydratedError:         `{"code": "1068", "error": "rendering error"}`,
+			expectedSourceChanged: false,
+			needRetry:             true,
+			parseOutputs:          nil, // parse should not be called
+			expectedRootSyncFunc: func(_ string) *v1beta1.RootSync {
+				rs := rootSyncOutput.DeepCopy()
+				// Create + Update (fetch success) + Update (render error)
+				rs.ObjectMeta.ResourceVersion = "3"
+				rs.Status.Status.Source = v1beta1.SourceStatus{
+					Git: &v1beta1.GitStatus{
+						Repo:   fileSource.SourceRepo,
+						Branch: fileSource.SourceBranch,
+					},
+					Commit:       sourceCommit,
+					LastUpdate:   fakeMetaTime,
+					ErrorSummary: &v1beta1.ErrorSummary{},
+				}
+				rs.Status.Status.Rendering = v1beta1.RenderingStatus{
+					Git: &v1beta1.GitStatus{
+						Repo:   fileSource.SourceRepo,
+						Branch: fileSource.SourceBranch,
+					},
+					Commit:  sourceCommit,
+					Message: RenderingFailed,
+					Errors: status.ToCSE(
+						status.HydrationError(status.ActionableHydrationErrorCode, fmt.Errorf("rendering error")),
+					),
+					ErrorSummary: &v1beta1.ErrorSummary{TotalCount: 1, ErrorCountAfterTruncation: 1},
+					LastUpdate:   fakeMetaTime,
+				}
+				rs.Status.Conditions = []v1beta1.RootSyncCondition{
+					{
+						Type:               v1beta1.RootSyncSyncing,
+						Status:             metav1.ConditionFalse,
+						LastUpdateTime:     fakeMetaTime,
+						LastTransitionTime: fakeMetaTime,
+						Reason:             "Rendering",
+						Message:            RenderingFailed,
+						Commit:             sourceCommit,
+						ErrorSourceRefs:    []v1beta1.ErrorSource{v1beta1.RenderingError},
+						ErrorSummary:       &v1beta1.ErrorSummary{TotalCount: 1, ErrorCountAfterTruncation: 1},
+					},
+				}
+				return rs
+			},
+			expectedMetrics: []testmetrics.MetricData{
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "source", "name": "", "reconciler": "root-sync"}},
+				{Name: metrics.PipelineErrorName, Value: 1, Labels: map[string]string{"component": "rendering", "name": "", "reconciler": "root-sync"}},
+			},
+		},
+		{
+			name:                  "pipeline error metric validation - sync component success",
+			trigger:               triggerSync,
+			expectedSourceChanged: true,
+			needRetry:             false,
+			parseOutputs: []fsfake.ParserOutputs{
+				{}, // parse should be called exactly once
+			},
+			expectedRootSyncFunc: func(_ string) *v1beta1.RootSync {
+				rs := rootSyncOutput.DeepCopy()
+				// Create + Update (fetch success) + Update (render skipped) + Update (sync success)
+				rs.ObjectMeta.ResourceVersion = "4"
+				rs.Status.Status.LastSyncedCommit = sourceCommit
+				rs.Status.Status.Source = v1beta1.SourceStatus{
+					Git: &v1beta1.GitStatus{
+						Repo:   fileSource.SourceRepo,
+						Branch: fileSource.SourceBranch,
+					},
+					Commit:       sourceCommit,
+					LastUpdate:   fakeMetaTime,
+					ErrorSummary: &v1beta1.ErrorSummary{},
+				}
+				rs.Status.Status.Rendering = v1beta1.RenderingStatus{
+					Git: &v1beta1.GitStatus{
+						Repo:   fileSource.SourceRepo,
+						Branch: fileSource.SourceBranch,
+					},
+					Commit:       sourceCommit,
+					Message:      RenderingSkipped,
+					ErrorSummary: &v1beta1.ErrorSummary{},
+					LastUpdate:   fakeMetaTime,
+				}
+				rs.Status.Status.Sync = v1beta1.SyncStatus{
+					Git: &v1beta1.GitStatus{
+						Repo:   fileSource.SourceRepo,
+						Branch: fileSource.SourceBranch,
+					},
+					Commit:       sourceCommit,
+					LastUpdate:   fakeMetaTime,
+					ErrorSummary: &v1beta1.ErrorSummary{},
+				}
+				rs.Status.Conditions = []v1beta1.RootSyncCondition{
+					{
+						Type:               v1beta1.RootSyncSyncing,
+						Status:             metav1.ConditionFalse,
+						LastUpdateTime:     fakeMetaTime,
+						LastTransitionTime: fakeMetaTime,
+						Reason:             "Sync",
+						Message:            "Sync Completed",
+						Commit:             sourceCommit,
+						ErrorSummary:       &v1beta1.ErrorSummary{},
+					},
+				}
+				return rs
+			},
+			expectedMetrics: []testmetrics.MetricData{
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "source", "name": "", "reconciler": "root-sync"}},
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "rendering", "name": "", "reconciler": "root-sync"}},
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "sync", "name": "", "reconciler": "root-sync"}},
+			},
+		},
+		{
+			name:                  "pipeline error metric validation - no errors",
+			trigger:               triggerSync,
+			expectedSourceChanged: true,
+			needRetry:             false,
+			parseOutputs: []fsfake.ParserOutputs{
+				{}, // parse should be called exactly once
+			},
+			expectedRootSyncFunc: func(_ string) *v1beta1.RootSync {
+				rs := rootSyncOutput.DeepCopy()
+				// Create + Update (fetch success) + Update (render skipped) + Update (sync success)
+				rs.ObjectMeta.ResourceVersion = "4"
+				rs.Status.Status.LastSyncedCommit = sourceCommit
+				rs.Status.Status.Source = v1beta1.SourceStatus{
+					Git: &v1beta1.GitStatus{
+						Repo:   fileSource.SourceRepo,
+						Branch: fileSource.SourceBranch,
+					},
+					Commit:       sourceCommit,
+					LastUpdate:   fakeMetaTime,
+					ErrorSummary: &v1beta1.ErrorSummary{},
+				}
+				rs.Status.Status.Rendering = v1beta1.RenderingStatus{
+					Git: &v1beta1.GitStatus{
+						Repo:   fileSource.SourceRepo,
+						Branch: fileSource.SourceBranch,
+					},
+					Commit:       sourceCommit,
+					Message:      RenderingSkipped,
+					ErrorSummary: &v1beta1.ErrorSummary{},
+					LastUpdate:   fakeMetaTime,
+				}
+				rs.Status.Status.Sync = v1beta1.SyncStatus{
+					Git: &v1beta1.GitStatus{
+						Repo:   fileSource.SourceRepo,
+						Branch: fileSource.SourceBranch,
+					},
+					Commit:       sourceCommit,
+					LastUpdate:   fakeMetaTime,
+					ErrorSummary: &v1beta1.ErrorSummary{},
+				}
+				rs.Status.Conditions = []v1beta1.RootSyncCondition{
+					{
+						Type:               v1beta1.RootSyncSyncing,
+						Status:             metav1.ConditionFalse,
+						LastUpdateTime:     fakeMetaTime,
+						LastTransitionTime: fakeMetaTime,
+						Reason:             "Sync",
+						Message:            "Sync Completed",
+						Commit:             sourceCommit,
+						ErrorSummary:       &v1beta1.ErrorSummary{},
+					},
+				}
+				return rs
+			},
+			expectedMetrics: []testmetrics.MetricData{
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "source", "name": "", "reconciler": "root-sync"}},
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "rendering", "name": "", "reconciler": "root-sync"}},
+				{Name: metrics.PipelineErrorName, Value: 0, Labels: map[string]string{"component": "sync", "name": "", "reconciler": "root-sync"}},
+			},
 		},
 	}
 
 	for index, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			// Initialize metrics for this test
+			exporter, err := testmetrics.NewTestExporter()
+			if err != nil {
+				t.Fatalf("Failed to create test exporter: %v", err)
+			}
+			defer exporter.ClearMetrics()
+
 			util.SourceRetryBackoff = wait.Backoff{
 				Duration: time.Millisecond,
 				Factor:   2,
@@ -1154,6 +1448,13 @@ func TestReconciler_Reconcile(t *testing.T) {
 
 			// Block and wait for the goroutine to complete.
 			<-doneCh
+
+			// Validate metrics if expected metrics are provided
+			if tc.expectedMetrics != nil {
+				if diff := exporter.ValidateMetrics(tc.expectedMetrics); diff != "" {
+					t.Errorf("Unexpected metrics recorded: %v", diff)
+				}
+			}
 		})
 	}
 }

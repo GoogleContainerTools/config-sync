@@ -17,9 +17,9 @@ package registryproviders
 import (
 	"fmt"
 
-	"kpt.dev/configsync/e2e"
-	"kpt.dev/configsync/e2e/nomostest/portforwarder"
-	"kpt.dev/configsync/e2e/nomostest/testshell"
+	"github.com/GoogleContainerTools/config-sync/e2e"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/portforwarder"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testshell"
 )
 
 // LocalProvider refers to the test registry-server running on the same test cluster.

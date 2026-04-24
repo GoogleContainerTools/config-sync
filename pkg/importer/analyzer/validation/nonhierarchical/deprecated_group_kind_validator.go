@@ -15,8 +15,8 @@
 package nonhierarchical
 
 import (
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"kpt.dev/configsync/pkg/status"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

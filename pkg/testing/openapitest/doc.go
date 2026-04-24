@@ -22,9 +22,9 @@ import (
 
 	// The openapi Document type does not satisfy the proto.Message interface in
 	// the new non-deprecated proto library.
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	openapiv2 "github.com/google/gnostic-models/openapiv2"
-	"kpt.dev/configsync/pkg/declared"
 )
 
 const openapiFile = "openapi_v2.txt"

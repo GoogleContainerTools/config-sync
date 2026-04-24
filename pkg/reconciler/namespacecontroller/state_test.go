@@ -17,11 +17,11 @@ package namespacecontroller
 import (
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
 )
 
 var (

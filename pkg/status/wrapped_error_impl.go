@@ -17,8 +17,8 @@ package status
 import (
 	"strings"
 
-	v1 "kpt.dev/configsync/pkg/api/configmanagement/v1"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
+	v1 "github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement/v1"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
 )
 
 type wrappedErrorImpl struct {

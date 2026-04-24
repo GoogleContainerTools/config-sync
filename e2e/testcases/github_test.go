@@ -17,20 +17,20 @@ package e2e
 import (
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/gitproviders"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/ntopts"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/policy"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/syncsource"
+	nomostesting "github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/rsync/validate"
 	"k8s.io/apimachinery/pkg/types"
-	"kpt.dev/configsync/e2e/nomostest"
-	"kpt.dev/configsync/e2e/nomostest/gitproviders"
-	"kpt.dev/configsync/e2e/nomostest/ntopts"
-	"kpt.dev/configsync/e2e/nomostest/policy"
-	"kpt.dev/configsync/e2e/nomostest/syncsource"
-	nomostesting "kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/validate/rsync/validate"
 )
 
 const (
@@ -59,7 +59,7 @@ const (
 func TestGithubAppRootSync(t *testing.T) {
 	rootSyncID := nomostest.DefaultRootSyncID
 	rootSyncNN := rootSyncID.ObjectKey
-	nt := nomostest.New(t, nomostesting.SyncSource, ntopts.GitHubAppTest)
+	nt := nomostest.New(t, nomostesting.SyncSourceGit, ntopts.GitHubAppTest)
 	githubApp, err := gitproviders.FetchGithubAppConfiguration()
 	if err != nil {
 		nt.T.Fatal(err)
@@ -154,7 +154,7 @@ func TestGithubAppRootSync(t *testing.T) {
 func TestGithubAppRepoSync(t *testing.T) {
 	repoSyncNN := nomostest.RepoSyncNN(githubAppRepoNamespace, "rs-test")
 	repoSyncID := core.RepoSyncID(repoSyncNN.Name, repoSyncNN.Namespace)
-	nt := nomostest.New(t, nomostesting.SyncSource, ntopts.GitHubAppTest,
+	nt := nomostest.New(t, nomostesting.SyncSourceGit, ntopts.GitHubAppTest,
 		ntopts.WithDelegatedControl,                    // DelegatedControl to simplify updating RepoSync
 		ntopts.RepoSyncPermissions(policy.CoreAdmin()), // RepoSync manages ConfigMap
 		ntopts.SyncWithGitSource(repoSyncID))

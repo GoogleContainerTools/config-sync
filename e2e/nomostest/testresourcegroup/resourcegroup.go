@@ -17,16 +17,16 @@ package testresourcegroup
 import (
 	"fmt"
 
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testkubeclient"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	resourcegroupcontroller "github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/resourcegroup"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"kpt.dev/configsync/e2e/nomostest/testkubeclient"
-	"kpt.dev/configsync/pkg/api/configmanagement"
-	"kpt.dev/configsync/pkg/api/kpt.dev/v1alpha1"
-	"kpt.dev/configsync/pkg/metadata"
-	resourcegroupcontroller "kpt.dev/configsync/pkg/resourcegroup/controllers/resourcegroup"
 	"sigs.k8s.io/cli-utils/pkg/common"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )

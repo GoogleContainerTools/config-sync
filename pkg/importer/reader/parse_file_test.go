@@ -18,12 +18,12 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/kinds"
 )
 
 func TestParseYAMLFile(t *testing.T) {

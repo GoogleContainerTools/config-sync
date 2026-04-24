@@ -15,11 +15,11 @@
 package selectors
 
 import (
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	clusterregistry "k8s.io/cluster-registry/pkg/apis/clusterregistry/v1alpha1"
-	"kpt.dev/configsync/pkg/importer/analyzer/ast"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/status"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

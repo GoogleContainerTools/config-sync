@@ -23,17 +23,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/e2e"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/retry"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testkubeclient"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testlogger"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"kpt.dev/configsync/e2e"
-	"kpt.dev/configsync/e2e/nomostest/retry"
-	"kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/e2e/nomostest/testkubeclient"
-	"kpt.dev/configsync/e2e/nomostest/testlogger"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 )
@@ -281,6 +281,13 @@ func (g *ReadWriteRepository) Init() error {
 			// Use credential helper script to provide information that Git needs to
 			// connect securely to CSR using Google Account credentials.
 			[]string{"config", fmt.Sprintf("credential.%s.helper", testing.CSRHost), "gcloud.sh"})
+	}
+	if g.GitProvider.Type() == e2e.SSM {
+		hostName := g.GitProvider.(*SSMClient).hostName()
+		cmds = append(cmds,
+			// Use credential helper script to provide information that Git needs to
+			// connect securely to SSM using Google Account credentials.
+			[]string{"config", fmt.Sprintf("credential.%s.helper", hostName), "gcloud.sh"})
 	}
 	return g.BulkGit(cmds...)
 }

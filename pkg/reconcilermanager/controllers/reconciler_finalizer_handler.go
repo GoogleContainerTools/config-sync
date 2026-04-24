@@ -17,10 +17,10 @@ package controllers
 import (
 	"context"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	corev1 "k8s.io/api/core/v1"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/reconcilermanager"
-	"kpt.dev/configsync/pkg/status"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )

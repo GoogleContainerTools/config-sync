@@ -15,14 +15,14 @@
 package validate
 
 import (
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
+	v1 "github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement/v1"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation/hierarchyconfig"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/fileobjects"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"kpt.dev/configsync/pkg/api/configmanagement"
-	v1 "kpt.dev/configsync/pkg/api/configmanagement/v1"
-	"kpt.dev/configsync/pkg/importer/analyzer/ast"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation/hierarchyconfig"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/validate/fileobjects"
 )
 
 // HierarchyConfig verifies that all HierarchyConfig objects specify valid

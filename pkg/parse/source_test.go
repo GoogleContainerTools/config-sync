@@ -22,12 +22,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/hydrate"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem/cmpath"
+	ft "github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem/filesystemtest"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"kpt.dev/configsync/pkg/hydrate"
-	"kpt.dev/configsync/pkg/importer/filesystem/cmpath"
-	ft "kpt.dev/configsync/pkg/importer/filesystem/filesystemtest"
-	"kpt.dev/configsync/pkg/status"
 )
 
 var originCommit = "1234567890abcde"

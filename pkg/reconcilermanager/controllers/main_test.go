@@ -18,13 +18,30 @@ import (
 	"os"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testcontroller"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testmetrics"
 	"k8s.io/klog/v2"
 )
 
 // TestMain executes the tests for this package, with optional logging.
 // To see all logs, use:
-// go test kpt.dev/configsync/pkg/reconcilermanager/controllers -v -args -v=5
+// go test github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager/controllers -v -args -v=5
 func TestMain(m *testing.M) {
-	klog.InitFlags(nil)
-	os.Exit(m.Run())
+	setup := func() error {
+		klog.InitFlags(nil)
+
+		// Initialize metrics for tests
+		_, err := testmetrics.NewTestExporter()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	cleanup := func() error {
+		return nil
+	}
+
+	os.Exit(testcontroller.RunTestSuite(m, setup, cleanup))
 }

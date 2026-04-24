@@ -17,9 +17,9 @@ package v1beta1
 import (
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/client/restconfig"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/client/restconfig"
 )
 
 // GetPeriod returns the sync period defaulting to the provided defaultPeriod if empty.

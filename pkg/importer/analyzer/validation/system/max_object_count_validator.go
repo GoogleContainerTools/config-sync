@@ -15,7 +15,7 @@
 package system
 
 import (
-	"kpt.dev/configsync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 )
 
 // DefaultMaxObjectCount is the default maximum number of objects allowed in a

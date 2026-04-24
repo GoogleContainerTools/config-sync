@@ -15,10 +15,10 @@
 package hydrate
 
 import (
-	"kpt.dev/configsync/pkg/importer/analyzer/ast"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/validate/raw/validate"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/raw/validate"
 )
 
 // Clean removes invalid fields from objects before writing them to a file.

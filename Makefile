@@ -18,7 +18,7 @@
 
 ##### CONFIG #####
 
-REPO := kpt.dev/configsync
+REPO := github.com/GoogleContainerTools/config-sync
 
 # Some of our recipes use bash syntax, so explicitly set the shell to bash.
 SHELL := /bin/bash
@@ -38,12 +38,13 @@ GO_DIR := $(OUTPUT_DIR)/go
 
 # Base image used for all golang containers
 # Uses trusted google-built golang image
-GOLANG_IMAGE_VERSION := 1.24.3
+GOLANG_IMAGE_VERSION := 1.25.9
 GOLANG_IMAGE := google-go.pkg.dev/golang:$(GOLANG_IMAGE_VERSION)
 # Base image used for debian containers
 # When updating you can use this command:
 # gcloud container images list-tags gcr.io/gke-release/debian-base --filter="tags:bookworm*"
-DEBIAN_BASE_IMAGE := gcr.io/gke-release/debian-base:bookworm-v1.0.4-gke.17
+# Or run: UPDATE_TYPE=<latest-version|latest-build> make update-debian-base-image
+DEBIAN_BASE_IMAGE := gcr.io/gke-release/debian-base:bookworm-v1.0.7-gke.2
 # Base image used for gcloud install, primarily for test images.
 # We use -slim for a smaller base image where we can choose which components to install.
 # https://cloud.google.com/sdk/docs/downloads-docker#docker_image_options
@@ -77,21 +78,29 @@ GO_JUNIT_REPORT := $(BIN_DIR)/go-junit-report
 GOLANGCI_LINT_VERSION := v1.63.4
 GOLANGCI_LINT := $(BIN_DIR)/golangci-lint
 
-KUSTOMIZE_VERSION := v5.4.2-gke.0
+# To automatically update, run this command:
+# UPDATE_TYPE=<latest-version|latest-build> make update-kustomize-image
+KUSTOMIZE_VERSION := v5.4.2-gke.6
 KUSTOMIZE := $(BIN_DIR)/kustomize
 KUSTOMIZE_STAGING_DIR := $(OUTPUT_DIR)/third_party/kustomize
 
-HELM_VERSION := v3.15.3-gke.6
+# To automatically update, run this command:
+# UPDATE_TYPE=<latest-version|latest-build> make update-helm-image
+HELM_VERSION := v3.20.2-gke.2
 HELM := $(BIN_DIR)/helm
 HELM_STAGING_DIR := $(OUTPUT_DIR)/third_party/helm
 
 COSIGN_VERSION := v2.4.1
 COSIGN := $(BIN_DIR)/cosign
 
-GIT_SYNC_VERSION := v4.4.2-gke.1__linux_amd64
+# To automatically update, run this command:
+# UPDATE_TYPE=<latest-version|latest-build> make update-git-sync-image
+GIT_SYNC_VERSION := v4.4.2-gke.19__linux_amd64
 GIT_SYNC_IMAGE_NAME := gcr.io/config-management-release/git-sync:$(GIT_SYNC_VERSION)
 
-OTELCONTRIBCOL_VERSION := v0.118.0-gke.10
+# To automatically update, run this command:
+# UPDATE_TYPE=<latest-version|latest-build> make update-otelcontribcol-image
+OTELCONTRIBCOL_VERSION := v0.133.0-gke.11
 OTELCONTRIBCOL_IMAGE_NAME := gcr.io/config-management-release/otelcontribcol:$(OTELCONTRIBCOL_VERSION)
 
 # Directory used for staging Docker contexts.
@@ -184,9 +193,6 @@ IMAGES := \
 	$(ASKPASS_IMAGE) \
 	$(RESOURCE_GROUP_IMAGE)
 
-# nomos binary for local run.
-NOMOS_LOCAL := $(BIN_DIR)/linux_amd64/nomos
-
 # Allows an interactive docker build or test session to be interrupted
 # by Ctrl-C.  This must be turned off in case of non-interactive runs,
 # like in CI/CD.
@@ -255,6 +261,46 @@ PATH := $(BIN_DIR):$(GOBIN):$(PATH)
 
 .DEFAULT_GOAL := all
 
+# Macro for tools installed via go install.
+# buildenv-dirs is a dependency for all tools
+# $(1): target binary path
+# $(2): go package to install
+# $(3): tool name for aliases (install-$(3), clean-$(3))
+# $(4): extra flags to pass to go install
+define go_install
+"$(1)": buildenv-dirs
+	GOPATH="$(GO_DIR)" $(4) go install $(2)
+
+.PHONY: install-$(3)
+install-$(3): "$(1)"
+
+.PHONY: clean-$(3)
+clean-$(3):
+	@rm -rf $(1)
+endef
+
+# Macro for tools installed via custom scripts (e.g., kustomize, helm).
+# $(1): target binary path
+# $(2): variable prefix (e.g. KUSTOMIZE for KUSTOMIZE_VERSION, KUSTOMIZE_STAGING_DIR)
+# $(3): tool name for aliases and script name (scripts/install-$(3).sh)
+define script_install
+"$(1)": buildenv-dirs
+	@$(2)_VERSION="$$($(2)_VERSION)" \
+		INSTALL_DIR="$(BIN_DIR)" \
+		TMPDIR="/tmp" \
+		OUTPUT_DIR="$(OUTPUT_DIR)" \
+		STAGING_DIR="$$($(2)_STAGING_DIR)" \
+		./scripts/install-$(3).sh
+
+.PHONY: install-$(3)
+install-$(3): "$(1)"
+
+.PHONY: clean-$(3)
+clean-$(3):
+	@rm -rf $$($(2)_STAGING_DIR)
+	@rm -rf $(1)
+endef
+
 .PHONY: $(OUTPUT_DIR)
 $(OUTPUT_DIR):
 	@echo "+++ Creating the local build output directory: $(OUTPUT_DIR)"
@@ -297,6 +343,11 @@ include Makefile.reconcilermanager
 all: buildenv-dirs
 	@docker run $(DOCKER_RUN_ARGS) \
 		make all-local
+
+# Run any make target in the docker buildenv container
+# e.g. make clientgen-in-docker -> docker run ... make clientgen
+%-in-docker: buildenv-dirs
+	@docker run $(DOCKER_RUN_ARGS) make "$*"
 
 .PHONY: all-local
 # Run tests, cleanup dependencies, and generate CRDs locally
@@ -351,8 +402,7 @@ __test-presubmit: all-local
 
 # This is the entrypoint used by the ProwJob - runs using docker-in-docker.
 .PHONY: test-presubmit
-test-presubmit: pull-buildenv
-	@docker run $(DOCKER_RUN_ARGS) make __test-presubmit
+test-presubmit: pull-buildenv __test-presubmit-in-docker
 
 # Runs all tests.
 # This only runs on local dev environment not CI environment.
@@ -384,10 +434,10 @@ vendor:
 deps: tidy vendor
 
 .PHONY: lint
-lint: lint-go lint-bash lint-yaml lint-license lint-license-headers
+lint: lint-go lint-bash lint-yaml lint-license lint-license-headers lint-post-sync
 
 .PHONY: lint-go
-lint-go: "$(GOLANGCI_LINT)" lint-post-sync
+lint-go: "$(GOLANGCI_LINT)"
 	./scripts/lint-go.sh $(NOMOS_GO_PKG)
 
 .PHONY: lint-bash
@@ -408,122 +458,17 @@ lint-license: "$(GO_LICENSES)"
 	@echo "\"$(GO_LICENSES)\" check --allowed_licenses=$(ALLOWED_LICENSES) \$$(go list all) ./vendor/... --ignore github.com/GoogleContainerTools/kpt"
 	@"$(GO_LICENSES)" check --allowed_licenses=$(ALLOWED_LICENSES) $(shell go list all) ./vendor/... --ignore github.com/GoogleContainerTools/kpt
 
-"$(GO_LICENSES)": buildenv-dirs
-	GOPATH="$(GO_DIR)" go install github.com/google/go-licenses/v2
-
-.PHONY: install-go-licenses
-# install go-licenses (user-friendly target alias)
-install-go-licenses: "$(GO_LICENSES)"
-
-.PHONY: clean-go-licenses
-clean-go-licenses:
-	@rm -rf $(GO_LICENSES)
-
-"$(ADDLICENSE)": buildenv-dirs
-	GOPATH="$(GO_DIR)" go install github.com/google/addlicense
-
-.PHONY: install-addlicense
-# install addlicense (user-friendly target alias)
-install-addlicense: "$(ADDLICENSE)"
-
-.PHONY: clean-addlicense
-clean-addlicense:
-	@rm -rf $(ADDLICENSE)
-
-"$(GOLANGCI_LINT)": buildenv-dirs
-	GOPATH="$(GO_DIR)" go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
-
-.PHONY: install-golangci-lint
-# install golangci-lint (user-friendly target alias)
-install-golangci-lint: "$(GOLANGCI_LINT)"
-
-.PHONY: clean-golangci-lint
-clean-golangci-lint:
-	@rm -rf $(GOLANGCI_LINT)
-
-"$(KUSTOMIZE)": buildenv-dirs
-	@KUSTOMIZE_VERSION="$(KUSTOMIZE_VERSION)" \
-		INSTALL_DIR="$(BIN_DIR)" \
-		TMPDIR="/tmp" \
-		OUTPUT_DIR="$(OUTPUT_DIR)" \
-		STAGING_DIR="$(KUSTOMIZE_STAGING_DIR)" \
-		./scripts/install-kustomize.sh
-
-.PHONY: clean-cosign
-clean-cosign:
-	@rm -rf $(COSIGN)
-
-.PHONY: install-cosign
-install-cosign: "$(COSIGN)"
-
-"$(COSIGN)": buildenv-dirs
-	GOPATH="$(GO_DIR)" CGO_ENABLED=0 go install github.com/sigstore/cosign/v2/cmd/cosign@$(COSIGN_VERSION)
-
-.PHONY: install-kustomize
-# install kustomize (user-friendly target alias)
-install-kustomize: "$(KUSTOMIZE)"
-
-.PHONY: clean-kustomize
-clean-kustomize:
-	@rm -rf $(KUSTOMIZE_STAGING_DIR)
-	@rm -rf $(KUSTOMIZE)
-
-"$(HELM)": buildenv-dirs
-	@HELM_VERSION="$(HELM_VERSION)" \
-		INSTALL_DIR="$(BIN_DIR)" \
-		TMPDIR="/tmp" \
-		OUTPUT_DIR="$(OUTPUT_DIR)" \
-		STAGING_DIR="$(HELM_STAGING_DIR)" \
-		./scripts/install-helm.sh
-
-.PHONY: install-helm
-# install helm (user-friendly target alias)
-install-helm: "$(HELM)"
-
-.PHONY: clean-helm
-clean-helm:
-	@rm -rf $(HELM_STAGING_DIR)
-	@rm -rf $(HELM)
-
-"$(GOBIN)/kind":
-	# Build kind with CGO disabled so it can be used in containers without C installed.
-	CGO_ENABLED=0 go install sigs.k8s.io/kind
-
-"$(KIND)": "$(GOBIN)/kind" buildenv-dirs
-	cp $(GOBIN)/kind $(KIND)
-
-.PHONY: install-kind
-# install kind (user-friendly target alias)
-install-kind: "$(KIND)"
-
-.PHONY: clean-go-junit-report
-clean-go-junit-report:
-	@rm -rf $(GO_JUNIT_REPORT)
-
-.PHONY: install-go-junit-report
-# install go-junit-report (user-friendly target alias)
-install-go-junit-report: "$(GO_JUNIT_REPORT)"
-
-"$(GOBIN)/go-junit-report":
-	CGO_ENABLED=0 go install github.com/jstemmer/go-junit-report/v2
-
-"$(GO_JUNIT_REPORT)": "$(GOBIN)/go-junit-report" buildenv-dirs
-	cp $(GOBIN)/go-junit-report $(GO_JUNIT_REPORT)
-
-# Set CGO_ENABLED=0 for compatibility with containers missing glibc
-"$(GOBIN)/crane":
-	CGO_ENABLED=0 go install github.com/google/go-containerregistry/cmd/crane
-
-"$(CRANE)": "$(GOBIN)/crane" buildenv-dirs
-	cp $(GOBIN)/crane $(CRANE)
-
-.PHONY: install-crane
-# install crane (user-friendly target alias)
-install-crane: "$(CRANE)"
-
-.PHONY: clean-crane
-clean-crane:
-	@rm -rf $(CRANE)
+# Creates Make rules for each tool
+$(eval $(call go_install,$(GO_LICENSES),github.com/google/go-licenses/v2,go-licenses))
+$(eval $(call go_install,$(ADDLICENSE),github.com/google/addlicense,addlicense))
+$(eval $(call go_install,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen,controller-gen))
+$(eval $(call go_install,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION),golangci-lint))
+$(eval $(call go_install,$(COSIGN),github.com/sigstore/cosign/v2/cmd/cosign@$(COSIGN_VERSION),cosign,CGO_ENABLED=0))
+$(eval $(call go_install,$(KIND),sigs.k8s.io/kind,kind,CGO_ENABLED=0))
+$(eval $(call go_install,$(GO_JUNIT_REPORT),github.com/jstemmer/go-junit-report/v2,go-junit-report,CGO_ENABLED=0))
+$(eval $(call go_install,$(CRANE),github.com/google/go-containerregistry/cmd/crane,crane,CGO_ENABLED=0))
+$(eval $(call script_install,$(KUSTOMIZE),KUSTOMIZE,kustomize))
+$(eval $(call script_install,$(HELM),HELM,helm))
 
 .PHONY: license-headers
 license-headers: "$(ADDLICENSE)"
@@ -545,6 +490,26 @@ test-loggers:
 print-%:
 	@echo $($*)
 
+.PHONY: update-debian-base-image
+update-debian-base-image:
+	@./scripts/update-component-image.sh debian-base
+
+.PHONY: update-git-sync-image
+update-git-sync-image:
+	@./scripts/update-component-image.sh git-sync
+
+.PHONY: update-otelcontribcol-image
+update-otelcontribcol-image:
+	@./scripts/update-component-image.sh otelcontribcol
+
+.PHONY: update-kustomize-image
+update-kustomize-image:
+	@./scripts/update-component-image.sh kustomize
+
+.PHONY: update-helm-image
+update-helm-image:
+	@./scripts/update-component-image.sh helm
+
 ####################################################################################################
 # MANUAL TESTING COMMANDS
 
@@ -564,3 +529,4 @@ test-post-sync:
 lint-post-sync: "$(GOLANGCI_LINT)"
 	@echo "+++ Running golangci-lint on post-sync example"
 	@cd examples/post-sync && GOCACHE="$(OUTPUT_DIR)/.cache/go" XDG_CACHE_HOME="$(OUTPUT_DIR)/.cache" $(GOLANGCI_LINT) run --config .golangci.yaml && cd $(CURDIR)
+	@echo "+++ Linting post-sync example completed"

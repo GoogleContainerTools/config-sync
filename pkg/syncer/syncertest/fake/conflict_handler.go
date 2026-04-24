@@ -15,10 +15,10 @@
 package fake
 
 import (
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/remediator/conflict"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/remediator/conflict"
-	"kpt.dev/configsync/pkg/status"
 )
 
 // ConflictHandler is a fake implementation of conflict.Handler.

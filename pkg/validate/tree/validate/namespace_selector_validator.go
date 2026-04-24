@@ -17,13 +17,13 @@ package validate
 import (
 	"strings"
 
-	"kpt.dev/configsync/pkg/importer/analyzer/ast"
-	"kpt.dev/configsync/pkg/importer/analyzer/transform/selectors"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation/syntax"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/validate/fileobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/transform/selectors"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation/syntax"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/fileobjects"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

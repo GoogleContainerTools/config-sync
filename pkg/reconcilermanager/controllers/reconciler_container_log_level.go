@@ -18,11 +18,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	"github.com/GoogleContainerTools/config-sync/pkg/metrics"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
 	"go.uber.org/zap/zapcore"
 	corev1 "k8s.io/api/core/v1"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	"kpt.dev/configsync/pkg/metrics"
-	"kpt.dev/configsync/pkg/reconcilermanager"
 )
 
 // ReconcilerContainerLogLevelDefaults are the default log level to use for the
@@ -109,7 +109,7 @@ func mutateContainerLogLevel(c *corev1.Container, override []v1beta1.ContainerLo
 				// otel-agent surfaces the log level configuration differently.
 				// Our log levels range from 0-10, whereas zap ranges from -1 (debug) to 5 (fatal).
 				// We reverse the order for consistent behavior with our other log levels.
-				zapLevel := zapcore.Level(max(int(zapcore.FatalLevel)-logLevel.LogLevel, int(zapcore.DebugLevel)))
+				zapLevel := zapcore.Level(max(int(zapcore.FatalLevel)-max(logLevel.LogLevel, 0), int(zapcore.DebugLevel)))
 				// unmarshal and marshal to validate that the zap level is valid
 				if _, err := zapcore.ParseLevel(zapLevel.String()); err != nil {
 					return err

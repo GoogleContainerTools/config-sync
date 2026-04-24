@@ -17,11 +17,11 @@ package handler
 import (
 	"context"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
 	"github.com/go-logr/logr"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/util/workqueue"
-	"kpt.dev/configsync/pkg/api/kpt.dev/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"

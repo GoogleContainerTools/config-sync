@@ -21,16 +21,16 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest/fake"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testerrors"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/utils/ptr"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/syncer/syncertest/fake"
-	"kpt.dev/configsync/pkg/testing/testerrors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

@@ -17,7 +17,7 @@ package status
 import (
 	"path/filepath"
 
-	"kpt.dev/configsync/pkg/importer/id"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/id"
 )
 
 // PathErrorCode is the error code for a generic PathError.

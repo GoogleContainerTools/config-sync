@@ -15,12 +15,12 @@
 package hydrate
 
 import (
-	"kpt.dev/configsync/pkg/api/configmanagement/v1/repo"
-	"kpt.dev/configsync/pkg/importer/analyzer/ast"
-	"kpt.dev/configsync/pkg/importer/filesystem/cmpath"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/validate/fileobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement/v1/repo"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem/cmpath"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/fileobjects"
 )
 
 // ObjectNamespaces hydrates the given raw Objects by setting the metadata

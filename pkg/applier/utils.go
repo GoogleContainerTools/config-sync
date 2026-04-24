@@ -20,16 +20,14 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	syncerreconcile "github.com/GoogleContainerTools/config-sync/pkg/syncer/reconcile"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"kpt.dev/configsync/pkg/api/kpt.dev/v1alpha1"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/remediator/queue"
-	"kpt.dev/configsync/pkg/status"
-	syncerreconcile "kpt.dev/configsync/pkg/syncer/reconcile"
 	"sigs.k8s.io/cli-utils/pkg/inventory"
 	"sigs.k8s.io/cli-utils/pkg/object"
 	"sigs.k8s.io/cli-utils/pkg/object/mutation"
@@ -47,27 +45,6 @@ func partitionObjs(objs []client.Object) ([]client.Object, []client.Object) {
 		}
 	}
 	return enabled, disabled
-}
-
-// handleIgnoredObjects gets the cached cluster state of all mutation-ignored objects that are declared and applies the CS metadata on top of them
-// prior to sending them to the applier
-// Returns all objects that will be applied
-func handleIgnoredObjects(enabled []client.Object, resources *declared.Resources) []client.Object {
-	var allObjs []client.Object
-
-	for _, dObj := range enabled {
-		cachedObj, found := resources.GetIgnored(core.IDOf(dObj))
-		_, deleted := cachedObj.(*queue.Deleted)
-
-		if found && !deleted {
-			metadata.UpdateConfigSyncMetadata(dObj, cachedObj)
-			allObjs = append(allObjs, cachedObj)
-		} else {
-			allObjs = append(allObjs, dObj)
-		}
-	}
-
-	return allObjs
 }
 
 func toUnstructured(objs []client.Object) ([]*unstructured.Unstructured, status.MultiError) {
@@ -159,8 +136,8 @@ func removeFrom(all []object.ObjMetadata, toRemove []client.Object) []object.Obj
 	return results
 }
 
-func getObjectSize(u *unstructured.Unstructured) (int, error) {
-	data, err := json.Marshal(u)
+func getObjectSize(rg client.Object) (int, error) {
+	data, err := json.Marshal(rg)
 	if err != nil {
 		return 0, err
 	}

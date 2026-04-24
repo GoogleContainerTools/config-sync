@@ -18,11 +18,10 @@ import (
 	"errors"
 	"testing"
 
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/importer/analyzer/ast"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation/nonhierarchical"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation/nonhierarchical"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 )
 
 func TestIllegalKindsForHierarchical(t *testing.T) {
@@ -38,11 +37,6 @@ func TestIllegalKindsForHierarchical(t *testing.T) {
 		{
 			name: "Hiearchical object passes",
 			obj:  k8sobjects.HierarchyConfig(),
-		},
-		{
-			name:    "Sync object fails",
-			obj:     k8sobjects.FileObject(k8sobjects.SyncObject(kinds.Role().GroupKind()), "sync.yaml"),
-			wantErr: nonhierarchical.UnsupportedObjectError(k8sobjects.SyncObject(kinds.Role().GroupKind())),
 		},
 	}
 
@@ -75,11 +69,6 @@ func TestIllegalKindsForUnstructured(t *testing.T) {
 			name:    "Repo object fails",
 			obj:     k8sobjects.Repo(),
 			wantErr: nonhierarchical.IllegalHierarchicalKind(k8sobjects.Repo()),
-		},
-		{
-			name:    "Sync object fails",
-			obj:     k8sobjects.FileObject(k8sobjects.SyncObject(kinds.Role().GroupKind()), "sync.yaml"),
-			wantErr: nonhierarchical.UnsupportedObjectError(k8sobjects.SyncObject(kinds.Role().GroupKind())),
 		},
 	}
 

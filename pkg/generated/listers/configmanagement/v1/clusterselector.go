@@ -3,10 +3,10 @@
 package v1
 
 import (
+	configmanagementv1 "github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	listers "k8s.io/client-go/listers"
 	cache "k8s.io/client-go/tools/cache"
-	configmanagementv1 "kpt.dev/configsync/pkg/api/configmanagement/v1"
 )
 
 // ClusterSelectorLister helps list ClusterSelectors.

@@ -15,10 +15,10 @@
 package tree
 
 import (
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/validate/fileobjects"
-	"kpt.dev/configsync/pkg/validate/tree/hydrate"
-	"kpt.dev/configsync/pkg/validate/tree/validate"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/fileobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/tree/hydrate"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/tree/validate"
 )
 
 // Hierarchical performs validation and hydration for a structured hierarchical

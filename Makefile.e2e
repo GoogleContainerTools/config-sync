@@ -5,8 +5,6 @@ E2E_PARAMS := \
 	GCP_PROJECT=$(GCP_PROJECT) \
 	REGISTRY=$(REGISTRY) \
 
-GOTOPT2_BINARY := docker run -i -u $(UID):$(GID) $(BUILDENV_IMAGE) /bin/gotopt2
-
 GCP_ZONE ?= us-central1-a
 GKE_E2E_TIMEOUT ?= 6h
 # Configurable timeout for running the e2e tests on kind clusters.
@@ -91,7 +89,7 @@ test-e2e-kind-test-group1:
 # This target runs the second group of e2e tests.
 .PHONY: test-e2e-kind-test-group2
 test-e2e-kind-test-group2:
-	$(MAKE) E2E_ARGS="$(E2E_ARGS) --test-features=sync-source,reconciliation-1" test-e2e-kind
+	$(MAKE) E2E_ARGS="$(E2E_ARGS) --test-features=sync-source-git,sync-source-helm,sync-source-oci,reconciliation-1" test-e2e-kind
 
 # This target runs the third group of e2e tests.
 .PHONY: test-e2e-kind-test-group3

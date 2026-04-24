@@ -18,13 +18,13 @@ import (
 	"fmt"
 	"testing"
 
-	"kpt.dev/configsync/e2e/nomostest"
-	"kpt.dev/configsync/e2e/nomostest/metrics"
-	nomostesting "kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/reconcilermanager/controllers"
-	"kpt.dev/configsync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/metrics"
+	nomostesting "github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager/controllers"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 )
 
 func TestInvalidAuth(t *testing.T) {

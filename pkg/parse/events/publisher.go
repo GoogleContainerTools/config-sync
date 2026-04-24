@@ -19,10 +19,10 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/util"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
-	"kpt.dev/configsync/pkg/util"
 )
 
 // Publisher writes events to a channel and defines how to handle them.

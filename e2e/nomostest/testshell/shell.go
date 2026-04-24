@@ -21,7 +21,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"kpt.dev/configsync/e2e/nomostest/testlogger"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testlogger"
 )
 
 // TestShell is a helper utility to execute shell commands in a test.

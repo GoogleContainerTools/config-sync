@@ -23,19 +23,19 @@ import (
 	"strings"
 	"time"
 
-	"kpt.dev/configsync/cmd/nomos/flags"
-	nomosparse "kpt.dev/configsync/cmd/nomos/parse"
-	"kpt.dev/configsync/cmd/nomos/util"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/hydrate"
-	"kpt.dev/configsync/pkg/importer/analyzer/ast"
-	"kpt.dev/configsync/pkg/importer/filesystem"
-	"kpt.dev/configsync/pkg/importer/filesystem/cmpath"
-	"kpt.dev/configsync/pkg/importer/reader"
-	"kpt.dev/configsync/pkg/parse"
-	"kpt.dev/configsync/pkg/reconcilermanager"
-	"kpt.dev/configsync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/cmd/nomos/flags"
+	nomosparse "github.com/GoogleContainerTools/config-sync/cmd/nomos/parse"
+	"github.com/GoogleContainerTools/config-sync/cmd/nomos/util"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/hydrate"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem/cmpath"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/reader"
+	"github.com/GoogleContainerTools/config-sync/pkg/parse"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 )
 
 type vetOptions struct {
@@ -96,7 +96,7 @@ func runVet(ctx context.Context, out io.Writer, opts vetOptions) error {
 
 	parser := filesystem.NewParser(&reader.File{})
 
-	validateOpts, err := hydrate.ValidateOptions(ctx, rootDir, opts.APIServerTimeout)
+	validateOpts, err := hydrate.ValidateOptions(rootDir, opts.APIServerTimeout)
 	if err != nil {
 		return err
 	}

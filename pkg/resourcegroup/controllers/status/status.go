@@ -18,16 +18,16 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/resourcemap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/klog/v2"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/resourcegroup"
-	"kpt.dev/configsync/pkg/resourcegroup/controllers/resourcemap"
 	kstatus "sigs.k8s.io/cli-utils/pkg/kstatus/status"
 	"sigs.k8s.io/yaml"
 
-	"kpt.dev/configsync/pkg/api/kpt.dev/v1alpha1"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
 )
 
 // ComputeStatus computes the status and conditions that should be
@@ -71,6 +71,7 @@ func ComputeStatus(obj *unstructured.Unstructured) *resourcemap.CachedStatus {
 	// get the inventory ID.
 	inv := getOwningInventory(obj.GetAnnotations())
 	resStatus.InventoryID = inv
+	resStatus.IgnoreMutation = isIgnoreMutationObject(obj.GetAnnotations())
 	return resStatus
 }
 
@@ -128,4 +129,11 @@ func getOwningInventory(annotations map[string]string) string {
 		return ""
 	}
 	return annotations[metadata.OwningInventoryKey]
+}
+
+func isIgnoreMutationObject(annotations map[string]string) bool {
+	if len(annotations) == 0 {
+		return false
+	}
+	return annotations[metadata.LifecycleMutationAnnotation] == metadata.IgnoreMutation
 }

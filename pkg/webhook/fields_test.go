@@ -17,12 +17,12 @@ package webhook
 import (
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	csmetadata "github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/openapitest"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	csmetadata "kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/testing/openapitest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

@@ -15,8 +15,8 @@
 package metrics
 
 import (
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
 	"github.com/prometheus/client_golang/prometheus"
-	"kpt.dev/configsync/pkg/api/configmanagement"
 )
 
 // Prometheus metrics

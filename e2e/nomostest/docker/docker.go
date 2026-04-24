@@ -18,7 +18,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"kpt.dev/configsync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
 )
 
 // RegistryName is the name of the local Docker registry.

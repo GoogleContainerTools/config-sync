@@ -15,12 +15,12 @@
 package k8sobjects
 
 import (
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1alpha1"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/api/configsync/v1alpha1"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/kinds"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

@@ -17,10 +17,10 @@ package fake
 import (
 	"strings"
 
+	discoveryutil "github.com/GoogleContainerTools/config-sync/pkg/util/discovery"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	discovery "k8s.io/client-go/discovery"
-	discoveryutil "kpt.dev/configsync/pkg/util/discovery"
 )
 
 // discoveryClient implements the subset of the DiscoveryInterface used by the

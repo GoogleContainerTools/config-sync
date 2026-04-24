@@ -15,16 +15,23 @@
 package resourcemap
 
 import (
-	"context"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testmetrics"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"kpt.dev/configsync/pkg/api/kpt.dev/v1alpha1"
 )
 
 func TestResourceMapReconcile(t *testing.T) {
+	// Initialize metrics for this test
+	exporter, err := testmetrics.NewTestExporter()
+	if err != nil {
+		t.Fatalf("Failed to create test exporter: %v", err)
+	}
+	defer exporter.ClearMetrics()
+
 	res1 := resource{
 		Namespace: "ns1",
 		Name:      "res1",
@@ -67,9 +74,7 @@ func TestResourceMapReconcile(t *testing.T) {
 		Name:      "group2",
 	}
 
-	// TODO: replace with `ctx := t.Context()` in Go 1.24.0+
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	var gks []schema.GroupKind
 

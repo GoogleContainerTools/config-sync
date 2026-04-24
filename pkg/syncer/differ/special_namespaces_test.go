@@ -17,10 +17,10 @@ package differ
 import (
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/policycontroller"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"kpt.dev/configsync/pkg/api/configmanagement"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/policycontroller"
 )
 
 func TestIsManageableSystem(t *testing.T) {

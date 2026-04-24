@@ -15,8 +15,8 @@
 package metadata
 
 import (
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
 	kubectlapply "k8s.io/kubectl/pkg/cmd/apply"
-	"kpt.dev/configsync/pkg/api/configsync"
 )
 
 // Labels with the `applyset.kubernetes.io/` prefix.

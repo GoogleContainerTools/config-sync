@@ -19,10 +19,10 @@ import (
 	"os/exec"
 	"testing"
 
-	"kpt.dev/configsync/cmd/nomos/flags"
-	"kpt.dev/configsync/cmd/nomos/vet"
-	"kpt.dev/configsync/pkg/importer/filesystem/cmpath"
-	ft "kpt.dev/configsync/pkg/importer/filesystem/filesystemtest"
+	"github.com/GoogleContainerTools/config-sync/cmd/nomos/flags"
+	"github.com/GoogleContainerTools/config-sync/cmd/nomos/vet"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem/cmpath"
+	ft "github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem/filesystemtest"
 )
 
 func resetFlags() {

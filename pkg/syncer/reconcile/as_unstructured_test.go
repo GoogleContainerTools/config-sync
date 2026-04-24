@@ -17,12 +17,13 @@ package reconcile
 import (
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/util/log"
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/util/log"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -54,10 +55,10 @@ func TestAsUnstructured_AddsStatus(t *testing.T) {
 				t.Errorf("got .status undefined, want defined: %s", log.AsJSON(u))
 			}
 
+			// a nil creationTimestamp used to be injected into the object.
+			// this check remains to validate no metadata is injected.
 			metadata := u.Object["metadata"].(map[string]interface{})
-			if _, hasCreationTimestamp := metadata["creationTimestamp"]; !hasCreationTimestamp {
-				t.Errorf("got .metadata.creationTimestamp undefined, want defined: %s", log.AsJSON(u))
-			}
+			assert.Empty(t, metadata)
 		})
 	}
 }
@@ -94,10 +95,10 @@ func TestAsUnstructured_AddsGVK(t *testing.T) {
 				t.Errorf("got .status undefined, want defined: %s", log.AsJSON(u))
 			}
 
+			// a nil creationTimestamp used to be injected into the object.
+			// this check remains to validate no metadata is injected.
 			metadata := u.Object["metadata"].(map[string]interface{})
-			if _, hasCreationTimestamp := metadata["creationTimestamp"]; !hasCreationTimestamp {
-				t.Errorf("got .metadata.creationTimestamp undefined, want defined: %s", log.AsJSON(u))
-			}
+			assert.Empty(t, metadata)
 		})
 	}
 }

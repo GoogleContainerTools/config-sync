@@ -127,7 +127,7 @@ func TestConvertLogSourcesToReadables(t *testing.T) {
 	for _, test := range tests {
 		test := test
 
-		client := fake.NewSimpleClientset()
+		client := fake.NewClientset()
 
 		t.Run(test.name, func(t *testing.T) {
 			output, errorList := test.logSources.convertLogSourcesToReadables(context.Background(), client)

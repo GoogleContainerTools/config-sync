@@ -17,13 +17,13 @@ package applier
 import (
 	"context"
 
+	csinventory "github.com/GoogleContainerTools/config-sync/pkg/applier/inventory"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/kubectl/pkg/cmd/util"
-	csinventory "kpt.dev/configsync/pkg/applier/inventory"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/metadata"
 	"sigs.k8s.io/cli-utils/pkg/apply"
 	"sigs.k8s.io/cli-utils/pkg/apply/event"
 	"sigs.k8s.io/cli-utils/pkg/inventory"

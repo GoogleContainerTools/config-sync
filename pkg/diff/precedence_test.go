@@ -18,15 +18,15 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/diff/difftest"
+	"github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testerrors"
 	admissionv1 "k8s.io/api/admission/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/diff/difftest"
-	"kpt.dev/configsync/pkg/syncer/syncertest"
-	"kpt.dev/configsync/pkg/testing/testerrors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

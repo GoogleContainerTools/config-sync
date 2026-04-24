@@ -19,6 +19,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	m "github.com/GoogleContainerTools/config-sync/pkg/metrics"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	syncerclient "github.com/GoogleContainerTools/config-sync/pkg/syncer/client"
+	"github.com/GoogleContainerTools/config-sync/pkg/syncer/metrics"
+	"github.com/GoogleContainerTools/config-sync/pkg/syncer/reconcile/fight"
 	"github.com/google/go-cmp/cmp"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -37,15 +46,6 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/util"
 	"k8s.io/kubectl/pkg/util/openapi"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metadata"
-	m "kpt.dev/configsync/pkg/metrics"
-	"kpt.dev/configsync/pkg/status"
-	syncerclient "kpt.dev/configsync/pkg/syncer/client"
-	"kpt.dev/configsync/pkg/syncer/metrics"
-	"kpt.dev/configsync/pkg/syncer/reconcile/fight"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -75,11 +75,11 @@ type clientApplier struct {
 var _ Applier = &clientApplier{}
 
 // NewApplierForMultiRepo returns a new clientApplier for callers with multi repo feature enabled.
-func NewApplierForMultiRepo(cfg *rest.Config, client *syncerclient.Client, applySetID string) (Applier, error) {
-	return newApplier(cfg, client, applySetID)
+func NewApplierForMultiRepo(cfg *rest.Config, client *syncerclient.Client, applySetID string, fightThreshold float64) (Applier, error) {
+	return newApplier(cfg, client, applySetID, fightThreshold)
 }
 
-func newApplier(cfg *rest.Config, client *syncerclient.Client, applySetID string) (Applier, error) {
+func newApplier(cfg *rest.Config, client *syncerclient.Client, applySetID string, fightThreshold float64) (Applier, error) {
 	c, err := dynamic.NewForConfig(cfg)
 	if err != nil {
 		return nil, err
@@ -100,7 +100,7 @@ func newApplier(cfg *rest.Config, client *syncerclient.Client, applySetID string
 		discoveryClient:  dc,
 		openAPIResources: oa,
 		client:           client,
-		fights:           fight.NewDetector(),
+		fights:           fight.NewDetector(fightThreshold),
 		applySetID:       applySetID,
 	}, nil
 }
@@ -113,6 +113,8 @@ func (c *clientApplier) Create(ctx context.Context, intendedState *unstructured.
 	if intendedState.GroupVersionKind().GroupKind() == kinds.APIService().GroupKind() {
 		err = c.create(ctx, intendedState)
 	} else {
+		//nolint:staticcheck // allow deprecated field for backwards compatibility
+		//TODO: Refactor to remove the usage of the deprecated field
 		if err1 := c.client.Patch(ctx, intendedState, client.Apply, client.FieldOwner(configsync.FieldManager)); err1 != nil {
 			switch {
 			case meta.IsNoMatchError(err1), apierrors.IsNotFound(err1):
@@ -249,6 +251,8 @@ func (c *clientApplier) update(ctx context.Context, intendedState, currentState 
 	objCopy := intendedState.DeepCopy()
 	// Run the server-side apply dryrun first.
 	// If the returned object doesn't change, skip running server-side apply.
+	//nolint:staticcheck // allow deprecated field for backwards compatibility
+	//TODO: Refactor to remove the usage of the deprecated field
 	err := c.client.Patch(ctx, objCopy, client.Apply, client.FieldOwner(configsync.FieldManager), client.ForceOwnership, client.DryRunAll)
 	if err != nil {
 		return nil, err
@@ -258,6 +262,8 @@ func (c *clientApplier) update(ctx context.Context, intendedState, currentState 
 	}
 
 	start := time.Now()
+	//nolint:staticcheck // allow deprecated field for backwards compatibility
+	//TODO: Refactor to remove the usage of the deprecated field
 	err = c.client.Patch(ctx, intendedState, client.Apply, client.FieldOwner(configsync.FieldManager), client.ForceOwnership)
 	duration := time.Since(start).Seconds()
 	metrics.APICallDuration.WithLabelValues("update", metrics.StatusLabel(err)).Observe(duration)

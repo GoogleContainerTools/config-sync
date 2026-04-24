@@ -17,11 +17,11 @@ package configuration
 import (
 	"context"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/util/discovery"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/util/discovery"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

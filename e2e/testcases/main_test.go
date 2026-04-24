@@ -23,10 +23,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/e2e"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
+	"github.com/GoogleContainerTools/config-sync/pkg/util"
 	"go.uber.org/multierr"
-	"kpt.dev/configsync/e2e"
-	"kpt.dev/configsync/e2e/nomostest"
-	"kpt.dev/configsync/pkg/util"
 )
 
 // This is a bit of a hack to enforce our --num-clusters flag over the --test.parallel
@@ -149,6 +149,11 @@ func validateArgs() error {
 		}
 		if *e2e.GKEAutopilot && *e2e.GceNode {
 			errs = multierr.Append(errs, fmt.Errorf("Cannot run gcenode tests on autopilot clusters"))
+		}
+	}
+	if *e2e.GitProvider == e2e.SSM { // required variables for SSM
+		if *e2e.SSMInstanceRegion == "" {
+			errs = multierr.Append(errs, fmt.Errorf("Environment variable E2E_SSM_INSTANCE_REGION is required for SSM"))
 		}
 	}
 	return errs

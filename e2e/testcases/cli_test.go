@@ -28,6 +28,29 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/cmd/nomos/flags"
+	"github.com/GoogleContainerTools/config-sync/cmd/nomos/util"
+	"github.com/GoogleContainerTools/config-sync/e2e"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/gitproviders"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/ntopts"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/policy"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/syncsource"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/taskgroup"
+	nomostesting "github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testpredicates"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testwatcher"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/hydrate"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager/controllers"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -35,29 +58,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/klog/v2"
-	"kpt.dev/configsync/cmd/nomos/flags"
-	"kpt.dev/configsync/cmd/nomos/util"
-	"kpt.dev/configsync/e2e"
-	"kpt.dev/configsync/e2e/nomostest"
-	"kpt.dev/configsync/e2e/nomostest/gitproviders"
-	"kpt.dev/configsync/e2e/nomostest/ntopts"
-	"kpt.dev/configsync/e2e/nomostest/policy"
-	"kpt.dev/configsync/e2e/nomostest/syncsource"
-	"kpt.dev/configsync/e2e/nomostest/taskgroup"
-	nomostesting "kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/e2e/nomostest/testpredicates"
-	"kpt.dev/configsync/e2e/nomostest/testwatcher"
-	"kpt.dev/configsync/pkg/api/configmanagement"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/hydrate"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/reconcilermanager"
-	"kpt.dev/configsync/pkg/reconcilermanager/controllers"
-	"kpt.dev/configsync/pkg/status"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -1278,6 +1278,34 @@ func TestNomosStatusNameFilter(t *testing.T) {
 	}
 }
 
+func TestVetSkipGVK(t *testing.T) {
+	nt := nomostest.New(t, nomostesting.NomosCLI,
+		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured),
+	)
+
+	rootRepo := nt.SyncSourceGitReadWriteRepository(nomostest.DefaultRootSyncID)
+
+	nt.Must(rootRepo.Copy("../testdata/gatekeeper-skip-gvk", "acme"))
+	if _, err := rootRepo.Git("commit", "-m", "add gatekeeper constraint template and constraint"); err != nil {
+		nt.T.Fatal(err)
+	}
+
+	// First, run `nomos vet` without the flag and expect a failure.
+	out, err := nt.Shell.Command("nomos", "vet", "--path", rootRepo.Root, "--source-format=unstructured").CombinedOutput()
+	if err == nil {
+		t.Fatal("expected `nomos vet` to fail but it passed")
+	}
+	// Check for KNV1021 error.
+	if !strings.Contains(string(out), "KNV1021") {
+		t.Fatalf("expected KNV1021 error, but got: %v", string(out))
+	}
+
+	// Now, run `nomos vet` with the flag and expect it to pass.
+	output, err := nt.Shell.Command("nomos", "vet", "--path", rootRepo.Root, "--source-format=unstructured", "--no-api-server-check-for-group=templates.gatekeeper.sh,constraints.gatekeeper.sh").CombinedOutput()
+	nt.Must(output, err)
+
+}
+
 func TestApiResourceFormatting(t *testing.T) {
 	nt := nomostest.New(t, nomostesting.NomosCLI)
 
@@ -1297,13 +1325,14 @@ func TestApiResourceFormatting(t *testing.T) {
 }
 
 func TestNomosMigrate(t *testing.T) {
-	nt := nomostest.New(t, nomostesting.NomosCLI, ntopts.SkipConfigSyncInstall)
+	nt := nomostest.New(t, nomostesting.NomosCLI)
 
 	nt.T.Cleanup(func() {
 		// Restore state of Config Sync installation after test
-		if err := nomostest.InstallConfigSync(nt); err != nil {
+		if err := nomostest.InstallConfigSync(nt, nomostest.InstallMethodUpdate); err != nil {
 			nt.T.Fatal(err)
 		}
+		nt.Must(nt.WatchForAllSyncs())
 	})
 	nt.T.Cleanup(func() {
 		cmObj := &unstructured.Unstructured{
@@ -1451,11 +1480,11 @@ func TestNomosMigrate(t *testing.T) {
 			configmanagement.RGControllerName, configmanagement.RGControllerNamespace)
 	})
 	tg.Go(func() error {
-		return nt.Watcher.WatchForNotFound(kinds.Deployment(),
+		return nt.Watcher.WatchForCurrentStatus(kinds.Deployment(),
 			core.RootReconcilerName(configsync.RootSyncName), configsync.ControllerNamespace)
 	})
 	tg.Go(func() error {
-		return nt.Watcher.WatchForNotFound(kinds.RootSyncV1Beta1(),
+		return nt.Watcher.WatchForCurrentStatus(kinds.RootSyncV1Beta1(),
 			configsync.RootSyncName, configsync.ControllerNamespace)
 	})
 	if err := tg.Wait(); err != nil {
@@ -1464,14 +1493,14 @@ func TestNomosMigrate(t *testing.T) {
 }
 
 func TestNomosMigrateMonoRepo(t *testing.T) {
-	nt := nomostest.New(t, nomostesting.NomosCLI, ntopts.SkipConfigSyncInstall)
+	nt := nomostest.New(t, nomostesting.NomosCLI)
 
 	nt.T.Cleanup(func() {
 		// Restore state of Config Sync installation after test.
-		// This also emulates upgrading to the current version after migrating
-		if err := nomostest.InstallConfigSync(nt); err != nil {
+		if err := nomostest.InstallConfigSync(nt, nomostest.InstallMethodUpdate); err != nil {
 			nt.T.Fatal(err)
 		}
+		nt.Must(nt.WatchForAllSyncs())
 	})
 	nt.T.Cleanup(func() {
 		crds := []string{
@@ -1707,13 +1736,14 @@ func TestNomosMigrateMonoRepo(t *testing.T) {
 // This test case validates the behavior of the uninstall script defined
 // at installation/uninstall_configmanagement.sh
 func TestACMUninstallScript(t *testing.T) {
-	nt := nomostest.New(t, nomostesting.NomosCLI, ntopts.SkipConfigSyncInstall)
+	nt := nomostest.New(t, nomostesting.NomosCLI)
 
 	nt.T.Cleanup(func() {
 		// Restore state of Config Sync installation after test
-		if err := nomostest.InstallConfigSync(nt); err != nil {
+		if err := nomostest.InstallConfigSync(nt, nomostest.InstallMethodUpdate); err != nil {
 			nt.T.Fatal(err)
 		}
+		nt.Must(nt.WatchForAllSyncs())
 	})
 	nt.T.Cleanup(func() {
 		cmObj := &unstructured.Unstructured{
@@ -1861,11 +1891,11 @@ func TestACMUninstallScript(t *testing.T) {
 			configmanagement.RGControllerName, configmanagement.RGControllerNamespace)
 	})
 	tg.Go(func() error {
-		return nt.Watcher.WatchForNotFound(kinds.Deployment(),
+		return nt.Watcher.WatchForCurrentStatus(kinds.Deployment(),
 			core.RootReconcilerName(configsync.RootSyncName), configsync.ControllerNamespace)
 	})
 	tg.Go(func() error {
-		return nt.Watcher.WatchForNotFound(kinds.RootSyncV1Beta1(),
+		return nt.Watcher.WatchForCurrentStatus(kinds.RootSyncV1Beta1(),
 			configsync.RootSyncName, configsync.ControllerNamespace)
 	})
 	if err := tg.Wait(); err != nil {

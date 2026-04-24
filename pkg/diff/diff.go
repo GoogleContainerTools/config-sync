@@ -17,16 +17,16 @@
 package diff
 
 import (
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/lifecycle"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/syncer/differ"
+	"github.com/GoogleContainerTools/config-sync/pkg/syncer/reconcile"
 	admissionv1 "k8s.io/api/admission/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/klog/v2"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/lifecycle"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/syncer/differ"
-	"kpt.dev/configsync/pkg/syncer/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

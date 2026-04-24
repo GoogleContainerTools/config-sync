@@ -17,10 +17,10 @@ package controllers
 import (
 	"context"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/rsync/validate"
 	corev1 "k8s.io/api/core/v1"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/validate/rsync/validate"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

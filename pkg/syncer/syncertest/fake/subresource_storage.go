@@ -19,10 +19,10 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog/v2"
-	"kpt.dev/configsync/pkg/kinds"
 	"sigs.k8s.io/cli-utils/pkg/object"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )

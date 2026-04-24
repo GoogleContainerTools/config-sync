@@ -15,8 +15,8 @@
 package syntax
 
 import (
-	"kpt.dev/configsync/pkg/importer/id"
-	"kpt.dev/configsync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/id"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

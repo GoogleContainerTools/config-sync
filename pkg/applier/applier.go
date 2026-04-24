@@ -21,6 +21,19 @@ import (
 	"sync"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	kptv1alpha1 "github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
+	"github.com/GoogleContainerTools/config-sync/pkg/applier/stats"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	m "github.com/GoogleContainerTools/config-sync/pkg/metrics"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/syncer/differ"
+	"github.com/GoogleContainerTools/config-sync/pkg/syncer/metrics"
+	"github.com/GoogleContainerTools/config-sync/pkg/util"
+	nomosutil "github.com/GoogleContainerTools/config-sync/pkg/util"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,19 +41,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/applier/stats"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metadata"
-	m "kpt.dev/configsync/pkg/metrics"
-	"kpt.dev/configsync/pkg/resourcegroup"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/syncer/differ"
-	"kpt.dev/configsync/pkg/syncer/metrics"
-	"kpt.dev/configsync/pkg/util"
-	nomosutil "kpt.dev/configsync/pkg/util"
 	"sigs.k8s.io/cli-utils/pkg/apis/actuation"
 	"sigs.k8s.io/cli-utils/pkg/apply"
 	applyerror "sigs.k8s.io/cli-utils/pkg/apply/error"
@@ -186,28 +186,32 @@ func NewSupervisor(cs *ClientSet, scope declared.Scope, syncName string, reconci
 // trying to add any new resources from source.
 func (s *supervisor) UpdateStatusMode(ctx context.Context) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		u := newInventoryUnstructured(s.syncName, s.syncNamespace)
-		key := client.ObjectKeyFromObject(u)
-		err := s.clientSet.Client.Get(ctx, key, u)
+		var rg kptv1alpha1.ResourceGroup
+		key := client.ObjectKey{
+			Name:      s.syncName,
+			Namespace: s.syncNamespace,
+		}
+		err := s.clientSet.Client.Get(ctx, key, &rg)
+
 		if err != nil {
 			// RG doesn't exist, it will be created by applier with appropriate status mode
 			if apierrors.IsNotFound(err) {
 				return nil
 			}
-			return status.APIServerErrorf(err, "failed to get %s: %s", u.GetKind(), key)
+			return status.APIServerErrorf(err, "failed to get %v: %s", rg.GetObjectKind().GroupVersionKind(), key)
 		}
-		if core.SetAnnotation(u, metadata.StatusModeAnnotationKey, s.clientSet.StatusMode.String()) {
-			klog.V(3).Infof("Updating %s annotation: %s: %s", u.GetKind(), metadata.StatusModeAnnotationKey, s.clientSet.StatusMode)
-			err := s.clientSet.Client.Update(ctx, u, client.FieldOwner(configsync.FieldManager))
+		if core.SetAnnotation(&rg, metadata.StatusModeAnnotationKey, s.clientSet.StatusMode.String()) {
+			klog.V(3).Infof("Updating %v annotation: %s: %s", rg.GetObjectKind().GroupVersionKind(), metadata.StatusModeAnnotationKey, s.clientSet.StatusMode)
+			err := s.clientSet.Client.Update(ctx, &rg, client.FieldOwner(configsync.FieldManager))
 			if err != nil {
-				return status.APIServerErrorf(err, "failed to update %s: %s", u.GetKind(), key)
+				return status.APIServerErrorf(err, "failed to update %v: %s", rg.GetObjectKind().GroupVersionKind(), key)
 			}
 		}
 		return nil
 	})
 }
 
-func (s *supervisor) processApplyEvent(ctx context.Context, e event.ApplyEvent, syncStats *stats.ApplyEventStats, objectStatusMap ObjectStatusMap, unknownTypeResources map[core.ID]struct{}, resourceMap map[core.ID]client.Object, declaredResources *declared.Resources) status.Error {
+func (s *supervisor) processApplyEvent(ctx context.Context, e event.ApplyEvent, syncStats *stats.ApplyEventStats, objectStatusMap ObjectStatusMap, unknownTypeResources map[core.ID]struct{}, resourceMap map[core.ID]client.Object) status.Error {
 	id := idFrom(e.Identifier)
 	syncStats.Add(e.Status)
 
@@ -231,15 +235,6 @@ func (s *supervisor) processApplyEvent(ctx context.Context, e event.ApplyEvent, 
 	case event.ApplyFailed:
 		objectStatus.Actuation = actuation.ActuationFailed
 		handleMetrics(ctx, "update", e.Error)
-		// If apply failed for an ignore-mutation object, delete it from the ignore cache.
-		// Normally the cached object should be updated by the remediator when it
-		// receives a watch event - This is a fallback to force a live lookup the
-		// next time the applier runs.
-		iObj, found := declaredResources.GetIgnored(id)
-		if found {
-			klog.Infof("Deleting object '%v' from the ignore cache (apply failed)", core.GKNN(iObj))
-			declaredResources.DeleteIgnored(id)
-		}
 		switch e.Error.(type) {
 		case *applyerror.UnknownTypeError:
 			unknownTypeResources[id] = struct{}{}
@@ -254,7 +249,7 @@ func (s *supervisor) processApplyEvent(ctx context.Context, e event.ApplyEvent, 
 	case event.ApplySkipped:
 		objectStatus.Actuation = actuation.ActuationSkipped
 		// Skip event always includes an error with the reason
-		return s.handleApplySkippedEvent(e.Resource, id, e.Error)
+		return s.handleApplySkippedEvent(ctx, e.Resource, id, e.Error)
 
 	default:
 		return ErrorForResource(fmt.Errorf("unexpected prune event status: %v", e.Status), id)
@@ -297,7 +292,7 @@ func (s *supervisor) processWaitEvent(e event.WaitEvent, syncStats *stats.WaitEv
 }
 
 // handleApplySkippedEvent translates from apply skipped event into resource error.
-func (s *supervisor) handleApplySkippedEvent(obj *unstructured.Unstructured, id core.ID, err error) status.Error {
+func (s *supervisor) handleApplySkippedEvent(ctx context.Context, obj *unstructured.Unstructured, id core.ID, err error) status.Error {
 	var depErr *filter.DependencyPreventedActuationError
 	if errors.As(err, &depErr) {
 		return SkipErrorForResource(err, id, depErr.Strategy)
@@ -317,11 +312,52 @@ func (s *supervisor) handleApplySkippedEvent(obj *unstructured.Unstructured, id 
 		return KptManagementConflictError(obj)
 	}
 
+	var annotationErr *filter.AnnotationPreventedUpdateError
+	if errors.As(err, &annotationErr) {
+		// For applies this is desired behavior, not unexpected. The following logic
+		// re-applies just the CS metadata to ensure metadata does not drift.
+		klog.Info("Got AnnotationPreventedUpdateError")
+		if err := s.updateObjectMetadata(ctx, obj); err != nil {
+			return SkipErrorForResource(
+				fmt.Errorf("updating Config Sync metadata for ignore mutation object: %w", err),
+				id, actuation.ActuationStrategyApply)
+		}
+		return nil
+	}
+
 	return SkipErrorForResource(err, id, actuation.ActuationStrategyApply)
 }
 
+func (s *supervisor) updateObjectMetadata(ctx context.Context, obj *unstructured.Unstructured) error {
+	// Using PartialObjectMetadata optimizes the client calls (uses metadata client under the hood)
+	metaObj := &metav1.PartialObjectMetadata{}
+	metaObj.Name = obj.GetName()
+	metaObj.Namespace = obj.GetNamespace()
+	metaObj.SetGroupVersionKind(obj.GroupVersionKind())
+	key := client.ObjectKey{
+		Name:      obj.GetName(),
+		Namespace: obj.GetNamespace(),
+	}
+	if err := s.clientSet.Client.Get(ctx, key, metaObj); err != nil {
+		return err
+	}
+
+	existing := metaObj.DeepCopy()
+	if metadata.UpdateConfigSyncMetadata(obj, metaObj) {
+		if err := s.clientSet.Client.Patch(ctx, metaObj, client.MergeFrom(existing),
+			client.FieldOwner(configsync.FieldManager)); err != nil {
+			return err
+		}
+		klog.Infof("Patched drifted CS metadata on %s", key.String())
+		return nil
+	}
+	klog.Infof("Skip patching CS metadata on %s", key.String())
+	return nil
+
+}
+
 // processPruneEvent handles PruneEvents from the Applier
-func (s *supervisor) processPruneEvent(ctx context.Context, e event.PruneEvent, syncStats *stats.PruneEventStats, objectStatusMap ObjectStatusMap, declaredResources *declared.Resources) status.Error {
+func (s *supervisor) processPruneEvent(ctx context.Context, e event.PruneEvent, syncStats *stats.PruneEventStats, objectStatusMap ObjectStatusMap) status.Error {
 	id := idFrom(e.Identifier)
 	syncStats.Add(e.Status)
 
@@ -340,13 +376,6 @@ func (s *supervisor) processPruneEvent(ctx context.Context, e event.PruneEvent, 
 	case event.PruneSuccessful:
 		objectStatus.Actuation = actuation.ActuationSucceeded
 		handleMetrics(ctx, "delete", e.Error)
-
-		iObj, found := declaredResources.GetIgnored(id)
-		if found {
-			klog.V(3).Infof("Deleting object '%v' from the ignore cache", core.GKNN(iObj))
-			declaredResources.DeleteIgnored(id)
-		}
-
 		return nil
 
 	case event.PruneFailed:
@@ -486,10 +515,15 @@ func handleMetrics(ctx context.Context, operation string, err error) {
 // checkInventoryObjectSize checks the inventory object size limit.
 // If it is close to the size limit 1M, log a warning.
 func (s *supervisor) checkInventoryObjectSize(ctx context.Context, c client.Client) {
-	u := newInventoryUnstructured(s.syncName, s.syncNamespace)
-	err := c.Get(ctx, client.ObjectKey{Namespace: s.syncNamespace, Name: s.syncName}, u)
+	var rg kptv1alpha1.ResourceGroup
+	key := client.ObjectKey{
+		Name:      s.syncName,
+		Namespace: s.syncNamespace,
+	}
+	err := c.Get(ctx, key, &rg)
+
 	if err == nil {
-		size, err := getObjectSize(u)
+		size, err := getObjectSize(&rg)
 		if err != nil {
 			klog.Warningf("Failed to marshal ResourceGroup %s/%s to get its size: %s", s.syncNamespace, s.syncName, err)
 		}
@@ -510,15 +544,6 @@ func (s *supervisor) applyInner(ctx context.Context, eventHandler func(Event), d
 	objStatusMap := make(ObjectStatusMap)
 	objs := declaredResources.DeclaredObjects()
 
-	if err := s.cacheIgnoreMutationObjects(ctx, declaredResources); err != nil {
-		sendErrorEvent(err, eventHandler)
-		return objStatusMap, syncStats
-	}
-
-	if len(declaredResources.IgnoredObjects()) > 0 {
-		klog.Infof("%v mutation-ignored objects: %v", len(declaredResources.IgnoredObjects()), core.GKNNs(declaredResources.IgnoredObjects()))
-	}
-
 	// disabledObjs are objects for which the management are disabled
 	// through annotation.
 	enabledObjs, disabledObjs := partitionObjs(objs)
@@ -535,10 +560,8 @@ func (s *supervisor) applyInner(ctx context.Context, eventHandler func(Event), d
 		}
 	}
 
-	objsToApply := handleIgnoredObjects(enabledObjs, declaredResources)
-
-	klog.Infof("%v objects to be applied: %v", len(objsToApply), core.GKNNs(objsToApply))
-	resources, err := toUnstructured(objsToApply)
+	klog.Infof("%v objects to be applied: %v", len(enabledObjs), core.GKNNs(enabledObjs))
+	resources, err := toUnstructured(enabledObjs)
 	if err != nil {
 		sendErrorEvent(err, eventHandler)
 		return objStatusMap, syncStats
@@ -613,7 +636,7 @@ func (s *supervisor) applyInner(ctx context.Context, eventHandler func(Event), d
 			} else {
 				klog.V(1).Info(e.ApplyEvent)
 			}
-			if err := s.processApplyEvent(ctx, e.ApplyEvent, syncStats.ApplyEvent, objStatusMap, unknownTypeResources, resourceMap, declaredResources); err != nil {
+			if err := s.processApplyEvent(ctx, e.ApplyEvent, syncStats.ApplyEvent, objStatusMap, unknownTypeResources, resourceMap); err != nil {
 				sendErrorEvent(err, eventHandler)
 			}
 		case event.PruneType:
@@ -622,7 +645,7 @@ func (s *supervisor) applyInner(ctx context.Context, eventHandler func(Event), d
 			} else {
 				klog.V(1).Info(e.PruneEvent)
 			}
-			if err := s.processPruneEvent(ctx, e.PruneEvent, syncStats.PruneEvent, objStatusMap, declaredResources); err != nil {
+			if err := s.processPruneEvent(ctx, e.PruneEvent, syncStats.PruneEvent, objStatusMap); err != nil {
 				sendErrorEvent(err, eventHandler)
 			}
 		default:
@@ -732,13 +755,6 @@ func (s *supervisor) Destroy(ctx context.Context, eventHandler func(Event)) (Obj
 	return s.destroyInner(ctx, eventHandler)
 }
 
-// newInventoryUnstructured creates an inventory object as an unstructured.
-func newInventoryUnstructured(name, namespace string) *unstructured.Unstructured {
-	id := InventoryID(name, namespace)
-	u := resourcegroup.Unstructured(name, namespace, id)
-	return u
-}
-
 // InventoryID returns the inventory id of an inventory object.
 // The inventory object generated by ConfigSync is in the same namespace as RootSync or RepoSync.
 // The inventory ID is assigned as <NAMESPACE>_<NAME>.
@@ -834,39 +850,5 @@ func (s *supervisor) abandonObject(ctx context.Context, obj client.Object) error
 		return s.clientSet.Client.Patch(ctx, toObj, client.MergeFrom(fromObj),
 			client.FieldOwner(configsync.FieldManager))
 	}
-	return nil
-}
-
-// cacheIgnoreMutationObjects gets the current cluster state of any declared objects with the ignore mutation annotation and puts it in the Resources ignore objects cache
-// Returns any errors that occur
-func (s *supervisor) cacheIgnoreMutationObjects(ctx context.Context, declaredResources *declared.Resources) error {
-	var objsToUpdate []client.Object
-	declaredObjs := declaredResources.DeclaredObjects()
-
-	for _, obj := range declaredObjs {
-		if obj.GetAnnotations()[metadata.LifecycleMutationAnnotation] == metadata.IgnoreMutation {
-
-			if _, found := declaredResources.GetIgnored(core.IDOf(obj)); !found {
-				// Fetch the cluster state of the object if not already in the cache
-				uObj := &unstructured.Unstructured{}
-				uObj.SetGroupVersionKind(obj.GetObjectKind().GroupVersionKind())
-				err := s.clientSet.Client.Get(ctx, client.ObjectKeyFromObject(obj), uObj)
-
-				// Object doesn't exist on the cluster
-				if apierrors.IsNotFound(err) {
-					continue
-				}
-
-				if err != nil {
-					return err
-				}
-
-				objsToUpdate = append(objsToUpdate, uObj)
-			}
-		}
-	}
-
-	declaredResources.UpdateIgnored(objsToUpdate...)
-
 	return nil
 }

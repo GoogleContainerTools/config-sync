@@ -26,11 +26,11 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/cmd/nomos/flags"
+	"github.com/GoogleContainerTools/config-sync/cmd/nomos/util"
+	"github.com/GoogleContainerTools/config-sync/pkg/client/restconfig"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
-	"kpt.dev/configsync/cmd/nomos/flags"
-	"kpt.dev/configsync/cmd/nomos/util"
-	"kpt.dev/configsync/pkg/client/restconfig"
 )
 
 const (

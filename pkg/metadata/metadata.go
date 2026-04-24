@@ -18,9 +18,9 @@ import (
 	"reflect"
 	"strings"
 
-	"kpt.dev/configsync/pkg/api/configmanagement"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -173,11 +173,12 @@ func RemoveConfigSyncMetadata(obj client.Object) bool {
 
 // UpdateConfigSyncMetadata applies the Config Sync metadata of fromObj
 // to toObj where toObj is modified in place.
-func UpdateConfigSyncMetadata(fromObj client.Object, toObj client.Object) {
+func UpdateConfigSyncMetadata(fromObj client.Object, toObj client.Object) bool {
 	csAnnotations, csLabels := getConfigSyncMetadata(fromObj)
 
-	core.AddAnnotations(toObj, csAnnotations)
-	core.AddLabels(toObj, csLabels)
+	update1 := core.AddAnnotations(toObj, csAnnotations)
+	update2 := core.AddLabels(toObj, csLabels)
+	return update1 || update2
 }
 
 // HasSameCSMetadata returns true if the given objects have the same Config Sync metadata.

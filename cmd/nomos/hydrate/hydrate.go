@@ -18,18 +18,18 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/GoogleContainerTools/config-sync/cmd/nomos/flags"
+	nomosparse "github.com/GoogleContainerTools/config-sync/cmd/nomos/parse"
+	"github.com/GoogleContainerTools/config-sync/cmd/nomos/util"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/hydrate"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem/cmpath"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/reader"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	"github.com/spf13/cobra"
-	"kpt.dev/configsync/cmd/nomos/flags"
-	nomosparse "kpt.dev/configsync/cmd/nomos/parse"
-	"kpt.dev/configsync/cmd/nomos/util"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/hydrate"
-	"kpt.dev/configsync/pkg/importer/analyzer/ast"
-	"kpt.dev/configsync/pkg/importer/filesystem"
-	"kpt.dev/configsync/pkg/importer/filesystem/cmpath"
-	"kpt.dev/configsync/pkg/importer/reader"
-	"kpt.dev/configsync/pkg/status"
 )
 
 var (
@@ -100,7 +100,7 @@ which you could kubectl apply -fR to the cluster, or have Config Sync sync to th
 
 		parser := filesystem.NewParser(&reader.File{})
 
-		validateOpts, err := hydrate.ValidateOptions(cmd.Context(), rootDir, flags.APIServerTimeout)
+		validateOpts, err := hydrate.ValidateOptions(rootDir, flags.APIServerTimeout)
 		if err != nil {
 			return err
 		}

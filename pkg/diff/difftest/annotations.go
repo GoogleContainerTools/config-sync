@@ -15,9 +15,9 @@
 package difftest
 
 import (
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
 )
 
 // ManagedBy adds the annotation that a resource is managed by a particular reconciler.

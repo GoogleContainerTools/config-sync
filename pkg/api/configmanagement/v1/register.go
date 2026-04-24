@@ -15,10 +15,10 @@
 package v1
 
 import (
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"kpt.dev/configsync/pkg/api/configmanagement"
 )
 
 // SchemeGroupVersion is group version used to register these objects
@@ -38,17 +38,11 @@ var (
 
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
-		&NamespaceConfig{},
-		&NamespaceConfigList{},
-		&ClusterConfig{},
-		&ClusterConfigList{},
 		&ClusterSelector{},
 		&NamespaceSelector{},
 		&NamespaceSelectorList{},
 		&Repo{},
 		&RepoList{},
-		&Sync{},
-		&SyncList{},
 		&HierarchyConfig{},
 		&HierarchyConfigList{},
 	)

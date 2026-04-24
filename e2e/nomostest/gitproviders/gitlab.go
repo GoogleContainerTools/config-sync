@@ -15,32 +15,41 @@
 package gitproviders
 
 import (
+	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"os/exec"
-	"strings"
+	"io"
+	"net/http"
 	"time"
 
-	"github.com/google/uuid"
-	"go.uber.org/multierr"
-	"kpt.dev/configsync/e2e"
+	"github.com/GoogleContainerTools/config-sync/e2e"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/gitproviders/util"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/retry"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testlogger"
 )
 
 const (
-	projectNameMaxLength = 256
 	groupID              = 15698791
 	groupName            = "configsync"
+	gitlabRequestTimeout = 10 * time.Second
 )
 
 // GitlabClient is the client that will call Gitlab REST APIs.
 type GitlabClient struct {
 	privateToken string
+	logger       *testlogger.TestLogger
+	// repoSuffix is used to avoid overlap
+	repoSuffix string
+	httpClient *http.Client
 }
 
 // newGitlabClient instantiates a new GitlabClient.
-func newGitlabClient() (*GitlabClient, error) {
-	client := &GitlabClient{}
+func newGitlabClient(repoSuffix string, logger *testlogger.TestLogger) (*GitlabClient, error) {
+	client := &GitlabClient{
+		logger:     logger,
+		repoSuffix: repoSuffix,
+		httpClient: &http.Client{},
+	}
 
 	var err error
 
@@ -48,6 +57,10 @@ func newGitlabClient() (*GitlabClient, error) {
 		return client, err
 	}
 	return client, nil
+}
+
+func (g *GitlabClient) fullName(name string) string {
+	return util.SanitizeGitlabRepoName(g.repoSuffix, name)
 }
 
 // Type returns the git provider type
@@ -68,174 +81,98 @@ func (g *GitlabClient) SyncURL(name string) string {
 // CreateRepository calls the POST API to create a project/repository on Gitlab.
 // The remote repo name is unique with a prefix of the local name.
 func (g *GitlabClient) CreateRepository(name string) (string, error) {
-	u, err := uuid.NewRandom()
-	if err != nil {
-		return "", fmt.Errorf("failed to generate a new UUID: %w", err)
-	}
+	var fullName string
+	var err error
 
-	repoName := name + "-" + u.String()
-	// Gitlab create projects API doesn't allow '/' character
-	// so all instances are replaced with '-'
-	repoName = strings.ReplaceAll(repoName, "/", "-")
-	if len(repoName) > projectNameMaxLength {
-		repoName = repoName[:projectNameMaxLength]
-	}
+	// Handles 429 errors with retry backoff
+	_, err = retry.Retry(4*time.Minute, func() error {
+		fullName = g.fullName(name)
+		repoURL := fmt.Sprintf("https://gitlab.com/api/v4/projects?search=%s", fullName)
 
-	// Projects created under the `configsync` group (namespaceId: 15698791) has
-	// no protected branch.
-	out, err := exec.Command("curl", "-s", "--request", "POST",
-		fmt.Sprintf("https://gitlab.com/api/v4/projects?name=%s&namespace_id=%d&initialize_with_readme=true", repoName, groupID),
-		"--header", fmt.Sprintf("PRIVATE-TOKEN: %s", g.privateToken)).CombinedOutput()
-
-	if err != nil {
-		return "", fmt.Errorf("%s: %w", string(out), err)
-	}
-	if !strings.Contains(string(out), fmt.Sprintf("\"name\":\"%s\"", repoName)) {
-		return "", errors.New(string(out))
-	}
-
-	return repoName, nil
-}
-
-// GetProjectID is a helper function for DeleteRepositories
-// since Gitlab API only deletes by id
-func GetProjectID(g *GitlabClient, name string) (string, error) {
-	out, err := exec.Command("curl", "-s", "--request", "GET",
-		fmt.Sprintf("https://gitlab.com/api/v4/projects?search=%s", name),
-		"--header", fmt.Sprintf("PRIVATE-TOKEN: %s", g.privateToken)).CombinedOutput()
-
-	if err != nil {
-		return "", fmt.Errorf("Failure retrieving id for project %s: %w", name, err)
-	}
-
-	var response []interface{}
-
-	err = json.Unmarshal(out, &response)
-	if err != nil {
-		return "", fmt.Errorf("%s: %w", string(out), err)
-	}
-
-	var float float64
-	var ok bool
-
-	// the assumption is that our project name is unique, so we'll get exactly 1 result
-	if len(response) < 1 {
-		return "", fmt.Errorf("Project with name %s: %w", name, err)
-	}
-	if len(response) > 1 {
-		return "", fmt.Errorf("Project with name %s is not unique: %w", name, err)
-	}
-	m := response[0].(map[string]interface{})
-	if x, found := m["id"]; found {
-		if float, ok = x.(float64); !ok {
-			return "", fmt.Errorf("Project id in the respose isn't a float: %w", err)
-		}
-	} else {
-		return "", fmt.Errorf("Project id wasn't found in the response: %w", err)
-	}
-	id := fmt.Sprintf("%.0f", float)
-
-	return id, nil
-}
-
-// DeleteRepositories calls the DELETE API to delete the list of project name in Gitlab.
-func (g *GitlabClient) DeleteRepositories(names ...string) error {
-	var errs error
-
-	for _, name := range names {
-		id, err := GetProjectID(g, name)
+		// Check if the repository already exists
+		getRequestCtx, getRequestCancel := context.WithTimeout(context.Background(), gitlabRequestTimeout)
+		defer getRequestCancel()
+		resp, err := g.sendRequest(getRequestCtx, http.MethodGet, repoURL, nil)
 		if err != nil {
-			errs = multierr.Append(errs, fmt.Errorf("invalid repo name: %w", err))
-		} else {
-			out, err := exec.Command("curl", "-s", "--request", "DELETE",
-				fmt.Sprintf("https://gitlab.com/api/v4/projects/%s", id),
-				"--header", fmt.Sprintf("PRIVATE-TOKEN: %s", g.privateToken)).CombinedOutput()
+			return err
+		}
 
+		if resp.StatusCode == http.StatusOK {
+			body, err := io.ReadAll(resp.Body)
 			if err != nil {
-				errs = multierr.Append(errs, fmt.Errorf("%s: %w", string(out), err))
+				return fmt.Errorf("error reading response body: %w", err)
 			}
 
-			if !strings.Contains(string(out), "\"message\":\"202 Accepted\"") {
-				return errors.New(string(out))
+			var output []map[string]interface{}
+			if err := json.Unmarshal(body, &output); err != nil {
+				return fmt.Errorf("unmarshalling project search response: %w", err)
 			}
+
+			// the assumption is that our project name is unique, so we'll get exactly 1 result
+			if len(output) > 0 {
+				return nil
+			}
+		} else {
+			return fmt.Errorf("failed to check if repository exists: status %d", resp.StatusCode)
 		}
+
+		// Creates repository
+		repoURL = fmt.Sprintf("https://gitlab.com/api/v4/projects?name=%s&namespace_id=%d&initialize_with_readme=true", fullName, groupID)
+		postRequestCtx, postRequestCancel := context.WithTimeout(context.Background(), gitlabRequestTimeout)
+		resp, err = g.sendRequest(postRequestCtx, http.MethodPost, repoURL, nil)
+		defer func() {
+			if closeErr := resp.Body.Close(); closeErr != nil {
+				g.logger.Infof("failed to close response body: %v\n", closeErr)
+			}
+			postRequestCancel()
+		}()
+		if err != nil {
+			return err
+		}
+
+		if resp.StatusCode != http.StatusCreated {
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return fmt.Errorf("error reading response body: %w", err)
+			}
+			return fmt.Errorf("failed to create repository: status %d: %s", resp.StatusCode, string(body))
+		}
+		return nil
+	})
+	if err != nil {
+		return "", err
 	}
-	return errs
+	return fullName, nil
 }
 
-// DeleteObsoleteRepos deletes all projects that has been inactive more than 24 hours
+// DeleteRepositories is a no-op because Gitlab repo names are determined by the
+// test cluster name and RSync namespace and name, so they can be reset and reused
+// across test runs
+func (g *GitlabClient) DeleteRepositories(_ ...string) error {
+	g.logger.Info("[Gitlab] Skip deletion of repos")
+	return nil
+}
+
+// DeleteObsoleteRepos is a no-op because Gitlab repo names are determined by the
+// test cluster name and RSync namespace and name, so it can be reused if it
+// failed to be deleted after the test.
 func (g *GitlabClient) DeleteObsoleteRepos() error {
-	repos, _ := g.GetObsoleteRepos()
-
-	err := g.DeleteRepoByID(repos...)
-	return err
+	return nil
 }
 
-// DeleteRepoByID calls the DELETE API to delete the list of project id in Gitlab.
-func (g *GitlabClient) DeleteRepoByID(ids ...string) error {
-	var errs error
-
-	for _, id := range ids {
-		out, err := exec.Command("curl", "-s", "--request", "DELETE",
-			fmt.Sprintf("https://gitlab.com/api/v4/projects/%s", id),
-			"--header", fmt.Sprintf("PRIVATE-TOKEN: %s", g.privateToken)).CombinedOutput()
-
-		if err != nil {
-			errs = multierr.Append(errs, fmt.Errorf("%s: %w", string(out), err))
-		}
-
-		if !strings.Contains(string(out), "\"message\":\"202 Accepted\"") {
-			return fmt.Errorf("unexpected response in DeleteRepoByID: %s", string(out))
-		}
+// sendRequest sends an HTTP request to the Gitlab API.
+func (g *GitlabClient) sendRequest(ctx context.Context, method, url string, body io.Reader) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, method, url, body)
+	if err != nil {
+		return nil, fmt.Errorf("error creating request: %w", err)
 	}
-	return errs
-}
+	req.Header.Add("PRIVATE-TOKEN", g.privateToken)
+	req.Header.Set("Content-Type", "application/json")
 
-// GetObsoleteRepos is a helper function to get all project ids that has been inactive more than 24 hours
-func (g *GitlabClient) GetObsoleteRepos() ([]string, error) {
-	var result []string
-	pageNum := 1
-	cutOffDate := time.Now().AddDate(0, 0, -1)
-	formattedDate := fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d",
-		cutOffDate.Year(), cutOffDate.Month(), cutOffDate.Day(),
-		cutOffDate.Hour(), cutOffDate.Minute(), cutOffDate.Second())
-
-	for {
-		out, err := exec.Command("curl", "-s", "--request", "GET",
-			fmt.Sprintf("https://gitlab.com/api/v4/projects?last_activity_before=%s&owned=yes&simple=yes&page=%d", formattedDate, pageNum),
-			"--header", fmt.Sprintf("PRIVATE-TOKEN: %s", g.privateToken)).CombinedOutput()
-
-		if err != nil {
-			return result, fmt.Errorf("Failure retrieving obsolete repos: %w", err)
-		}
-
-		if len(out) <= 2 {
-			break
-		}
-
-		pageNum++
-		var response []interface{}
-
-		err = json.Unmarshal(out, &response)
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", string(out), err)
-		}
-
-		for i := range response {
-			m := response[i].(map[string]interface{})
-			if flt, found := m["id"]; found {
-				var id float64
-				var ok bool
-				if id, ok = flt.(float64); !ok {
-					return result, fmt.Errorf("Project id in the response isn't a float: %w", err)
-				}
-				result = append(result, fmt.Sprintf("%.0f", id))
-
-			} else {
-				return result, fmt.Errorf("Project id wasn't found in the response: %w", err)
-			}
-		}
+	resp, err := g.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("error sending request: %w", err)
 	}
 
-	return result, nil
+	return resp, nil
 }

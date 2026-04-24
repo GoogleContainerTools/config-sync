@@ -19,20 +19,20 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/log"
+	ocmetrics "github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/metrics"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/profiler"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/resourcegroup"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/resourcemap"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/root"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/typeresolver"
 	"github.com/go-logr/logr"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 	"k8s.io/klog/v2/textlogger"
-	"kpt.dev/configsync/pkg/api/kpt.dev/v1alpha1"
-	"kpt.dev/configsync/pkg/resourcegroup/controllers/log"
-	ocmetrics "kpt.dev/configsync/pkg/resourcegroup/controllers/metrics"
-	"kpt.dev/configsync/pkg/resourcegroup/controllers/profiler"
-	"kpt.dev/configsync/pkg/resourcegroup/controllers/resourcegroup"
-	"kpt.dev/configsync/pkg/resourcegroup/controllers/resourcemap"
-	"kpt.dev/configsync/pkg/resourcegroup/controllers/root"
-	"kpt.dev/configsync/pkg/resourcegroup/controllers/typeresolver"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -75,20 +75,15 @@ func run() error {
 	logger := textlogger.NewLogger(textlogger.NewConfig())
 	ctx := context.Background()
 
-	// Register the OpenCensus views
-	if err := ocmetrics.RegisterReconcilerMetricsViews(); err != nil {
-		return fmt.Errorf("failed to register OpenCensus views: %w", err)
-	}
-
-	// Register the OC Agent exporter
-	oce, err := ocmetrics.RegisterOCAgentExporter()
+	// Register the OTLP metrics exporter and metrics instruments
+	oce, err := ocmetrics.RegisterOTelExporter(ctx, resourcegroup.ManagerContainerName)
 	if err != nil {
-		return fmt.Errorf("failed to register the OC Agent exporter: %w", err)
+		return fmt.Errorf("failed to register the OTLP metrics exporter: %w", err)
 	}
 
 	defer func() {
-		if err := oce.Stop(); err != nil {
-			klog.Error(err, "Unable to stop the OC Agent exporter")
+		if err := oce.Shutdown(ctx); err != nil {
+			klog.Error(err, "Unable to stop the OTLP metrics exporter")
 		}
 	}()
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{

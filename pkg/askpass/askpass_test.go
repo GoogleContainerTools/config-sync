@@ -22,7 +22,7 @@ import (
 	"time"
 
 	goauth "cloud.google.com/go/auth"
-	"kpt.dev/configsync/pkg/auth"
+	"github.com/GoogleContainerTools/config-sync/pkg/auth"
 )
 
 // GitAskPassHandler performs a basic "smoke test"

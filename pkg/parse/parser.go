@@ -17,8 +17,8 @@ package parse
 import (
 	"context"
 
-	"kpt.dev/configsync/pkg/importer/analyzer/ast"
-	"kpt.dev/configsync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 )
 
 // Parser represents a parser that can be pointed at and continuously parse a source.

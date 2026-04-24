@@ -18,15 +18,15 @@ package metadata_test
 import (
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"kpt.dev/configsync/pkg/api/configmanagement"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/syncer/syncertest"
 	"sigs.k8s.io/cli-utils/pkg/testutil"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -231,6 +231,7 @@ func TestUpdateConfigSyncMetadata(t *testing.T) {
 		fromObj     client.Object
 		toObj       client.Object
 		expectedObj client.Object
+		updated     bool
 	}{
 		{
 			name:        "fromObj + toObj don't have CS metadata",
@@ -243,18 +244,21 @@ func TestUpdateConfigSyncMetadata(t *testing.T) {
 			fromObj:     k8sobjects.NamespaceObject("test-ns", syncertest.IgnoreMutationAnnotation, syncertest.ManagementEnabled),
 			toObj:       k8sobjects.NamespaceObject("test-ns"),
 			expectedObj: k8sobjects.NamespaceObject("test-ns", syncertest.IgnoreMutationAnnotation, syncertest.ManagementEnabled),
+			updated:     true,
 		},
 		{
 			name:        "fromObj doesn't have the ignore mutation annotation but toObj does",
 			fromObj:     k8sobjects.NamespaceObject("test-ns", syncertest.ManagementEnabled),
 			toObj:       k8sobjects.NamespaceObject("test-ns", syncertest.IgnoreMutationAnnotation),
 			expectedObj: k8sobjects.NamespaceObject("test-ns", syncertest.ManagementEnabled, syncertest.IgnoreMutationAnnotation),
+			updated:     true,
 		},
 		{
 			name:        "fromObj doesn't have a non-CS annotation but toObj does",
 			fromObj:     k8sobjects.NamespaceObject("test-ns", syncertest.ManagementEnabled),
 			toObj:       k8sobjects.NamespaceObject("test-ns", syncertest.IgnoreMutationAnnotation, core.Annotation("foo", "bar")),
 			expectedObj: k8sobjects.NamespaceObject("test-ns", syncertest.ManagementEnabled, syncertest.IgnoreMutationAnnotation, core.Annotation("foo", "bar")),
+			updated:     true,
 		},
 	}
 
@@ -262,8 +266,9 @@ func TestUpdateConfigSyncMetadata(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			toObj, err := kinds.ObjectAsClientObject(tc.toObj.DeepCopyObject())
 			require.NoError(t, err)
-			metadata.UpdateConfigSyncMetadata(tc.fromObj, toObj)
+			updated := metadata.UpdateConfigSyncMetadata(tc.fromObj, toObj)
 			testutil.AssertEqual(t, tc.expectedObj, toObj)
+			require.Equal(t, tc.updated, updated)
 		})
 	}
 }

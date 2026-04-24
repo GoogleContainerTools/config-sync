@@ -17,9 +17,9 @@ package parse
 import (
 	"strings"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/status"
 )
 
 // ReconcilerStatus represents the status of the reconciler.

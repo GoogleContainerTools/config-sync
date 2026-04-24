@@ -18,16 +18,16 @@ import (
 	"context"
 	"fmt"
 
-	"kpt.dev/configsync/pkg/applier"
-	"kpt.dev/configsync/pkg/applier/stats"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/applier"
+	"github.com/GoogleContainerTools/config-sync/pkg/applier/stats"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Applier fakes applier.Applier.
 //
-// This is not in kpt.dev/configsync/pkg/testing/fake because that would cause
+// This is not in github.com/GoogleContainerTools/config-sync/pkg/testing/fake because that would cause
 // a import loop (applier -> fake -> applier).
 type Applier struct {
 	ApplyCalls   int

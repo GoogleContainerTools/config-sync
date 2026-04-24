@@ -19,12 +19,12 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/syncer/reconcile"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/watch"
-	"kpt.dev/configsync/pkg/syncer/reconcile"
 	"sigs.k8s.io/cli-utils/pkg/testutil"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -127,6 +127,12 @@ func (c *Client) Update(ctx context.Context, obj client.Object, opts ...client.U
 	return c.storage.Update(ctx, obj, options)
 }
 
+// Apply implements client.Client.
+func (c *Client) Apply(_ context.Context, _ runtime.ApplyConfiguration, _ ...client.ApplyOption) error {
+	// TODO: implement fake Apply method if this is needed
+	return fmt.Errorf("not implemented")
+}
+
 // Patch implements client.Client.
 func (c *Client) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 	options := &client.PatchOptions{}
@@ -199,6 +205,10 @@ func (s *subResourceWriter) Patch(ctx context.Context, obj client.Object, patch 
 // Create implements client.SubResourceWriter.
 func (s *subResourceWriter) Create(_ context.Context, _ client.Object, _ client.Object, _ ...client.SubResourceCreateOption) error {
 	panic("Create not implemented for SubResourceWriter")
+}
+
+func (s *subResourceWriter) Apply(_ context.Context, _ runtime.ApplyConfiguration, _ ...client.SubResourceApplyOption) error {
+	panic("Apply not implemented for SubResourceWriter")
 }
 
 // Check reports an error to `t` if the passed objects in wants do not match the

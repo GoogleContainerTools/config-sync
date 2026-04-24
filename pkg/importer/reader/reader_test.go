@@ -20,9 +20,9 @@ import (
 	"path"
 	"testing"
 
-	ft "kpt.dev/configsync/pkg/importer/filesystem/filesystemtest"
-	"kpt.dev/configsync/pkg/importer/reader"
-	"kpt.dev/configsync/pkg/status"
+	ft "github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem/filesystemtest"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/reader"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 )
 
 func TestFileReader_Read_NotExist(t *testing.T) {

@@ -17,7 +17,7 @@ package configuration
 import (
 	"time"
 
-	"kpt.dev/configsync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
 )
 
 // ShortName is the short name of the ValidatingWebhookConfiguration for the

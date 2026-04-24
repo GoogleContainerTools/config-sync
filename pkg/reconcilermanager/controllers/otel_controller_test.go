@@ -21,19 +21,19 @@ import (
 	"testing"
 
 	goauth "cloud.google.com/go/auth"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
+	"github.com/GoogleContainerTools/config-sync/pkg/auth"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/metrics"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
+	syncerFake "github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest/fake"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"kpt.dev/configsync/pkg/api/configmanagement"
-	"kpt.dev/configsync/pkg/auth"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/metrics"
-	"kpt.dev/configsync/pkg/reconcilermanager"
-	syncerFake "kpt.dev/configsync/pkg/syncer/syncertest/fake"
 	"sigs.k8s.io/cli-utils/pkg/testutil"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -52,11 +52,11 @@ const (
 	// otel-collector ConfigMap.
 	// See `CollectorConfigGooglecloud` in `pkg/metrics/otel.go`
 	// Used by TestOtelReconcilerGooglecloud.
-	depAnnotationGooglecloud = "e5cf31ab812961f26bb9307a5ed46a33"
+	depAnnotationGooglecloud = "e18b583602a43505838010909d940071"
 	// depAnnotationGooglecloud is the expected hash of the custom
 	// otel-collector ConfigMap test artifact.
 	// Used by TestOtelReconcilerCustom.
-	depAnnotationCustom = "d166bfb4bea41bdc98b5b718e6c34b44"
+	depAnnotationCustom = "69c7a85b0b64c732117dcf8c1817a64e"
 	// depAnnotationCustomDeleted is the expected hash of the deleted custom
 	// otel-collector ConfigMap test artifact.
 	// Used by TestOtelReconcilerDeleteCustom.
@@ -370,8 +370,12 @@ data:
         - env
         - gcp
     receivers:
-      opencensus:
-        endpoint: 0.0.0.0:55678
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
     service:
       extensions:
       - health_check
@@ -385,7 +389,7 @@ data:
           - metricstransform/cloudmonitoring
           - resourcedetection
           receivers:
-          - opencensus
+          - otlp
         metrics/kubernetes:
           exporters:
           - googlecloud/kubernetes
@@ -395,14 +399,14 @@ data:
           - metricstransform/kubernetes
           - resourcedetection
           receivers:
-          - opencensus
+          - otlp
         metrics/prometheus:
           exporters:
           - prometheus
           processors:
           - batch
           receivers:
-          - opencensus
+          - otlp
 kind: ConfigMap
 metadata:
   labels:

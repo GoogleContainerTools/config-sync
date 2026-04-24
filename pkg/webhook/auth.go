@@ -17,8 +17,8 @@ package webhook
 import (
 	"strings"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
 	authenticationv1 "k8s.io/api/authentication/v1"
-	"kpt.dev/configsync/pkg/api/configmanagement"
 )
 
 const (

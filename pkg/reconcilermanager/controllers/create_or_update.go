@@ -18,9 +18,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"kpt.dev/configsync/pkg/reconcilermanager"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )

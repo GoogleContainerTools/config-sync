@@ -17,8 +17,8 @@ package iam
 import (
 	"fmt"
 
-	"kpt.dev/configsync/e2e"
-	"kpt.dev/configsync/e2e/nomostest"
+	"github.com/GoogleContainerTools/config-sync/e2e"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
 )
 
 // ValidateServiceAccountExists validates that the specified GSA exists in the

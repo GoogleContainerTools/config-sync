@@ -17,9 +17,9 @@ package nomostest
 import (
 	"fmt"
 
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testwatcher"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"kpt.dev/configsync/e2e/nomostest/testwatcher"
 )
 
 const (

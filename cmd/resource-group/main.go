@@ -17,7 +17,7 @@ package main
 import (
 	"os"
 
-	"kpt.dev/configsync/pkg/resourcegroup/controllers/runner"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/runner"
 )
 
 func main() {

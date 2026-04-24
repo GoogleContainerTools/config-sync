@@ -17,9 +17,9 @@ package parse
 import (
 	"sync"
 
-	"kpt.dev/configsync/pkg/remediator/conflict"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/syncer/reconcile/fight"
+	"github.com/GoogleContainerTools/config-sync/pkg/remediator/conflict"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/syncer/reconcile/fight"
 )
 
 // SyncErrorCache is a collection of sync errors, locked for thread-safe use.

@@ -18,9 +18,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/client-go/tools/cache"
-	"kpt.dev/configsync/pkg/kinds"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

@@ -24,6 +24,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/cmd/nomos/flags"
+	"github.com/GoogleContainerTools/config-sync/cmd/nomos/status"
+	"github.com/GoogleContainerTools/config-sync/cmd/nomos/util"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	"github.com/GoogleContainerTools/config-sync/pkg/client/restconfig"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager/controllers"
 	"github.com/spf13/cobra"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -32,14 +40,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
-	"kpt.dev/configsync/cmd/nomos/flags"
-	"kpt.dev/configsync/cmd/nomos/status"
-	"kpt.dev/configsync/cmd/nomos/util"
-	"kpt.dev/configsync/pkg/api/configmanagement"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	"kpt.dev/configsync/pkg/client/restconfig"
-	"kpt.dev/configsync/pkg/reconcilermanager/controllers"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 )
@@ -231,7 +231,7 @@ func backoff() wait.Backoff {
 	}
 }
 
-func waitForPodToBeRunning(ctx context.Context, k8sclient *kubernetes.Clientset, ns string, labelSelector string) error {
+func waitForPodToBeRunning(ctx context.Context, k8sclient kubernetes.Interface, ns string, labelSelector string) error {
 	return recheck(func() error {
 		pods, err := k8sclient.CoreV1().Pods(ns).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
 		if err != nil {

@@ -18,12 +18,12 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/ntopts"
+	nomostesting "github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
 	corev1 "k8s.io/api/core/v1"
-	"kpt.dev/configsync/e2e/nomostest"
-	"kpt.dev/configsync/e2e/nomostest/ntopts"
-	nomostesting "kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/kinds"
 )
 
 func TestDeclaredFieldsPod(t *testing.T) {

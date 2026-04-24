@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/id"
 	"k8s.io/klog/v2"
-	"kpt.dev/configsync/pkg/importer/id"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
 	"github.com/stretchr/testify/assert"
-	"kpt.dev/configsync/pkg/metadata"
 )
 
 func TestGetSourceHash(t *testing.T) {

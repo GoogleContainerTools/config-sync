@@ -19,7 +19,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"kpt.dev/configsync/e2e"
+	"github.com/GoogleContainerTools/config-sync/e2e"
 )
 
 // HelmClient provides helm and crane clients for connecting to an Helm repository.

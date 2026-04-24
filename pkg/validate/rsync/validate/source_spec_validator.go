@@ -18,15 +18,15 @@ import (
 	"context"
 	"strings"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
+	"github.com/GoogleContainerTools/config-sync/pkg/reposync"
+	"github.com/GoogleContainerTools/config-sync/pkg/rootsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	"kpt.dev/configsync/pkg/reconcilermanager"
-	"kpt.dev/configsync/pkg/reposync"
-	"kpt.dev/configsync/pkg/rootsync"
-	"kpt.dev/configsync/pkg/status"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -119,7 +119,7 @@ func GitSpec(git *v1beta1.Git, syncKind string) status.Error {
 	}
 
 	// Check that proxy isn't unnecessarily declared.
-	if git.Proxy != "" && git.Auth != configsync.AuthNone && git.Auth != configsync.AuthCookieFile && git.Auth != configsync.AuthToken {
+	if git.Proxy != "" && git.Auth != configsync.AuthNone && git.Auth != configsync.AuthCookieFile && git.Auth != configsync.AuthToken && git.Auth != configsync.AuthGithubApp {
 		return NoOpProxy(syncKind)
 	}
 
@@ -154,12 +154,22 @@ func OciSpec(oci *v1beta1.Oci, syncKind string) status.Error {
 	// will fail to apply.
 	switch oci.Auth {
 	case configsync.AuthGCENode, configsync.AuthK8sServiceAccount, configsync.AuthNone:
+		if oci.SecretRef != nil && oci.SecretRef.Name != "" {
+			return IllegalSecretRef(configsync.OciSource, syncKind)
+		}
 	case configsync.AuthGCPServiceAccount:
+		if oci.SecretRef != nil && oci.SecretRef.Name != "" {
+			return IllegalSecretRef(configsync.OciSource, syncKind)
+		}
 		if oci.GCPServiceAccountEmail == "" {
 			return MissingGCPSAEmail(configsync.OciSource, syncKind)
 		}
 		if !validGCPServiceAccountEmail(oci.GCPServiceAccountEmail) {
 			return InvalidGCPSAEmail(configsync.OciSource, syncKind)
+		}
+	case configsync.AuthToken:
+		if oci.SecretRef == nil || oci.SecretRef.Name == "" {
+			return MissingSecretRef(configsync.OciSource, syncKind)
 		}
 	default:
 		return InvalidOciAuthType(syncKind)
@@ -448,8 +458,8 @@ func InvalidGitAuthType(syncKind string) status.Error {
 // do nothing.
 func NoOpProxy(syncKind string) status.Error {
 	return invalidSyncBuilder.
-		Sprintf("%ss which specify spec.git.proxy must also specify spec.git.auth as one of %q, %q or %q",
-			syncKind, configsync.AuthNone, configsync.AuthCookieFile, configsync.AuthToken).
+		Sprintf("%ss which specify spec.git.proxy must also specify spec.git.auth as one of %q, %q, %q or %q",
+			syncKind, configsync.AuthNone, configsync.AuthCookieFile, configsync.AuthToken, configsync.AuthGithubApp).
 		Build()
 }
 

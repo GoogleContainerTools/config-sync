@@ -17,10 +17,10 @@ package namespacecontroller
 import (
 	"context"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/klog/v2"
-	"kpt.dev/configsync/pkg/status"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"

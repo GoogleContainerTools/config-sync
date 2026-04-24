@@ -13,22 +13,15 @@
 # limitations under the License.
 
 helmCharts:
-- name: coredns
-  releaseName: my-coredns
-  namespace: coredns
-- name: wordpress
-  repo: https://charts.bitnami.com/bitnami
-  version: 15.2.35
-  releaseName: my-wordpress
-  namespace: wordpress
+- name: simple-ns-chart
+  releaseName: my-simple-ns
+  namespace: simple-ns
   valuesInline:
-    wordpressPassword: abcdefg
-    mariadb:
-      auth:
-        rootPassword: abcdefg
-        password: abcdefg
-    service:
-      type: ClusterIP
+    annotations:
+      foo: baz
+    data:
+      image:
+        imagePullPolicy: IfNotPresent
 
 labels:
 - includeSelectors: true

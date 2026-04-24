@@ -15,10 +15,10 @@
 package status
 
 import (
-	v1 "kpt.dev/configsync/pkg/api/configmanagement/v1"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/metadata"
+	v1 "github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement/v1"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

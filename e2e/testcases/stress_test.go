@@ -23,6 +23,27 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/e2e"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/gitproviders"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/iam"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/ntopts"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/registryproviders"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/syncsource"
+	nomostesting "github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testpredicates"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testresourcegroup"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testwatcher"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/workloadidentity"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
+	"github.com/GoogleContainerTools/config-sync/pkg/util/log"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -33,27 +54,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
-	"kpt.dev/configsync/e2e"
-	"kpt.dev/configsync/e2e/nomostest"
-	"kpt.dev/configsync/e2e/nomostest/gitproviders"
-	"kpt.dev/configsync/e2e/nomostest/iam"
-	"kpt.dev/configsync/e2e/nomostest/ntopts"
-	"kpt.dev/configsync/e2e/nomostest/registryproviders"
-	"kpt.dev/configsync/e2e/nomostest/syncsource"
-	nomostesting "kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/e2e/nomostest/testpredicates"
-	"kpt.dev/configsync/e2e/nomostest/testresourcegroup"
-	"kpt.dev/configsync/e2e/nomostest/testwatcher"
-	"kpt.dev/configsync/e2e/nomostest/workloadidentity"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	"kpt.dev/configsync/pkg/api/kpt.dev/v1alpha1"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/reconcilermanager"
-	"kpt.dev/configsync/pkg/util/log"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -222,9 +222,11 @@ func TestStressLargeRequest(t *testing.T) {
 	reconcilerOverride := v1beta1.ContainerResourcesSpec{
 		ContainerName: reconcilermanager.Reconciler,
 		MemoryLimit:   resource.MustParse("1500Mi"),
+		CPULimit:      resource.MustParse("1.5"),
 	}
 	if *e2e.GKEAutopilot {
 		reconcilerOverride.MemoryRequest = resource.MustParse("1500Mi")
+		reconcilerOverride.CPURequest = resource.MustParse("1.5")
 	}
 	repo := gitproviders.ReadOnlyRepository{
 		URL: "https://github.com/config-sync-examples/crontab-crs",
@@ -256,7 +258,7 @@ func TestStressLargeRequest(t *testing.T) {
 	nomostest.SetExpectedGitCommit(nt, rootSyncID, commit)
 
 	nt.T.Logf("Wait for the sync to complete")
-	nt.Must(nt.WatchForAllSyncs())
+	nt.Must(nt.WatchForAllSyncs(nomostest.WithTimeout(40 * time.Minute)))
 }
 
 // TestStress100CRDs applies 100 CRDs and validates that syncing still works.
@@ -566,7 +568,7 @@ func TestStressMemoryUsageHelm(t *testing.T) {
 
 	// Validate that the resources sync without the reconciler running out of
 	// memory, getting OOMKilled, and crash looping.
-	nt.Must(nt.WatchForAllSyncs(nomostest.WithTimeout(5 * time.Minute)))
+	nt.Must(nt.WatchForAllSyncs())
 
 	nt.T.Logf("Verify the number of Anvil objects")
 	for i := 1; i <= crdCount; i++ {
@@ -598,7 +600,7 @@ func TestStressMemoryUsageHelm(t *testing.T) {
 	})
 	// Validate that the resources sync without the reconciler running out of
 	// memory, getting OOMKilled, and crash looping.
-	nt.Must(nt.WatchForAllSyncs(nomostest.WithTimeout(5 * time.Minute)))
+	nt.Must(nt.WatchForAllSyncs())
 }
 
 func TestStressResourceGroup(t *testing.T) {
@@ -677,14 +679,6 @@ func TestStressResourceGroup(t *testing.T) {
 	expectedStatus.ResourceStatuses[index] = v1alpha1.ResourceStatus{
 		Status:      v1alpha1.NotFound,
 		ObjMetadata: resources[index],
-		Conditions: []v1alpha1.Condition{
-			{
-				Message: testresourcegroup.NotOwnedMessage,
-				Reason:  v1alpha1.OwnershipEmpty,
-				Status:  v1alpha1.UnknownConditionStatus,
-				Type:    v1alpha1.Ownership,
-			},
-		},
 	}
 	nt.Must(nt.Watcher.WatchObject(kinds.ResourceGroup(), rgNN.Name, rgNN.Namespace,
 		testwatcher.WatchPredicates(

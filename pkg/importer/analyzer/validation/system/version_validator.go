@@ -15,8 +15,8 @@
 package system
 
 import (
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/util/repo"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/util/repo"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

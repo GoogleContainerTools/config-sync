@@ -26,7 +26,7 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
-	"kpt.dev/configsync/pkg/resourcegroup/controllers/resourcemap"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/resourcemap"
 )
 
 type startWatchFunc func(metav1.ListOptions) (watch.Interface, error)

@@ -5,12 +5,12 @@ package v1
 import (
 	context "context"
 
+	configmanagementv1 "github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement/v1"
+	scheme "github.com/GoogleContainerTools/config-sync/pkg/generated/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	gentype "k8s.io/client-go/gentype"
-	configmanagementv1 "kpt.dev/configsync/pkg/api/configmanagement/v1"
-	scheme "kpt.dev/configsync/pkg/generated/clientset/versioned/scheme"
 )
 
 // HierarchyConfigsGetter has a method to return a HierarchyConfigInterface.

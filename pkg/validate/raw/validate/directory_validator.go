@@ -15,11 +15,11 @@
 package validate
 
 import (
-	"kpt.dev/configsync/pkg/api/configmanagement/v1/repo"
-	"kpt.dev/configsync/pkg/importer/analyzer/ast"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation/metadata"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement/v1/repo"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 )
 
 // Directory verifies that the given FileObject is placed in a valid directory

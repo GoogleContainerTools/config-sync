@@ -15,8 +15,8 @@
 package metadata
 
 import (
-	"kpt.dev/configsync/pkg/api/configmanagement"
-	"kpt.dev/configsync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
 	"sigs.k8s.io/cli-utils/pkg/inventory"
 	"sigs.k8s.io/kustomize/kyaml/kio/filters"
 )

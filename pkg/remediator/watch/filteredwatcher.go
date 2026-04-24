@@ -24,21 +24,21 @@ import (
 	"sync"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/diff"
+	"github.com/GoogleContainerTools/config-sync/pkg/metrics"
+	"github.com/GoogleContainerTools/config-sync/pkg/remediator/conflict"
+	"github.com/GoogleContainerTools/config-sync/pkg/remediator/queue"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	syncerclient "github.com/GoogleContainerTools/config-sync/pkg/syncer/client"
+	"github.com/GoogleContainerTools/config-sync/pkg/util/log"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog/v2"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/diff"
-	"kpt.dev/configsync/pkg/metrics"
-	"kpt.dev/configsync/pkg/remediator/conflict"
-	"kpt.dev/configsync/pkg/remediator/queue"
-	"kpt.dev/configsync/pkg/status"
-	syncerclient "kpt.dev/configsync/pkg/syncer/client"
-	"kpt.dev/configsync/pkg/util/log"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -385,7 +385,7 @@ func errorID(err error) string {
 // and an error indicating that a watch.Error event type is encountered and the
 // watch should be restarted.
 func (w *filteredWatcher) handle(ctx context.Context, event watch.Event) (string, bool, error) {
-	klog.Infof("Remediator handling watch event %v %v", event.Type, w.gvk)
+	klog.V(0).Infof("Remediator handling watch event %v %v", event.Type, w.gvk)
 	var deleted bool
 	switch event.Type {
 	case watch.Added, watch.Modified:
@@ -445,11 +445,6 @@ func (w *filteredWatcher) handle(ctx context.Context, event watch.Event) (string
 			core.IDOf(object), object.GetGeneration())
 	}
 
-	// Update drifted objects in the Resources ignored cache
-	if _, found := w.resources.GetIgnored(core.IDOf(object)); found {
-		w.resources.UpdateIgnored(object)
-		klog.V(3).Infof("Updating object '%v' in the ignore mutation cache", core.GKNN(object))
-	}
 	w.queue.Add(object)
 	return object.GetResourceVersion(), false, nil
 }

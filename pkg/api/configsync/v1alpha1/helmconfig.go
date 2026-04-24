@@ -15,9 +15,9 @@
 package v1alpha1
 
 import (
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"kpt.dev/configsync/pkg/api/configsync"
 )
 
 // HelmRootSync contains the configuration specific to locate, download and template a Helm chart.

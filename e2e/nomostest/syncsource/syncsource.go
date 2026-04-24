@@ -18,10 +18,10 @@ import (
 	"fmt"
 	"strings"
 
-	"kpt.dev/configsync/e2e/nomostest/gitproviders"
-	"kpt.dev/configsync/e2e/nomostest/registryproviders"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/reconcilermanager/controllers"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/gitproviders"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/registryproviders"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager/controllers"
 )
 
 // SyncSource describes the common methods available on all sources of truth.

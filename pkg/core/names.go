@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"strings"
 
-	"kpt.dev/configsync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

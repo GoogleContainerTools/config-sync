@@ -17,7 +17,7 @@ package root
 import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"kpt.dev/configsync/pkg/api/kpt.dev/v1alpha1"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
 )
 
 // getGroupKinds returns GroupKind's from a ResourceGroup's spec

@@ -16,7 +16,7 @@ import (
 // if an object should not be pruned (deleted) because it has recently
 // been applied.
 type CurrentUIDFilter struct {
-	CurrentUIDs sets.String // nolint:staticcheck
+	CurrentUIDs sets.Set[types.UID] // nolint:staticcheck
 }
 
 // Name returns a filter identifier for logging.
@@ -28,7 +28,7 @@ func (cuf CurrentUIDFilter) Name() string {
 // should be skipped.
 func (cuf CurrentUIDFilter) Filter(_ context.Context, obj *unstructured.Unstructured) error {
 	uid := obj.GetUID()
-	if cuf.CurrentUIDs.Has(string(uid)) {
+	if cuf.CurrentUIDs.Has(uid) {
 		return &ApplyPreventedDeletionError{UID: uid}
 	}
 	return nil

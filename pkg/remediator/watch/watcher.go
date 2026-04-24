@@ -17,14 +17,14 @@ package watch
 import (
 	"context"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/remediator/conflict"
+	"github.com/GoogleContainerTools/config-sync/pkg/remediator/queue"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/remediator/conflict"
-	"kpt.dev/configsync/pkg/remediator/queue"
-	"kpt.dev/configsync/pkg/status"
 )
 
 // watcherConfig contains the options needed

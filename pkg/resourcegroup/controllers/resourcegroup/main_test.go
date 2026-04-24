@@ -19,12 +19,13 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testcontroller"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testmetrics"
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
-	"kpt.dev/configsync/pkg/api/kpt.dev/v1alpha1"
-	"kpt.dev/configsync/pkg/testing/testcontroller"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	// +kubebuilder:scaffold:imports
 )
@@ -37,10 +38,16 @@ var testEnv *envtest.Environment
 func TestMain(m *testing.M) {
 	setup := func() error {
 		klog.InitFlags(nil)
+
+		// Initialize metrics for tests
+		_, err := testmetrics.NewTestExporter()
+		if err != nil {
+			return err
+		}
+
 		testEnv = &envtest.Environment{
 			CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "..", "manifests")},
 		}
-		var err error
 		cfg, err = testEnv.Start()
 		if err != nil {
 			return err

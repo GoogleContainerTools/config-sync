@@ -20,7 +20,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"kpt.dev/configsync/pkg/importer/id"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/id"
 )
 
 // Absolute represents an absolute path on a file system.

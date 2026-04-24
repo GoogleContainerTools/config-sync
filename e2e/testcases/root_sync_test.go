@@ -19,26 +19,26 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/gitproviders"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/metrics"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/ntopts"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/retry"
+	nomostesting "github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testpredicates"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testwatcher"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation/system"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager/controllers"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/raw/validate"
 	"go.uber.org/multierr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"kpt.dev/configsync/e2e/nomostest"
-	"kpt.dev/configsync/e2e/nomostest/gitproviders"
-	"kpt.dev/configsync/e2e/nomostest/metrics"
-	"kpt.dev/configsync/e2e/nomostest/ntopts"
-	"kpt.dev/configsync/e2e/nomostest/retry"
-	nomostesting "kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/e2e/nomostest/testpredicates"
-	"kpt.dev/configsync/e2e/nomostest/testwatcher"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation/system"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/reconcilermanager/controllers"
-	"kpt.dev/configsync/pkg/validate/raw/validate"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -86,7 +86,7 @@ func TestDeleteRootSyncAndRootSyncV1Alpha1(t *testing.T) {
 func TestUpdateRootSyncGitDirectory(t *testing.T) {
 	rootSyncID := nomostest.DefaultRootSyncID
 	rootSyncKey := rootSyncID.ObjectKey
-	nt := nomostest.New(t, nomostesting.SyncSource)
+	nt := nomostest.New(t, nomostesting.SyncSourceGit)
 	rootSyncGitRepo := nt.SyncSourceGitReadWriteRepository(rootSyncID)
 
 	// Validate RootSync is present.
@@ -172,7 +172,7 @@ func TestUpdateRootSyncGitDirectory(t *testing.T) {
 
 func TestUpdateRootSyncGitBranch(t *testing.T) {
 	rootSyncNN := nomostest.RootSyncNN(configsync.RootSyncName)
-	nt := nomostest.New(t, nomostesting.SyncSource)
+	nt := nomostest.New(t, nomostesting.SyncSourceGit)
 	rootSyncGitRepo := nt.SyncSourceGitReadWriteRepository(nomostest.DefaultRootSyncID)
 
 	nsA := "ns-a"
@@ -297,7 +297,7 @@ func TestUpdateRootSyncGitBranch(t *testing.T) {
 }
 
 func TestForceRevert(t *testing.T) {
-	nt := nomostest.New(t, nomostesting.SyncSource)
+	nt := nomostest.New(t, nomostesting.SyncSourceGit)
 	rootSyncGitRepo := nt.SyncSourceGitReadWriteRepository(nomostest.DefaultRootSyncID)
 
 	nt.Must(rootSyncGitRepo.Remove("acme/system/repo.yaml"))

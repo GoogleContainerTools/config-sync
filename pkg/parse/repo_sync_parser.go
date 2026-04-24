@@ -17,13 +17,13 @@ package parse
 import (
 	"context"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/reader"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	utildiscovery "github.com/GoogleContainerTools/config-sync/pkg/util/discovery"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate"
 	"k8s.io/klog/v2"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/importer/analyzer/ast"
-	"kpt.dev/configsync/pkg/importer/reader"
-	"kpt.dev/configsync/pkg/status"
-	utildiscovery "kpt.dev/configsync/pkg/util/discovery"
-	"kpt.dev/configsync/pkg/validate"
 )
 
 type repoSyncParser struct {

@@ -17,7 +17,7 @@ package declared
 import (
 	"testing"
 
-	"kpt.dev/configsync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
 )
 
 func TestResourceManager(t *testing.T) {

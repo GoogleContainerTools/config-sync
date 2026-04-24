@@ -17,9 +17,9 @@ package status
 import (
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
 	"github.com/google/go-cmp/cmp"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
 	"sigs.k8s.io/cli-utils/pkg/object"
 	"sigs.k8s.io/cli-utils/pkg/object/graph"
 )

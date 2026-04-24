@@ -17,12 +17,12 @@ package e2e
 import (
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
+	nomostesting "github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
 	corev1 "k8s.io/api/core/v1"
-	"kpt.dev/configsync/e2e/nomostest"
-	nomostesting "kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/metadata"
 )
 
 var LocalConfigValue = "true"

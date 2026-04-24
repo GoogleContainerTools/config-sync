@@ -19,12 +19,12 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testerrors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"kpt.dev/configsync/pkg/testing/testerrors"
 	"sigs.k8s.io/cli-utils/pkg/testutil"
 )
 
@@ -429,8 +429,7 @@ func TestToUnstructured(t *testing.T) {
 					"apiVersion": Service().GroupVersion().String(),
 					"kind":       Service().Kind,
 					"metadata": map[string]interface{}{
-						"name":              "test-name",
-						"creationTimestamp": nil, // Added field
+						"name": "test-name",
 					},
 					"spec": map[string]interface{}{
 						"selector": map[string]interface{}{
@@ -500,10 +499,6 @@ func TestToUnstructured(t *testing.T) {
 					"kind":       Service().Kind,
 					"metadata": map[string]interface{}{
 						"name": "test-name",
-						// Nil struct pointers are always populated
-						// due to an impl detail of Golang json.Marshal.
-						// https://github.com/golang/go/issues/22480
-						"creationTimestamp": nil, // Added field
 					},
 					"spec": map[string]interface{}{
 						"selector": map[string]interface{}{

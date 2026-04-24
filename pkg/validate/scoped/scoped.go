@@ -17,11 +17,11 @@ package scoped
 import (
 	"context"
 
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/validate/fileobjects"
-	"kpt.dev/configsync/pkg/validate/scoped/hydrate"
-	"kpt.dev/configsync/pkg/validate/scoped/validate"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/fileobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/scoped/hydrate"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/scoped/validate"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

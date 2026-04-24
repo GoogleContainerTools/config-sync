@@ -19,6 +19,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testerrors"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/require"
@@ -28,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/utils/ptr"
-	"kpt.dev/configsync/pkg/testing/testerrors"
 	"sigs.k8s.io/cli-utils/pkg/testutil"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )

@@ -15,8 +15,8 @@
 package v1alpha1
 
 import (
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"kpt.dev/configsync/pkg/api/configsync"
 )
 
 // Git contains the configs which specify how to connect to and read from a Git

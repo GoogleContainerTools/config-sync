@@ -18,10 +18,10 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	"github.com/GoogleContainerTools/config-sync/pkg/metrics"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	"kpt.dev/configsync/pkg/metrics"
 )
 
 func TestMutateContainerLogLevelOtelAgent(t *testing.T) {
@@ -29,6 +29,46 @@ func TestMutateContainerLogLevelOtelAgent(t *testing.T) {
 		logLevel      int
 		expectedLevel string
 	}{
+		"otel-agent with -10 log level": {
+			logLevel:      -10,
+			expectedLevel: "fatal",
+		},
+		"otel-agent with -9 log level": {
+			logLevel:      -9,
+			expectedLevel: "fatal",
+		},
+		"otel-agent with -8 log level": {
+			logLevel:      -8,
+			expectedLevel: "fatal",
+		},
+		"otel-agent with -7 log level": {
+			logLevel:      -7,
+			expectedLevel: "fatal",
+		},
+		"otel-agent with -6 log level": {
+			logLevel:      -6,
+			expectedLevel: "fatal",
+		},
+		"otel-agent with -5 log level": {
+			logLevel:      -5,
+			expectedLevel: "fatal",
+		},
+		"otel-agent with -4 log level": {
+			logLevel:      -4,
+			expectedLevel: "fatal",
+		},
+		"otel-agent with -3 log level": {
+			logLevel:      -3,
+			expectedLevel: "fatal",
+		},
+		"otel-agent with -2 log level": {
+			logLevel:      -2,
+			expectedLevel: "fatal",
+		},
+		"otel-agent with -1 log level": {
+			logLevel:      -1,
+			expectedLevel: "fatal",
+		},
 		"otel-agent with 0 log level": {
 			logLevel:      0,
 			expectedLevel: "fatal",

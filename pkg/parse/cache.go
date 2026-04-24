@@ -17,13 +17,13 @@ package parse
 import (
 	"sort"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/importer/analyzer/ast"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/status"
 )
 
 // cacheForCommit tracks the progress made by the reconciler for a source commit (a source commit or an oci image digest).
@@ -34,10 +34,6 @@ import (
 //   - a force-resync happens, or
 //   - one of the watchers noticed a management conflict.
 type cacheForCommit struct {
-	// source tracks the state of the source repo.
-	// This field is only set after the reconciler successfully reads all the source files.
-	source *sourceState
-
 	// parse tracks the state of the parse stage.
 	parse *parseResult
 

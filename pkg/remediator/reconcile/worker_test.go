@@ -21,23 +21,23 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/remediator/queue"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest"
+	syncertestfake "github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest/fake"
+	testingfake "github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest/fake"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testerrors"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	v1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/remediator/queue"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/syncer/syncertest"
-	syncertestfake "kpt.dev/configsync/pkg/syncer/syncertest/fake"
-	testingfake "kpt.dev/configsync/pkg/syncer/syncertest/fake"
-	"kpt.dev/configsync/pkg/testing/testerrors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -563,7 +563,6 @@ func TestWorker_Refresh(t *testing.T) {
 			if !tc.wantDeleted && tc.wantErr == nil {
 				// These fields are added by unstructured conversions, but we aren't
 				// testing this behavior.
-				_ = unstructured.SetNestedField(tc.want.Object, nil, "metadata", "creationTimestamp")
 				_ = unstructured.SetNestedField(tc.want.Object, nil, "rules")
 				unstructured.RemoveNestedField(tc.want.Object, "metadata", "labels")
 			}

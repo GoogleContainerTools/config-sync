@@ -17,8 +17,8 @@ package parse
 import (
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
 	"github.com/google/go-cmp/cmp"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
 )
 
 func TestSummarizeErrors(t *testing.T) {

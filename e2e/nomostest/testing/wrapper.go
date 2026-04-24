@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"kpt.dev/configsync/e2e"
+	"github.com/GoogleContainerTools/config-sync/e2e"
 )
 
 const errorPrefix = "ERROR:"

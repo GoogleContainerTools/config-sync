@@ -19,7 +19,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"kpt.dev/configsync/pkg/importer/filesystem/cmpath"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem/cmpath"
 )
 
 // FindFiles lists what are likely the files tracked by git in cases where

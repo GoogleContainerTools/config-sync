@@ -1,5 +1,20 @@
 # Changes
 
+## [1.13.2](https://github.com/googleapis/google-cloud-go/releases/tag/logging%2Fv1.13.2) (2026-02-04)
+
+
+### Features
+
+* **logging:** Enable AllowHardBoundTokens for Go logging library ([#13615](https://github.com/googleapis/google-cloud-go/pull/13615)) ([18dec3a](https://github.com/googleapis/google-cloud-go/commit/18dec3a31f1d24dfa1dc58eeb532991336772dac))
+
+## [1.13.1](https://github.com/googleapis/google-cloud-go/compare/logging/v1.13.0...logging/v1.13.1) (2025-10-28)
+
+
+### Bug Fixes
+
+* **logging:** Upgrade gRPC service registration func ([486bd40](https://github.com/googleapis/google-cloud-go/commit/486bd406336fe91eae7c9040f2496ebfc8aee342))
+* **logging:** Upgrade gRPC service registration func ([#13139](https://github.com/googleapis/google-cloud-go/issues/13139)) ([39af2f9](https://github.com/googleapis/google-cloud-go/commit/39af2f9683b76ab290cc66b009ddc366fe63986b))
+
 ## [1.13.0](https://github.com/googleapis/google-cloud-go/compare/logging/v1.12.0...logging/v1.13.0) (2025-01-02)
 
 

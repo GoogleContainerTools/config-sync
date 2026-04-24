@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"strings"
 
-	"kpt.dev/configsync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
 	"sigs.k8s.io/cli-utils/pkg/apis/actuation"
 )
 

@@ -22,6 +22,17 @@ import (
 	"os"
 
 	traceapi "cloud.google.com/go/trace/apiv2"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/auth"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metrics"
+	"github.com/GoogleContainerTools/config-sync/pkg/profiler"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager/controllers"
+	"github.com/GoogleContainerTools/config-sync/pkg/util/customresource"
+	"github.com/GoogleContainerTools/config-sync/pkg/util/log"
+	utilwatch "github.com/GoogleContainerTools/config-sync/pkg/util/watch"
 	"github.com/go-logr/logr"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,17 +41,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2/textlogger"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/auth"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metrics"
-	"kpt.dev/configsync/pkg/profiler"
-	"kpt.dev/configsync/pkg/reconcilermanager"
-	"kpt.dev/configsync/pkg/reconcilermanager/controllers"
-	"kpt.dev/configsync/pkg/util/customresource"
-	"kpt.dev/configsync/pkg/util/log"
-	utilwatch "kpt.dev/configsync/pkg/util/watch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	// +kubebuilder:scaffold:imports
@@ -182,21 +182,19 @@ func main() {
 	}
 	setupLog.Info("OtelSA controller registration successful")
 
-	// Register the OpenCensus views
-	if err := metrics.RegisterReconcilerManagerMetricsViews(); err != nil {
-		setupLog.Error(err, "failed to register OpenCensus views")
-	}
-
-	// Register the OC Agent exporter
-	oce, err := metrics.RegisterOCAgentExporter(reconcilermanager.ManagerName)
+	// Register the OTLP metrics exporter and metrics instruments
+	ctx := context.Background()
+	oce, err := metrics.RegisterOTelExporter(ctx, reconcilermanager.ManagerName)
 	if err != nil {
-		setupLog.Error(err, "failed to register the OC Agent exporter")
+		setupLog.Error(err, "failed to register the OTLP metrics exporter")
 		os.Exit(1)
 	}
 
 	defer func() {
-		if err := oce.Stop(); err != nil {
-			setupLog.Error(err, "failed to stop the OC Agent exporter")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), metrics.ShutdownTimeout)
+		defer cancel()
+		if err := oce.Shutdown(shutdownCtx); err != nil {
+			setupLog.Error(err, "failed to stop the OTLP metrics exporter")
 		}
 	}()
 
@@ -205,9 +203,11 @@ func main() {
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
-		// os.Exit(1) does not run deferred functions so explicitly stopping the OC Agent exporter.
-		if err := oce.Stop(); err != nil {
-			setupLog.Error(err, "failed to stop the OC Agent exporter")
+		// os.Exit(1) does not run deferred functions so explicitly stopping the OTLP metrics exporter.
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), metrics.ShutdownTimeout)
+		defer cancel()
+		if err := oce.Shutdown(shutdownCtx); err != nil {
+			setupLog.Error(err, "failed to stop the OTLP metrics exporter")
 		}
 		os.Exit(1)
 	}

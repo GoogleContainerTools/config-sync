@@ -23,25 +23,25 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/e2e"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/gitproviders"
+	testmetrics "github.com/GoogleContainerTools/config-sync/e2e/nomostest/metrics"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/ntopts"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/registryproviders"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/syncsource"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/taskgroup"
+	nomostesting "github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testlogger"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testshell"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
-	"kpt.dev/configsync/e2e"
-	"kpt.dev/configsync/e2e/nomostest/gitproviders"
-	testmetrics "kpt.dev/configsync/e2e/nomostest/metrics"
-	"kpt.dev/configsync/e2e/nomostest/ntopts"
-	"kpt.dev/configsync/e2e/nomostest/registryproviders"
-	"kpt.dev/configsync/e2e/nomostest/syncsource"
-	"kpt.dev/configsync/e2e/nomostest/taskgroup"
-	nomostesting "kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/e2e/nomostest/testlogger"
-	"kpt.dev/configsync/e2e/nomostest/testshell"
-	"kpt.dev/configsync/pkg/api/configmanagement"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 )
@@ -385,7 +385,7 @@ func FreshTestEnv(t nomostesting.NTB, opts *ntopts.New) *NT {
 		return setupRegistry(nt)
 	})
 	tg.Go(func() error {
-		return InstallConfigSync(nt)
+		return InstallConfigSync(nt, InstallMethodApply)
 	})
 	tg.Go(func() error {
 		return installPrometheus(nt)
@@ -416,6 +416,8 @@ func applyAutoPilotKeepAlive(nt *NT) error {
 	// to avoid adding the test label, to avoid deletion during cleanup
 	nt.Logger.Infof("applying %s", yamlPath)
 	patchOpts := []client.PatchOption{client.FieldOwner(FieldManager), client.ForceOwnership}
+	//nolint:staticcheck // allow deprecated field for backwards compatibility
+	//TODO: Refactor to remove the usage of the deprecated field
 	if err := nt.KubeClient.Client.Patch(nt.Context, uObj, client.Apply, patchOpts...); err != nil {
 		return fmt.Errorf("failed to apply %s: %w", kinds.ObjectSummary(uObj), err)
 	}

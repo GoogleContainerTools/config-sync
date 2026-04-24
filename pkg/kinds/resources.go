@@ -15,10 +15,10 @@
 package kinds
 
 import (
+	configsyncv1beta1 "github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	configsyncv1beta1 "kpt.dev/configsync/pkg/api/configsync/v1beta1"
 )
 
 // DeploymentResource returns the canonical Deployment GroupVersionResource.

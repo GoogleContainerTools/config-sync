@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"kpt.dev/configsync/e2e"
+	"github.com/GoogleContainerTools/config-sync/e2e"
 )
 
 // OCIClient provides a crane client for connecting to an OCI repository.

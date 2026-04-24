@@ -13,18 +13,10 @@
 # limitations under the License.
 
 helmCharts:
-- name: coredns
-  releaseName: my-coredns
-  namespace: coredns
-  valuesFile: https://raw.githubusercontent.com/config-sync-examples/helm-components/main/coredns-values.yaml
-- name: wordpress
-  repo: https://charts.bitnami.com/bitnami
-  version: 15.2.35
-  releaseName: my-wordpress
-  namespace: wordpress
-  valuesInline:
-    service:
-      type: ClusterIP
+- name: simple-ns-chart
+  releaseName: my-simple-ns
+  namespace: simple-ns
+  valuesFile: https://raw.githubusercontent.com/GoogleContainerTools/config-sync/main/e2e/testdata/hydration/remote-values.yaml
 
 labels:
 - includeSelectors: true

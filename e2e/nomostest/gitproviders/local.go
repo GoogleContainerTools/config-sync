@@ -17,8 +17,8 @@ package gitproviders
 import (
 	"fmt"
 
-	"kpt.dev/configsync/e2e"
-	"kpt.dev/configsync/e2e/nomostest/portforwarder"
+	"github.com/GoogleContainerTools/config-sync/e2e"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/portforwarder"
 )
 
 // LocalProvider refers to the test git-server running on the same test cluster.

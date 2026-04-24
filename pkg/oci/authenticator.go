@@ -17,8 +17,8 @@ package oci
 import (
 	"context"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/auth"
 	"github.com/google/go-containerregistry/pkg/authn"
-	"kpt.dev/configsync/pkg/auth"
 )
 
 // CredentialAuthenticator wraps a CredentialProvider to generate AuthConfigs

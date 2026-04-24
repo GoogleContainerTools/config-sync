@@ -15,9 +15,9 @@
 package v1alpha1
 
 import (
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"kpt.dev/configsync/pkg/api/configsync"
 )
 
 // OverrideSpec allows to override the settings for a reconciler pod
@@ -164,8 +164,8 @@ type ContainerLogLevelOverride struct {
 	// The "git-sync" and "otel-agent" containers default to 5, while all other containers default to 0.
 	// Increasing the value of logLevel increases the verbosity of the logs.
 	// Lower severity messages are logged at higher verbosity.
-	// Allowed values are from 0 to 10.
-	// +kubebuilder:validation:Minimum=0
+	// Allowed values are from -10 to 10.
+	// +kubebuilder:validation:Minimum=-10
 	// +kubebuilder:validation:Maximum=10
 	// +kubebuilder:validation:Required
 	LogLevel int `json:"logLevel"`

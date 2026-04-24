@@ -30,12 +30,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/e2e"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/gitproviders"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager/controllers"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"kpt.dev/configsync/e2e"
-	"kpt.dev/configsync/e2e/nomostest/gitproviders"
-	"kpt.dev/configsync/pkg/api/configmanagement"
-	"kpt.dev/configsync/pkg/reconcilermanager/controllers"
 )
 
 // Server represents a test server type, such as registry-server, git-server, or oci-image-verification-server.
@@ -373,10 +373,9 @@ func downloadSSHKey(nt *NT) (string, error) {
 }
 
 // CreateNamespaceSecrets creates secrets in a given namespace using local paths.
-// It skips creating the Secret if the GitProvider is CSR because CSR uses either
-// 'gcenode' or 'gcpserviceaccount' for authentication, which doesn't require a Secret.
+// It skips creating the Secret if the GitProvider is CSR or SSM because neither require a Secret.
 func CreateNamespaceSecrets(nt *NT, ns string) error {
-	if nt.GitProvider.Type() != e2e.CSR {
+	if !gitproviders.IsGoogleGitProvider(nt.GitProvider) {
 		privateKeypath := nt.gitPrivateKeyPath
 		if len(privateKeypath) == 0 {
 			privateKeypath = privateKeyPath(nt)

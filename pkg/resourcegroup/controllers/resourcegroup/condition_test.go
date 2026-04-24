@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
 	"github.com/stretchr/testify/assert"
-	"kpt.dev/configsync/pkg/api/kpt.dev/v1alpha1"
 )
 
 func TestAdjustConditionOrder(t *testing.T) {

@@ -18,10 +18,10 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/GoogleContainerTools/config-sync/cmd/nomos/flags"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation/system"
 	"github.com/spf13/cobra"
-	"kpt.dev/configsync/cmd/nomos/flags"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation/system"
 )
 
 var (
@@ -35,6 +35,7 @@ func init() {
 	flags.AddClusters(Cmd)
 	flags.AddPath(Cmd)
 	flags.AddSkipAPIServerCheck(Cmd)
+	flags.AddNoAPIServerCheckForGroup(Cmd)
 	flags.AddSourceFormat(Cmd)
 	flags.AddOutputFormat(Cmd)
 	flags.AddAPIServerTimeout(Cmd)
@@ -75,6 +76,13 @@ returns a non-zero error code if any issues are found.
   nomos vet --path=my/directory
   nomos vet --path=/path/to/my/directory`,
 	Args: cobra.ExactArgs(0),
+	PreRunE: func(_ *cobra.Command, _ []string) error {
+		if flags.SkipAPIServer && len(flags.SkipAPIServerCheckForGroup) > 0 {
+			// If --no-api-server-check is specified, throw the error
+			return fmt.Errorf("cannot specify both --%s and --%s", flags.SkipAPIServerFlag, flags.NoAPIServerCheckForGroupFlag)
+		}
+		return nil
+	},
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		// Don't show usage on error, as argument validation passed.
 		cmd.SilenceUsage = true

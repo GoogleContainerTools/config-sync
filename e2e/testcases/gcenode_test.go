@@ -18,20 +18,20 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/kustomizecomponents"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/ntopts"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/policy"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/registryproviders"
+	nomostesting "github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testpredicates"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testutils"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/workloadidentity"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
 	appsv1 "k8s.io/api/apps/v1"
-	"kpt.dev/configsync/e2e/nomostest"
-	"kpt.dev/configsync/e2e/nomostest/kustomizecomponents"
-	"kpt.dev/configsync/e2e/nomostest/ntopts"
-	"kpt.dev/configsync/e2e/nomostest/policy"
-	"kpt.dev/configsync/e2e/nomostest/registryproviders"
-	nomostesting "kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/e2e/nomostest/testpredicates"
-	"kpt.dev/configsync/e2e/nomostest/testutils"
-	"kpt.dev/configsync/e2e/nomostest/workloadidentity"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/declared"
 )
 
 const (
@@ -52,7 +52,7 @@ const (
 func TestGCENodeCSR(t *testing.T) {
 	rootSyncID := nomostest.DefaultRootSyncID
 	repoSyncID := core.RepoSyncID(configsync.RepoSyncName, testNs)
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceGit,
 		ntopts.RequireGKE(t), ntopts.GCENodeTest,
 		ntopts.RequireCloudSourceRepository(t),
 		ntopts.SyncWithGitSource(rootSyncID, ntopts.Unstructured),
@@ -108,7 +108,7 @@ func TestGCENodeCSR(t *testing.T) {
 func TestGCENodeOCI(t *testing.T) {
 	rootSyncID := nomostest.DefaultRootSyncID
 	repoSyncID := core.RepoSyncID(configsync.RepoSyncName, testNs)
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceOCI,
 		ntopts.RequireGKE(t), ntopts.GCENodeTest,
 		ntopts.RequireOCIArtifactRegistry(t),
 		ntopts.SyncWithGitSource(rootSyncID, ntopts.Unstructured),
@@ -148,9 +148,17 @@ func TestGCENodeOCI(t *testing.T) {
 	kustomizecomponents.ValidateTenant(nt, repoSyncRef.Namespace, repoSyncRef.Namespace, "base")
 
 	tenant := "tenant-b"
+	image := privateGCRImage("kustomize-components")
 	nt.T.Log("Update RootSync to sync from an OCI image in a private Google Container Registry")
-	nt.MustMergePatch(rootSyncOCI, fmt.Sprintf(`{"spec": {"oci": {"image": "%s", "dir": "%s"}}}`, privateGCRImage("kustomize-components"), tenant))
+	nt.MustMergePatch(rootSyncOCI, fmt.Sprintf(`{"spec": {"oci": {"image": "%s", "dir": "%s"}}}`, image, tenant))
+
+	rootSyncDigest, err := getImageDigest(nt, image)
+	if err != nil {
+		nt.T.Fatal(err)
+	}
+
 	nomostest.SetExpectedSyncPath(nt, rootSyncID, tenant)
+	nomostest.SetExpectedOCIImageDigest(nt, rootSyncID, rootSyncDigest)
 	nt.Must(nt.WatchForAllSyncs())
 	kustomizecomponents.ValidateAllTenants(nt, string(declared.RootScope), "../base", tenant)
 }
@@ -162,7 +170,7 @@ func TestGCENodeOCI(t *testing.T) {
 //   - `roles/artifactregistry.reader` for access image in Artifact Registry.
 func TestGCENodeHelm(t *testing.T) {
 	repoSyncID := core.RepoSyncID(configsync.RepoSyncName, testNs)
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceHelm,
 		ntopts.RequireGKE(t), ntopts.GCENodeTest,
 		ntopts.RequireHelmArtifactRegistry(t),
 		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured),

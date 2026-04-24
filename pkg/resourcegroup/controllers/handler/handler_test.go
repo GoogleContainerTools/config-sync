@@ -18,13 +18,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/resourcemap"
 	"github.com/go-logr/logr/testr"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"kpt.dev/configsync/pkg/api/kpt.dev/v1alpha1"
-	"kpt.dev/configsync/pkg/resourcegroup/controllers/resourcemap"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 

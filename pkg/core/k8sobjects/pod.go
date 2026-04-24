@@ -15,9 +15,9 @@
 package k8sobjects
 
 import (
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
 	v1 "k8s.io/api/core/v1"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/kinds"
 )
 
 // PodObject returns an initialized Pod.

@@ -15,7 +15,7 @@
 package reposync
 
 import (
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
 )
 
 // Errors returns the errors referred by `errorSources`.

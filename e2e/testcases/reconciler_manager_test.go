@@ -20,6 +20,28 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/e2e"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/gitproviders"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/ntopts"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/policy"
+	e2eretry "github.com/GoogleContainerTools/config-sync/e2e/nomostest/retry"
+	nomostesting "github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testpredicates"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testutils"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testwatcher"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/metrics"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager/controllers"
+	"github.com/GoogleContainerTools/config-sync/pkg/util/log"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/rsync/validate"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -33,28 +55,6 @@ import (
 	jserializer "k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
-	"kpt.dev/configsync/e2e"
-	"kpt.dev/configsync/e2e/nomostest"
-	"kpt.dev/configsync/e2e/nomostest/gitproviders"
-	"kpt.dev/configsync/e2e/nomostest/ntopts"
-	"kpt.dev/configsync/e2e/nomostest/policy"
-	e2eretry "kpt.dev/configsync/e2e/nomostest/retry"
-	nomostesting "kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/e2e/nomostest/testpredicates"
-	"kpt.dev/configsync/e2e/nomostest/testutils"
-	"kpt.dev/configsync/e2e/nomostest/testwatcher"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	"kpt.dev/configsync/pkg/api/kpt.dev/v1alpha1"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/metrics"
-	"kpt.dev/configsync/pkg/reconcilermanager"
-	"kpt.dev/configsync/pkg/reconcilermanager/controllers"
-	"kpt.dev/configsync/pkg/util/log"
-	"kpt.dev/configsync/pkg/validate/rsync/validate"
 	kstatus "sigs.k8s.io/cli-utils/pkg/kstatus/status"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -444,8 +444,8 @@ func validateRepoSyncDependencies(nt *nomostest.NT, ns, rsName string) []client.
 	repoSyncDependencies = append(repoSyncDependencies, repoSyncSA)
 
 	// See nomostest.CreateNamespaceSecrets for creation of user secrets.
-	// The Secret is neither needed nor created when using CSR as the Git provider.
-	if nt.GitProvider.Type() != e2e.CSR {
+	// The Secret is neither needed nor created when using CSR or SSM as the Git provider.
+	if !gitproviders.IsGoogleGitProvider(nt.GitProvider) {
 		repoSyncAuthSecret := &corev1.Secret{}
 		setNN(repoSyncAuthSecret, client.ObjectKey{
 			Name:      controllers.ReconcilerResourceName(repoSyncReconciler.Name, nomostest.NamespaceAuthSecretName),
@@ -941,7 +941,7 @@ func TestAutopilotReconcilerAdjustment(t *testing.T) {
 	}
 	// Filter container map down to just expected containers
 	filteredContainers := []string{reconcilermanager.Reconciler, reconcilermanager.GitSync, metrics.OtelAgentName}
-	if nt.GitProvider.Type() == e2e.CSR {
+	if gitproviders.IsGoogleGitProvider(nt.GitProvider) {
 		filteredContainers = append(filteredContainers, reconcilermanager.GCENodeAskpassSidecar)
 	}
 	expectedResources = filterResourceMap(expectedResources, filteredContainers...)

@@ -15,11 +15,11 @@
 package parse
 
 import (
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/importer/analyzer/ast"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation/nonhierarchical"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/validate"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation/nonhierarchical"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

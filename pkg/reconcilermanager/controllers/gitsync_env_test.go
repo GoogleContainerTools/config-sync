@@ -19,10 +19,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+<<<<<<< fix/git-sync-ca-cert-github-app
 	"kpt.dev/configsync/pkg/api/configsync"
 	"kpt.dev/configsync/pkg/core/k8sobjects"
+=======
+>>>>>>> main
 )
 
 func TestGithubAppFromSecret(t *testing.T) {

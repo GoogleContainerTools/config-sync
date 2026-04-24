@@ -22,9 +22,9 @@ import (
 
 	"cloud.google.com/go/auth/credentials"
 	"cloud.google.com/go/compute/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testerrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"kpt.dev/configsync/pkg/testing/testerrors"
 )
 
 const (
@@ -109,7 +109,7 @@ func TestIsCredentialsNotFoundError(t *testing.T) {
 			opts: &credentials.DetectOptions{
 				CredentialsJSON: []byte(`{}`),
 			},
-			expectedError:    errors.New("credentials: unsupported filetype '\\x00'"),
+			expectedError:    errors.New("credentials: unsupported unidentified file type"),
 			expectedNotFound: false,
 		},
 		{
@@ -119,7 +119,7 @@ func TestIsCredentialsNotFoundError(t *testing.T) {
 			opts: &credentials.DetectOptions{
 				CredentialsJSON: []byte(`{"invalid-type":{}}`),
 			},
-			expectedError:    errors.New("credentials: unsupported filetype '\\x00'"),
+			expectedError:    errors.New("credentials: unsupported unidentified file type"),
 			expectedNotFound: false,
 		},
 		{

@@ -15,12 +15,12 @@
 package validate
 
 import (
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation/nonhierarchical"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/rest"
-	"kpt.dev/configsync/pkg/importer/analyzer/ast"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation/nonhierarchical"
-	"kpt.dev/configsync/pkg/status"
 )
 
 // Name verifies that the given FileObject has a valid name according to the

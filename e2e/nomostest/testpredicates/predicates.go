@@ -21,6 +21,19 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/retry"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testkubeclient"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testlogger"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
+	kptv1alpha1 "github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/reposync"
+	"github.com/GoogleContainerTools/config-sync/pkg/rootsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/util/log"
 	"github.com/google/go-cmp/cmp"
 	"go.uber.org/multierr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -31,19 +44,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"kpt.dev/configsync/e2e/nomostest/retry"
-	"kpt.dev/configsync/e2e/nomostest/testkubeclient"
-	"kpt.dev/configsync/e2e/nomostest/testlogger"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	"kpt.dev/configsync/pkg/api/kpt.dev/v1alpha1"
-	kptv1alpha1 "kpt.dev/configsync/pkg/api/kpt.dev/v1alpha1"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/reposync"
-	"kpt.dev/configsync/pkg/rootsync"
-	"kpt.dev/configsync/pkg/util/log"
 	"sigs.k8s.io/cli-utils/pkg/kstatus/status"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -219,6 +219,28 @@ func HasExactlyLabelKeys(wantKeys ...string) Predicate {
 		sort.Strings(gotKeys)
 		if diff := cmp.Diff(wantKeys, gotKeys); diff != "" {
 			return fmt.Errorf("unexpected diff in metadata.annotation keys: %s", diff)
+		}
+		return nil
+	}
+}
+
+// HasExactlyNodeAffinity ensures the Pod has the provided nodeAffinity
+func HasExactlyNodeAffinity(nodeAffinity *corev1.NodeAffinity) Predicate {
+	return func(o client.Object) error {
+		if o == nil {
+			return ErrObjectNotFound
+		}
+		pod, ok := o.(*corev1.Pod)
+		if !ok {
+			return WrongTypeErr(pod, &corev1.Pod{})
+		}
+		gotAffinity := &corev1.NodeAffinity{}
+		if pod.Spec.Affinity != nil && pod.Spec.Affinity.NodeAffinity != nil {
+			gotAffinity = pod.Spec.Affinity.NodeAffinity
+		}
+		if !equality.Semantic.DeepEqual(nodeAffinity, gotAffinity) {
+			return fmt.Errorf("expected %s to have spec.affinity.nodeAffinity: %s, but got %s",
+				kinds.ObjectSummary(pod), log.AsJSON(nodeAffinity), log.AsJSON(gotAffinity))
 		}
 		return nil
 	}

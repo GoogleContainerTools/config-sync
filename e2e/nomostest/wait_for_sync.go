@@ -18,15 +18,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/retry"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/syncsource"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/taskgroup"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testpredicates"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testwatcher"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"kpt.dev/configsync/e2e/nomostest/retry"
-	"kpt.dev/configsync/e2e/nomostest/syncsource"
-	"kpt.dev/configsync/e2e/nomostest/taskgroup"
-	"kpt.dev/configsync/e2e/nomostest/testpredicates"
-	"kpt.dev/configsync/e2e/nomostest/testwatcher"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/kinds"
 	kstatus "sigs.k8s.io/cli-utils/pkg/kstatus/status"
 )
 

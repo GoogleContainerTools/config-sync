@@ -15,10 +15,10 @@
 package v1alpha1
 
 import (
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"kpt.dev/configsync/pkg/api/configsync"
 )
 
 // SchemeGroupVersion is group version used to register these objects

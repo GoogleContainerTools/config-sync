@@ -15,7 +15,7 @@
 package bugreport
 
 import (
-	"kpt.dev/configsync/pkg/api/configmanagement"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
 )
 
 // Product describes an ACM Product

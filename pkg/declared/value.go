@@ -24,8 +24,8 @@ import (
 	"k8s.io/kube-openapi/pkg/schemaconv"
 	"k8s.io/kube-openapi/pkg/util/proto"
 	"k8s.io/kubectl/pkg/util/openapi"
-	"sigs.k8s.io/structured-merge-diff/v4/schema"
-	"sigs.k8s.io/structured-merge-diff/v4/typed"
+	"sigs.k8s.io/structured-merge-diff/v6/schema"
+	"sigs.k8s.io/structured-merge-diff/v6/typed"
 )
 
 // ValueConverter converts a runtime.Object into a TypedValue.

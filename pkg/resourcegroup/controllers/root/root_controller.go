@@ -17,23 +17,24 @@ package root
 import (
 	"context"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager/controllers"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/handler"
+	resourcegroupcontroller "github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/resourcegroup"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/resourcemap"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/typeresolver"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/watch"
 	"github.com/go-logr/logr"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
-	"kpt.dev/configsync/pkg/api/kpt.dev/v1alpha1"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/reconcilermanager/controllers"
-	"kpt.dev/configsync/pkg/resourcegroup"
-	"kpt.dev/configsync/pkg/resourcegroup/controllers/handler"
-	resourcegroupcontroller "kpt.dev/configsync/pkg/resourcegroup/controllers/resourcegroup"
-	"kpt.dev/configsync/pkg/resourcegroup/controllers/resourcemap"
-	"kpt.dev/configsync/pkg/resourcegroup/controllers/typeresolver"
-	"kpt.dev/configsync/pkg/resourcegroup/controllers/watch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -92,7 +93,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if errors.IsNotFound(err) {
 			// If the ResourceGroup has been deleted, update the resMap
 			r.Logger(ctx).V(3).Info("Skipping update event: ResourceGroup not found")
-			return r.reconcile(ctx, req.NamespacedName, []v1alpha1.ObjMetadata{}, true)
+			return r.sendDeletionEvent(ctx, req.NamespacedName, &v1alpha1.ResourceGroup{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: req.NamespacedName.Namespace,
+					Name:      req.NamespacedName.Name,
+				},
+			})
 		}
 		return ctrl.Result{}, err
 	}
@@ -107,7 +113,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// ResourceGroup is in the process of being deleted, clean up the cache for this ResourceGroup
 	if resgroup.DeletionTimestamp != nil {
 		r.Logger(ctx).V(3).Info("Skipping update event: ResourceGroup being deleted")
-		return r.reconcile(ctx, req.NamespacedName, []v1alpha1.ObjMetadata{}, true)
+		return r.sendDeletionEvent(ctx, req.NamespacedName, resgroup)
 	}
 
 	resources := make([]v1alpha1.ObjMetadata, 0, len(resgroup.Spec.Resources)+len(resgroup.Spec.Subgroups))
@@ -130,6 +136,18 @@ func (r *Reconciler) reconcile(ctx context.Context, name types.NamespacedName,
 	if err := r.updateWatches(ctx, gks); err != nil {
 		return ctrl.Result{}, err
 	}
+	return ctrl.Result{}, nil
+}
+
+// sendDeletionEvent reconciles the deletion and sends a deletion event to the channel
+// so the ResourceGroup controller can clean up metrics.
+func (r *Reconciler) sendDeletionEvent(ctx context.Context, nn types.NamespacedName, eventObj client.Object) (ctrl.Result, error) {
+	if result, err := r.reconcile(ctx, nn, []v1alpha1.ObjMetadata{}, true); err != nil {
+		return result, err
+	}
+	// Send deletion event to channel so ResourceGroup controller can clean up metrics
+	r.Logger(ctx).V(3).Info("Sending deletion event to ResourceGroup controller")
+	r.channel <- event.GenericEvent{Object: eventObj}
 	return ctrl.Result{}, nil
 }
 

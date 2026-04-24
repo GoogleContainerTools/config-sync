@@ -18,14 +18,14 @@ import (
 	"context"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	syncerFake "github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest/fake"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/rsync/validate"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	syncerFake "kpt.dev/configsync/pkg/syncer/syncertest/fake"
-	"kpt.dev/configsync/pkg/validate/rsync/validate"
 )
 
 func TestValidateSecretExist(t *testing.T) {

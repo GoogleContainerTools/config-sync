@@ -20,11 +20,11 @@ import (
 	"net/http"
 
 	"cloud.google.com/go/compute/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/askpass"
+	"github.com/GoogleContainerTools/config-sync/pkg/auth"
+	"github.com/GoogleContainerTools/config-sync/pkg/util"
+	utillog "github.com/GoogleContainerTools/config-sync/pkg/util/log"
 	"k8s.io/klog/v2/textlogger"
-	"kpt.dev/configsync/pkg/askpass"
-	"kpt.dev/configsync/pkg/auth"
-	"kpt.dev/configsync/pkg/util"
-	utillog "kpt.dev/configsync/pkg/util/log"
 )
 
 // all the flags and their usage.

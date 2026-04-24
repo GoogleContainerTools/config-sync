@@ -15,17 +15,19 @@
 package e2e
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
 
-	"kpt.dev/configsync/e2e/nomostest"
-	"kpt.dev/configsync/e2e/nomostest/metrics"
-	nomostesting "kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/metrics"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/taskgroup"
+	nomostesting "github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 )
 
 func TestSurfaceFightError(t *testing.T) {
@@ -44,34 +46,51 @@ func TestSurfaceFightError(t *testing.T) {
 	nt.Must(rootSyncGitRepo.CommitAndPush("Add Namespace and RoleBinding"))
 	nt.Must(nt.WatchForAllSyncs())
 
-	// Make the # of updates exceed the fightThreshold defined in pkg/syncer/reconcile/fight_detector.go
-	go func() {
-		for i := 0; i <= 5; i++ {
-			nt.MustMergePatch(ns, `{"metadata": {"annotations": {"foo": "baz"}}}`)
-			nt.MustMergePatch(rb, `{"metadata": {"annotations": {"foo": "baz"}}}`)
-			time.Sleep(time.Second)
-		}
-	}()
-
-	nt.T.Log("The RootSync reports a fight error")
-	nt.Must(nt.Watcher.WatchForRootSyncSyncError(configsync.RootSyncName, status.FightErrorCode,
-		"This may indicate Config Sync is fighting with another controller over the object.", nil))
-
 	rootSyncNN := nomostest.RootSyncNN(configsync.RootSyncName)
 	rootSyncLabels, err := nomostest.MetricLabelsForRootSync(nt, rootSyncNN)
 	if err != nil {
 		nt.T.Fatal(err)
 	}
 	commitHash := rootSyncGitRepo.MustHash(nt.T)
+	nt.T.Log("Validate there are no error metrics initially")
+	nt.Must(nomostest.ValidateMetrics(nt,
+		nomostest.ReconcilerErrorMetrics(nt, rootSyncLabels, commitHash, metrics.ErrorSummary{})))
 
-	err = nomostest.ValidateMetrics(nt,
-		nomostest.ReconcilerErrorMetrics(nt, rootSyncLabels, commitHash, metrics.ErrorSummary{
-			Fights: 5,
-		}))
-	if err != nil {
-		nt.T.Fatal(err)
-	}
+	// Make the # of updates exceed the DefaultFightThreshold defined in pkg/api/configsync/register.go
+	ctx, cancel := context.WithCancel(t.Context())
+	nt.T.Cleanup(func() {
+		cancel() // cancel in case an assertion failed early
+	})
+	go func() {
+		nt.T.Log("Initialize async status updates")
+		for {
+			select {
+			case <-ctx.Done():
+				nt.T.Log("Stopping async status updates")
+				return
+			default:
+				nt.T.Log("async status update")
+				nt.MustMergePatch(ns, `{"metadata": {"annotations": {"foo": "baz"}}}`)
+				time.Sleep(time.Second)
+			}
+		}
+	}()
 
+	nt.T.Log("The RootSync reports a fight error")
+	tg := taskgroup.New()
+	tg.Go(func() error {
+		return nt.Watcher.WatchForRootSyncSyncError(configsync.RootSyncName, status.FightErrorCode,
+			"This may indicate Config Sync is fighting with another controller over the object.", nil)
+	})
+	tg.Go(func() error {
+		return nomostest.ValidateMetrics(nt,
+			nomostest.ReconcilerErrorMetrics(nt, rootSyncLabels, commitHash, metrics.ErrorSummary{
+				Fights: 5, // Validate at least 5 - increases with remediation attempts
+			}))
+	})
+	nt.Must(tg.Wait())
+
+	cancel() // Stop async status updates
 	nt.T.Log("The fight error should be auto-resolved if no more fights")
 	nt.Must(nt.WatchForAllSyncs())
 }

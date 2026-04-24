@@ -15,7 +15,7 @@
 package testlogger
 
 import (
-	"kpt.dev/configsync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
 )
 
 // TestLogger wraps testing.NTB to add optional debug logging, without exposing

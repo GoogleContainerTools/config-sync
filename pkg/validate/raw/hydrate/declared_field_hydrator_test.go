@@ -17,15 +17,15 @@ package hydrate
 import (
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/openapitest"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/fileobjects"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/importer/analyzer/ast"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/testing/openapitest"
-	"kpt.dev/configsync/pkg/validate/fileobjects"
 )
 
 func TestDeclaredFields(t *testing.T) {

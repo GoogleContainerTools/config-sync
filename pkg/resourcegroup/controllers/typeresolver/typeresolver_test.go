@@ -19,13 +19,13 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testcontroller"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testerrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
-	"kpt.dev/configsync/pkg/testing/testcontroller"
-	"kpt.dev/configsync/pkg/testing/testerrors"
 )
 
 func TestResolve(t *testing.T) {

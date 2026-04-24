@@ -19,10 +19,10 @@ package differ
 import (
 	"fmt"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/lifecycle"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/lifecycle"
-	"kpt.dev/configsync/pkg/metadata"
 )
 
 // Type indicates the state of the given resource

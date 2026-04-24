@@ -23,14 +23,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/auth"
+	"github.com/GoogleContainerTools/config-sync/pkg/oci"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
+	"github.com/GoogleContainerTools/config-sync/pkg/util"
+	utillog "github.com/GoogleContainerTools/config-sync/pkg/util/log"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"k8s.io/klog/v2/textlogger"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/auth"
-	"kpt.dev/configsync/pkg/oci"
-	"kpt.dev/configsync/pkg/reconcilermanager"
-	"kpt.dev/configsync/pkg/util"
-	utillog "kpt.dev/configsync/pkg/util/log"
 )
 
 var flImage = flag.String("image", util.EnvString(reconcilermanager.OciSyncImage, ""),
@@ -52,6 +52,10 @@ var flOneTime = flag.Bool("one-time", util.EnvBool("OCI_SYNC_ONE_TIME", false),
 	"exit after the first sync")
 var flMaxSyncFailures = flag.Int("max-sync-failures", util.EnvInt("OCI_SYNC_MAX_SYNC_FAILURES", 0),
 	"the number of consecutive failures allowed before aborting (the first sync must succeed, -1 will retry forever after the initial sync)")
+var flUsername = flag.String("username", util.EnvString("OCI_SYNC_USERNAME", ""),
+	"the username to use for oci authentication")
+var flPassword = flag.String("password", util.EnvString("OCI_SYNC_PASSWORD", ""),
+	"the password or personal access token to use for oci authentication")
 
 func main() {
 	utillog.Setup()
@@ -83,31 +87,21 @@ func main() {
 		utillog.HandleError(log, true, "ERROR: --timeout must be greater than 0")
 	}
 
+	if *flUsername != "" {
+		if *flPassword == "" {
+			utillog.HandleError(log, true, "ERROR: --password must be set when --username is specified")
+		}
+	}
+
 	initialSync := true
 	imageFromSpecHasDigest := oci.HasDigest(*flImage)
 	failCount := 0
 	pollPeriod := util.WaitTime(*flWait)
 	backoff := util.SyncContainerBackoff(pollPeriod)
 
-	var authenticator authn.Authenticator
-	switch configsync.AuthType(*flAuth) {
-	case configsync.AuthNone:
-		authenticator = authn.Anonymous
-	case configsync.AuthGCPServiceAccount, configsync.AuthK8sServiceAccount, configsync.AuthGCENode:
-		authenticator = &oci.CredentialAuthenticator{
-			CredentialProvider: &auth.CachingCredentialProvider{
-				Scopes: auth.OCISourceScopes(),
-			},
-		}
-	default:
-		utillog.HandleError(log, true, "ERROR: --auth type must be one of %#v, but found %q",
-			[]configsync.AuthType{
-				configsync.AuthNone,
-				configsync.AuthGCPServiceAccount,
-				configsync.AuthK8sServiceAccount,
-				configsync.AuthGCENode,
-			},
-			*flAuth)
+	authenticator, err := getAuthenticator(configsync.AuthType(*flAuth))
+	if err != nil {
+		utillog.HandleError(log, true, "failed to create authenticator: %v", err)
 	}
 
 	fetcher := &oci.Fetcher{
@@ -169,4 +163,31 @@ func sleepForever() {
 	signal.Notify(c, os.Interrupt)
 	<-c
 	os.Exit(0)
+}
+
+func getAuthenticator(authType configsync.AuthType) (authn.Authenticator, error) {
+	switch authType {
+	case configsync.AuthNone:
+		return authn.Anonymous, nil
+	case configsync.AuthToken:
+		return &authn.Basic{
+			Username: *flUsername,
+			Password: *flPassword,
+		}, nil
+	case configsync.AuthGCPServiceAccount, configsync.AuthK8sServiceAccount, configsync.AuthGCENode:
+		return &oci.CredentialAuthenticator{
+			CredentialProvider: &auth.CachingCredentialProvider{
+				Scopes: auth.OCISourceScopes(),
+			},
+		}, nil
+	default:
+		return nil, fmt.Errorf("--auth type must be one of %#v, but found %q",
+			[]configsync.AuthType{
+				configsync.AuthNone,
+				configsync.AuthGCPServiceAccount,
+				configsync.AuthK8sServiceAccount,
+				configsync.AuthGCENode,
+				configsync.AuthToken,
+			}, authType)
+	}
 }

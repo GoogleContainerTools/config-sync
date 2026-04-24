@@ -15,11 +15,11 @@
 package differ
 
 import (
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/policycontroller"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/policycontroller"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

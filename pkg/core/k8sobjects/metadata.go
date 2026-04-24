@@ -15,9 +15,9 @@
 package k8sobjects
 
 import (
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"kpt.dev/configsync/pkg/core"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

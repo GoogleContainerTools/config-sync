@@ -18,12 +18,12 @@ import (
 	"context"
 	"sync"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/metrics"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	"github.com/elliotchance/orderedmap/v2"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/metrics"
-	"kpt.dev/configsync/pkg/status"
 )
 
 // UnknownManager is used as a placeholder when the new or old manager is unknown.

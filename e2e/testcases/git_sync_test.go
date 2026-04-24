@@ -17,16 +17,16 @@ package e2e
 import (
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
+	nomostesting "github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
 	corev1 "k8s.io/api/core/v1"
-	"kpt.dev/configsync/e2e/nomostest"
-	nomostesting "kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/pkg/api/configmanagement"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
 )
 
 func TestMultipleRemoteBranchesOutOfSync(t *testing.T) {
-	nt := nomostest.New(t, nomostesting.ACMController)
+	nt := nomostest.New(t, nomostesting.SyncSourceGit)
 	rootSyncGitRepo := nt.SyncSourceGitReadWriteRepository(nomostest.DefaultRootSyncID)
 
 	rs := k8sobjects.RootSyncObjectV1Beta1(configsync.RootSyncName)
@@ -34,8 +34,8 @@ func TestMultipleRemoteBranchesOutOfSync(t *testing.T) {
 		nt.T.Fatal(err)
 	}
 
-	nt.T.Log("Create an extra remote tracking branch")
-	nt.Must(rootSyncGitRepo.Push("HEAD:upstream/main"))
+	nt.T.Log("Create an extra branch on the remote repository")
+	nt.Must(rootSyncGitRepo.Push("HEAD:upstream/main", "-f"))
 
 	nt.T.Logf("Update the remote main branch by adding a test namespace")
 	nt.Must(rootSyncGitRepo.Add("acme/namespaces/hello/ns.yaml", k8sobjects.NamespaceObject("hello")))

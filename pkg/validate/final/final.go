@@ -15,9 +15,9 @@
 package final
 
 import (
-	"kpt.dev/configsync/pkg/importer/analyzer/ast"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/validate/final/validate"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/final/validate"
 )
 
 // Options used to configure the Validate function

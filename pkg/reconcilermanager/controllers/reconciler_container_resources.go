@@ -15,11 +15,11 @@
 package controllers
 
 import (
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	"github.com/GoogleContainerTools/config-sync/pkg/metrics"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	"kpt.dev/configsync/pkg/metrics"
-	"kpt.dev/configsync/pkg/reconcilermanager"
 )
 
 // ReconcilerContainerResourceDefaults are the default resources to use for the

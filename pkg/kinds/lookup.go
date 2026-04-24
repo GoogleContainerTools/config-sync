@@ -17,9 +17,9 @@ package kinds
 import (
 	"fmt"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"kpt.dev/configsync/pkg/core"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )

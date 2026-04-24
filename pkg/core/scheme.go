@@ -15,6 +15,11 @@
 package core
 
 import (
+	configmanagementv1 "github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement/v1"
+	configsyncv1alpha1 "github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1alpha1"
+	configsyncv1beta1 "github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	hubv1 "github.com/GoogleContainerTools/config-sync/pkg/api/hub/v1"
+	kptv1alpha1 "github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -36,11 +41,6 @@ import (
 	"k8s.io/kubernetes/pkg/apis/rbac"
 	k8srbacv1 "k8s.io/kubernetes/pkg/apis/rbac/v1"
 	k8srbacv1beta1 "k8s.io/kubernetes/pkg/apis/rbac/v1beta1"
-	configmanagementv1 "kpt.dev/configsync/pkg/api/configmanagement/v1"
-	configsyncv1alpha1 "kpt.dev/configsync/pkg/api/configsync/v1alpha1"
-	configsyncv1beta1 "kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	hubv1 "kpt.dev/configsync/pkg/api/hub/v1"
-	kptv1alpha1 "kpt.dev/configsync/pkg/api/kpt.dev/v1alpha1"
 )
 
 // Scheme is a reference to the global scheme.

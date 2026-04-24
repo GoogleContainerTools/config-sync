@@ -15,8 +15,8 @@
 package transform
 
 import (
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"kpt.dev/configsync/pkg/kinds"
 )
 
 // IsEphemeral returns true if the type should not be synced to the cluster.

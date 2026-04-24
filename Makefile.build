@@ -1,3 +1,17 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Included by Makefile.
 # Rules related to building nomos and docker images.
 
@@ -56,6 +70,7 @@ BUILD_IMAGE_TARGETS := $(patsubst %,__build-image-%,$(IMAGES))
 $(BUILD_IMAGE_TARGETS): "$(HELM)" "$(KUSTOMIZE)"
 	@echo "+++ Building the $(subst __build-image-,,$@) image: $(call gen_image_tag,$(subst __build-image-,,$@))"
 	@docker buildx build $(DOCKER_BUILD_QUIET) \
+		--load \
 		--target $(subst __build-image-,,$@) \
 		-t $(call gen_image_tag,$(subst __build-image-,,$@)) \
 		-f build/all/Dockerfile \
@@ -65,10 +80,6 @@ $(BUILD_IMAGE_TARGETS): "$(HELM)" "$(KUSTOMIZE)"
 # Build Config Sync docker images
 .PHONY: build-images
 build-images: $(BUILD_IMAGE_TARGETS)
-
-# Deprecated alias of build-images. Remove this once unused.
-.PHONY: build-images-multirepo
-build-images-multirepo: build-images
 
 .PHONY: auth-docker
 auth-docker:
@@ -87,10 +98,6 @@ $(PUSH_IMAGE_TARGETS): auth-docker
 .PHONY: push-images
 push-images: $(PUSH_IMAGE_TARGETS)
 
-# Deprecated alias of push-images. Remove this once unused.
-.PHONY: push-images-multirepo
-push-images-multirepo: push-images
-
 # Targets for pulling individual images
 PULL_IMAGE_TARGETS := $(patsubst %,__pull-image-%,$(IMAGES))
 
@@ -102,10 +109,6 @@ $(PULL_IMAGE_TARGETS): auth-docker
 .PHONY: pull-images
 pull-images: $(PULL_IMAGE_TARGETS)
 
-# Deprecated alias of pull-images. Remove this once unused.
-.PHONY: pull-images-multirepo
-pull-images-multirepo: pull-images
-
 # Targets for retagging individual images
 RETAG_IMAGE_TARGETS := $(patsubst %,__retag-image-%,$(IMAGES))
 
@@ -116,10 +119,6 @@ $(RETAG_IMAGE_TARGETS):
 # Retags previously built Config Sync images
 .PHONY: retag-images
 retag-images: $(RETAG_IMAGE_TARGETS)
-
-# Deprecated alias of retag-images. Remove this once unused.
-.PHONY: retag-images-multirepo
-retag-images-multirepo: retag-images
 
 ###################################
 # Config Sync manifest

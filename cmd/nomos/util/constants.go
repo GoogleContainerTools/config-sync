@@ -14,7 +14,7 @@
 
 package util
 
-import "kpt.dev/configsync/pkg/api/configsync"
+import "github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
 
 const (
 	// FieldManager is the field manager name used by the nomos CLI.

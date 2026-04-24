@@ -21,7 +21,7 @@ import (
 	"strings"
 	"syscall"
 
-	"kpt.dev/configsync/e2e/nomostest/testkubeclient"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testkubeclient"
 )
 
 // Kubectl is a convenience method for calling kubectl against the

@@ -15,10 +15,10 @@
 package selectors
 
 import (
-	v1 "kpt.dev/configsync/pkg/api/configmanagement/v1"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/status"
+	v1 "github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement/v1"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

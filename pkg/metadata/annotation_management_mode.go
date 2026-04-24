@@ -15,7 +15,7 @@
 package metadata
 
 import (
-	"kpt.dev/configsync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

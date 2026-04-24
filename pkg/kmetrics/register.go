@@ -15,29 +15,62 @@
 package kmetrics
 
 import (
+	"context"
 	"os"
+	"time"
 
-	"contrib.go.opencensus.io/exporter/ocagent"
-	"go.opencensus.io/stats/view"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
+	"go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/resource"
 )
 
-// RegisterOCAgentExporter creates the OC Agent metrics exporter.
-func RegisterOCAgentExporter(containerName string) (*ocagent.Exporter, error) {
-	// Add the k8s.container.name resource label so that the google cloud monitoring
-	// and monarch metrics exporters will use the k8s_container resource type
+const (
+	// ShutdownTimeout is the timeout for shutting down the Otel exporter
+	ShutdownTimeout = 5 * time.Second
+)
+
+// RegisterOTelExporter creates the OTLP metrics exporter.
+func RegisterOTelExporter(ctx context.Context, containerName string) (*otlpmetricgrpc.Exporter, error) {
+
 	err := os.Setenv(
-		"OC_RESOURCE_LABELS",
+		"OTEL_RESOURCE_ATTRIBUTES",
 		"k8s.container.name=\""+containerName+"\"")
 	if err != nil {
 		return nil, err
 	}
-	oce, err := ocagent.NewExporter(
-		ocagent.WithInsecure(),
+
+	res, err := resource.New(
+		ctx,
+		resource.WithFromEnv(),
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	view.RegisterExporter(oce)
-	return oce, nil
+	// Create OTLP exporter
+	exporter, err := otlpmetricgrpc.New(
+		ctx,
+		otlpmetricgrpc.WithInsecure(),
+		otlpmetricgrpc.WithEndpoint("localhost:4317"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create meter provider
+	meterProvider := metric.NewMeterProvider(
+		metric.WithReader(metric.NewPeriodicReader(exporter)),
+		metric.WithResource(res),
+	)
+
+	// Set global meter provider
+	otel.SetMeterProvider(meterProvider)
+
+	err = InitializeOTelKustomizeMetrics()
+	if err != nil {
+		return nil, err
+	}
+
+	return exporter, nil
 }

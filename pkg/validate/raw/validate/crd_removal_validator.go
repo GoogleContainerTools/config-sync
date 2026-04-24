@@ -15,12 +15,12 @@
 package validate
 
 import (
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation/nonhierarchical"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/customresources"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/fileobjects"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation/nonhierarchical"
-	"kpt.dev/configsync/pkg/importer/customresources"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/validate/fileobjects"
 )
 
 // RemovedCRDs verifies that the Raw objects do not remove any CRDs that still

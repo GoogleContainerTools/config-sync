@@ -38,8 +38,12 @@ const (
 	Reconciliation1 = "reconciliation-1"
 	// Reconciliation2 verifies the second part of the reconciliation test.
 	Reconciliation2 = "reconciliation-2"
-	// SyncSource verifies the various source configs, including different source types, sync directory, branch, and etc.
-	SyncSource = "sync-source"
+	// SyncSourceGit verifies syncing from a Git repository
+	SyncSourceGit = "sync-source-git"
+	// SyncSourceOCI verifies syncing from an OCI image
+	SyncSourceOCI = "sync-source-oci"
+	// SyncSourceHelm verifies syncing from a Helm chart
+	SyncSourceHelm = "sync-source-helm"
 	// WorkloadIdentity verifies authenticating with workload identity (GKE and Fleet).
 	WorkloadIdentity = "workload-identity"
 )
@@ -49,7 +53,7 @@ func KnownFeature(f Feature) bool {
 	switch f {
 	case ACMController, NomosCLI, Selector, DriftControl, Hydration,
 		Lifecycle, MultiRepos, OverrideAPI, Reconciliation1, Reconciliation2,
-		SyncSource, WorkloadIdentity:
+		WorkloadIdentity, SyncSourceGit, SyncSourceOCI, SyncSourceHelm:
 		return true
 	}
 	return false

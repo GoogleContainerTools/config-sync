@@ -17,15 +17,15 @@ package e2e
 import (
 	"testing"
 
-	"kpt.dev/configsync/e2e/nomostest"
-	nomostesting "kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation/system"
-	"kpt.dev/configsync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
+	nomostesting "github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation/system"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 )
 
 func TestMissingRepoErrorWithHierarchicalFormat(t *testing.T) {
-	nt := nomostest.New(t, nomostesting.SyncSource)
+	nt := nomostest.New(t, nomostesting.SyncSourceGit)
 
 	nomostest.SetRootSyncGitDir(nt, configsync.RootSyncName, "")
 
@@ -34,7 +34,7 @@ func TestMissingRepoErrorWithHierarchicalFormat(t *testing.T) {
 
 func TestPolicyDirUnset(t *testing.T) {
 	rootSyncID := nomostest.DefaultRootSyncID
-	nt := nomostest.New(t, nomostesting.SyncSource)
+	nt := nomostest.New(t, nomostesting.SyncSourceGit)
 	rootSyncGitRepo := nt.SyncSourceGitReadWriteRepository(rootSyncID)
 	// There are 6 cluster-scoped objects under `../../examples/acme/cluster`.
 	//
@@ -58,7 +58,7 @@ func TestPolicyDirUnset(t *testing.T) {
 }
 
 func TestInvalidPolicyDir(t *testing.T) {
-	nt := nomostest.New(t, nomostesting.SyncSource)
+	nt := nomostest.New(t, nomostesting.SyncSourceGit)
 
 	nt.T.Log("Break the policydir in the repo")
 	nomostest.SetRootSyncGitDir(nt, configsync.RootSyncName, "some-nonexistent-policydir")

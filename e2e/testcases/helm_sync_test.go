@@ -27,6 +27,20 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/e2e"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/ntopts"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/policy"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/registryproviders"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/syncsource"
+	nomostesting "github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testpredicates"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation/nonhierarchical"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -34,21 +48,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
-	"kpt.dev/configsync/e2e"
-	"kpt.dev/configsync/e2e/nomostest"
-	"kpt.dev/configsync/e2e/nomostest/ntopts"
-	"kpt.dev/configsync/e2e/nomostest/policy"
-	"kpt.dev/configsync/e2e/nomostest/registryproviders"
-	"kpt.dev/configsync/e2e/nomostest/syncsource"
-	nomostesting "kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/e2e/nomostest/testpredicates"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation/nonhierarchical"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/reconcilermanager"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -61,13 +60,13 @@ const (
 )
 
 // TestPublicHelm can run on both Kind and GKE clusters.
-// It tests Config Sync can pull from public Helm repo without any authentication.
+// It tests Config Sync can pull from a public Helm repo without any authentication.
 func TestPublicHelm(t *testing.T) {
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceHelm,
 		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured))
 
-	rs := rootSyncForWordpressHelmChart(nt, nil)
-	nt.T.Log("Update RootSync to sync from a public Helm Chart with specified release namespace and multiple inline values")
+	rs := rootsyncForSimpleHelmChart(nt, nil)
+	nt.T.Log("Update RootSync to sync from a public Helm Chart with a specified release namespace and multiple inline values")
 	nt.Must(nt.KubeClient.Apply(rs))
 
 	nt.T.Log("Wait for RootSync to sync from a helm chart")
@@ -88,25 +87,18 @@ func TestPublicHelm(t *testing.T) {
 		expectedMemoryRequest = "250Mi"
 		expectedMemoryLimit = "300Mi"
 	}
-	if err := nt.Validate("my-wordpress", "wordpress", &appsv1.Deployment{},
-		testpredicates.DeploymentContainerPullPolicyEquals("wordpress", "Always"),
+
+	nt.Must(nt.Validate("my-simple-pause", "test-ns", &appsv1.Deployment{},
+		testpredicates.DeploymentContainerPullPolicyEquals("pause", "Always"),
+		testpredicates.HasAnnotation("foo", "baz"),
 		testpredicates.DeploymentContainerResourcesEqual(v1beta1.ContainerResourcesSpec{
-			ContainerName: "wordpress",
+			ContainerName: "pause",
 			CPURequest:    resource.MustParse(expectedCPURequest),
 			CPULimit:      resource.MustParse(expectedCPULimit),
 			MemoryRequest: resource.MustParse(expectedMemoryRequest),
 			MemoryLimit:   resource.MustParse(expectedMemoryLimit),
 		}),
-		testpredicates.HasExactlyImage("wordpress", "bitnami/wordpress", "", "sha256:362cb642db481ebf6f14eb0244fbfb17d531a84ecfe099cd3bba6810db56694e"),
-		testpredicates.DeploymentHasEnvVar("wordpress", "WORDPRESS_USERNAME", "test-user"),
-		testpredicates.DeploymentHasEnvVar("wordpress", "WORDPRESS_EMAIL", "test-user@example.com"),
-		testpredicates.DeploymentHasEnvVar("wordpress", "TEST_1", "val1"),
-		testpredicates.DeploymentHasEnvVar("wordpress", "TEST_2", "val2")); err != nil {
-		nt.T.Error(err)
-	}
-	if nt.T.Failed() {
-		nt.T.FailNow()
-	}
+	))
 
 	nt.T.Log("Update RootSync to sync from a public Helm Chart with deploy namespace")
 	nt.MustMergePatch(rs, `{"spec": {"helm": {"namespace": "", "deployNamespace": "deploy-ns"}}}`)
@@ -115,10 +107,10 @@ func TestPublicHelm(t *testing.T) {
 	// Chart name & version did not change
 	nt.Must(nt.WatchForAllSyncs())
 
-	nt.Must(nt.Watcher.WatchForCurrentStatus(kinds.Deployment(), "my-wordpress", "deploy-ns"))
-	nt.Must(nt.Watcher.WatchForNotFound(kinds.Deployment(), "my-wordpress", "wordpress"))
+	nt.Must(nt.Watcher.WatchForCurrentStatus(kinds.Deployment(), "my-simple-pause", "deploy-ns"))
+	nt.Must(nt.Watcher.WatchForNotFound(kinds.Deployment(), "my-simple-pause", "test-ns"))
 
-	nt.T.Log("Update RootSync to sync from a public Helm Chart without specified release namespace or deploy namespace")
+	nt.T.Log("Update RootSync to sync from a public Helm Chart without a specified release namespace or deploy namespace")
 	nt.MustMergePatch(rs, `{"spec": {"helm": {"namespace": "", "deployNamespace": ""}}}`)
 
 	nt.T.Log("Wait for RootSync to sync from a helm chart")
@@ -133,9 +125,9 @@ func TestPublicHelm(t *testing.T) {
 	// if err := nt.Validate("my-wordpress", configsync.DefaultHelmReleaseNamespace, &appsv1.Deployment{}); err != nil {
 	// 	nt.T.Error(err)
 	// }
-	nt.Must(nt.Watcher.WatchForCurrentStatus(kinds.Deployment(), "my-wordpress", configsync.DefaultHelmReleaseNamespace))
-	nt.Must(nt.Watcher.WatchForNotFound(kinds.Deployment(), "my-wordpress", "wordpress"))
-	nt.Must(nt.Watcher.WatchForNotFound(kinds.Deployment(), "my-wordpress", "deploy-ns"))
+	nt.Must(nt.Watcher.WatchForCurrentStatus(kinds.Deployment(), "my-simple-pause", configsync.DefaultHelmReleaseNamespace))
+	nt.Must(nt.Watcher.WatchForNotFound(kinds.Deployment(), "my-simple-pause", "test-ns"))
+	nt.Must(nt.Watcher.WatchForNotFound(kinds.Deployment(), "my-simple-pause", "deploy-ns"))
 
 	nt.T.Log("Update RootSync to sync from a public Helm chart of the form <repo-name>/<chart-name>")
 	repoSuffix := path.Base(rs.Spec.Helm.Repo)
@@ -152,7 +144,7 @@ func TestPublicHelm(t *testing.T) {
 func TestOCIHelmChartNameContainsSlash(t *testing.T) {
 	rootSyncID := nomostest.DefaultRootSyncID
 	nt := nomostest.New(t,
-		nomostesting.SyncSource,
+		nomostesting.SyncSourceHelm,
 		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured),
 		ntopts.RequireHelmProvider,
 	)
@@ -183,12 +175,12 @@ func TestOCIHelmChartNameContainsSlash(t *testing.T) {
 // It tests that helm-sync properly watches ConfigMaps in the RSync namespace if the RSync is created before
 // the ConfigMap.
 func TestHelmWatchConfigMap(t *testing.T) {
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceHelm,
 		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured))
-
-	rs := rootSyncForWordpressHelmChart(nt, func(m map[string]interface{}) {
-		delete(m, "wordpressUsername") // omit username so it can be set with values file
+	rs := rootsyncForSimpleHelmChart(nt, func(m map[string]interface{}) {
+		delete(m, "annotations") // omit annotations so it can be set with values file
 	})
+
 	rs.Spec.Helm.ValuesFileRefs = []v1beta1.ValuesFileRef{
 		{Name: "helm-watch-config-map"},
 	}
@@ -198,13 +190,14 @@ func TestHelmWatchConfigMap(t *testing.T) {
 		`KNV1061: RootSyncs must reference valid ConfigMaps in spec.helm.valuesFileRefs: ConfigMap "helm-watch-config-map" not found`))
 
 	cmName := "helm-watch-config-map"
-	nt.T.Log("Apply valid ConfigMap that is not immutable (which should not be allowed)")
+	nt.T.Log("Apply valid ConfigMap that is mutable (which should not be allowed)")
 	cm0 := k8sobjects.ConfigMapObject(core.Name(cmName), core.Namespace(configsync.ControllerNamespace))
 	cm0.Immutable = ptr.To(false)
 	cm0.Data = map[string]string{"something-else.yaml": `
+annotations:
+	foo: buzz
 image:
-  digest: sha256:362cb642db481ebf6f14eb0244fbfb17d531a84ecfe099cd3bba6810db56694e
-  pullPolicy: Never
+	pullPolicy: Never
 `,
 	}
 	nt.T.Cleanup(func() {
@@ -222,11 +215,13 @@ image:
 	cm1 := k8sobjects.ConfigMapObject(core.Name(cmName), core.Namespace(configsync.ControllerNamespace))
 	cm1.Immutable = ptr.To(true)
 	cm1.Data = map[string]string{"something-else.yaml": `
+annotations:
+	foo: buzz
 image:
-  digest: sha256:362cb642db481ebf6f14eb0244fbfb17d531a84ecfe099cd3bba6810db56694e
-  pullPolicy: Never
+	pullPolicy: Never
 `,
 	}
+
 	nt.Must(nt.KubeClient.Update(cm1))
 	nt.Must(nt.Watcher.WatchForRootSyncStalledError(rs.Name, "Validation",
 		`KNV1061: RootSyncs must reference valid ConfigMaps in spec.helm.valuesFileRefs: ConfigMap "helm-watch-config-map" in namespace "config-management-system" does not have data key "values.yaml"`))
@@ -236,15 +231,14 @@ image:
 	nt.Must(nt.Watcher.WatchForRootSyncStalledError(rs.Name, "Validation",
 		`KNV1061: RootSyncs must reference valid ConfigMaps in spec.helm.valuesFileRefs: ConfigMap "helm-watch-config-map" not found`))
 
-	nt.T.Log("Apply valid ConfigMap with values: imagePullPolicy: Always; wordpressUserName: test-user-1")
+	nt.T.Log("Apply valid ConfigMap with chart values: annotations, imagePullPolicy, and resources")
 	cm2 := k8sobjects.ConfigMapObject(core.Name(cmName), core.Namespace(configsync.ControllerNamespace))
 	cm2.Immutable = ptr.To(true)
 	cm2.Data = map[string]string{"values.yaml": `
+annotations:
+  foo: buzz
 image:
-  digest: sha256:362cb642db481ebf6f14eb0244fbfb17d531a84ecfe099cd3bba6810db56694e
   pullPolicy: Always
-wordpressUsername: test-user-1
-wordpressEmail: override-this@example.com
 resources:
   requests:
     cpu: 150m
@@ -252,12 +246,7 @@ resources:
   limits:
     cpu: 1
     memory: 300Mi
-mariadb:
-  primary:
-    persistence:
-      enabled: false
-service:
-  type: ClusterIP`,
+`,
 	}
 
 	nt.T.Cleanup(func() {
@@ -287,26 +276,24 @@ service:
 		expectedMemoryRequest = "250Mi"
 		expectedMemoryLimit = "300Mi"
 	}
-	nt.Must(nt.Validate("my-wordpress", "wordpress", &appsv1.Deployment{},
-		testpredicates.DeploymentContainerPullPolicyEquals("wordpress", "Always"),
+
+	nt.Must(nt.Validate("my-simple-pause", "test-ns", &appsv1.Deployment{},
+		testpredicates.DeploymentContainerPullPolicyEquals("pause", "Always"),
+		testpredicates.HasAnnotation("foo", "buzz"),
 		testpredicates.DeploymentContainerResourcesEqual(v1beta1.ContainerResourcesSpec{
-			ContainerName: "wordpress",
+			ContainerName: "pause",
 			CPURequest:    resource.MustParse(expectedCPURequest),
 			CPULimit:      resource.MustParse(expectedCPULimit),
 			MemoryRequest: resource.MustParse(expectedMemoryRequest),
 			MemoryLimit:   resource.MustParse(expectedMemoryLimit),
 		}),
-		testpredicates.HasExactlyImage("wordpress", "bitnami/wordpress", "", "sha256:362cb642db481ebf6f14eb0244fbfb17d531a84ecfe099cd3bba6810db56694e"),
-		testpredicates.DeploymentHasEnvVar("wordpress", "WORDPRESS_USERNAME", "test-user-1"),
-		testpredicates.DeploymentHasEnvVar("wordpress", "WORDPRESS_EMAIL", "test-user@example.com"),
-		testpredicates.DeploymentHasEnvVar("wordpress", "TEST_1", "val1"),
-		testpredicates.DeploymentHasEnvVar("wordpress", "TEST_2", "val2")))
+	))
 }
 
 // TestHelmConfigMapOverride can run on both Kind and GKE clusters.
 // It tests ConfigSync behavior when multiple valuesFiles are provided
 func TestHelmConfigMapOverride(t *testing.T) {
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceHelm,
 		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured))
 	cmName := "helm-config-map-override"
 
@@ -314,29 +301,21 @@ func TestHelmConfigMapOverride(t *testing.T) {
 	cm.Immutable = ptr.To(true)
 	cm.Data = map[string]string{
 		"first": `
-extraEnvVars:
-- name: TEST_CM_1
-  value: "cm1"
-wordpressUsername: test-user-1
-wordpressEmail: override-this@example.com
+annotations:
+  foo: value-1
 image:
-  digest: sha256:362cb642db481ebf6f14eb0244fbfb17d531a84ecfe099cd3bba6810db56694e
   pullPolicy: Never`,
 		"second": `
-extraEnvVars:
-- name: TEST_CM_2
-  value: "cm2"
-wordpressUsername: test-user-2
-wordpressEmail: override-this@example.com
+annotations:
+  foo: value-2
 image:
-  digest: sha256:362cb642db481ebf6f14eb0244fbfb17d531a84ecfe099cd3bba6810db56694e
   pullPolicy: Always`,
 	}
 	nt.Must(nt.KubeClient.Create(cm))
 
-	rs := rootSyncForWordpressHelmChart(nt, func(m map[string]interface{}) {
-		delete(m, "wordpressUsername") // omit username so it can be set with values file
-		delete(m, "image")             // omit image so it can be set with values file
+	rs := rootsyncForSimpleHelmChart(nt, func(m map[string]interface{}) {
+		delete(m, "annotations")
+		delete(m, "image")
 	})
 	rs.Spec.Helm.ValuesFileRefs = []v1beta1.ValuesFileRef{
 		{Name: "helm-config-map-override", DataKey: "first"},
@@ -348,15 +327,10 @@ image:
 	nt.Must(nt.WatchForAllSyncs())
 
 	// duplicated keys from later files should override the keys from previous files.
-	nt.Must(nt.Validate("my-wordpress", "wordpress", &appsv1.Deployment{},
-		testpredicates.DeploymentContainerPullPolicyEquals("wordpress", "Always"),
-		testpredicates.HasExactlyImage("wordpress", "bitnami/wordpress", "", "sha256:362cb642db481ebf6f14eb0244fbfb17d531a84ecfe099cd3bba6810db56694e"),
-		testpredicates.DeploymentHasEnvVar("wordpress", "WORDPRESS_USERNAME", "test-user-2"),
-		testpredicates.DeploymentHasEnvVar("wordpress", "WORDPRESS_EMAIL", "test-user@example.com"),
-		testpredicates.DeploymentHasEnvVar("wordpress", "TEST_1", "val1"),
-		testpredicates.DeploymentHasEnvVar("wordpress", "TEST_2", "val2"),
-		testpredicates.DeploymentMissingEnvVar("wordpress", "TEST_CM_1"),
-		testpredicates.DeploymentMissingEnvVar("wordpress", "TEST_CM_2")))
+	nt.Must(nt.Validate("my-simple-pause", "test-ns", &appsv1.Deployment{},
+		testpredicates.DeploymentContainerPullPolicyEquals("pause", "Always"),
+		testpredicates.HasAnnotation("foo", "value-2"),
+	))
 }
 
 // TestHelmDefaultNamespace verifies the Config Sync behavior for helm charts when neither namespace nor deployNamespace
@@ -366,7 +340,7 @@ image:
 // Google service account `e2e-test-ar-reader@${GCP_PROJECT}.iam.gserviceaccount.com` is created with `roles/artifactregistry.reader` for accessing images in Artifact Registry.
 func TestHelmDefaultNamespace(t *testing.T) {
 	nt := nomostest.New(t,
-		nomostesting.SyncSource,
+		nomostesting.SyncSourceHelm,
 		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured),
 		ntopts.RequireHelmProvider,
 	)
@@ -393,22 +367,10 @@ func TestHelmDefaultNamespace(t *testing.T) {
 // TestHelmLatestVersion verifies the Config Sync behavior for helm charts when helm.spec.version is not specified. The helm-sync
 // binary should pull down the latest available version in this case. It also tests that if a new helm chart gets pushed, the
 // chart version gets automatically updated by Config Sync.
-// The test will run on a GKE cluster only with following pre-requisites
-//
-// 1. Workload Identity is enabled.
-// 2. The Google service account `e2e-test-ar-reader@${GCP_PROJECT}.iam.gserviceaccount.com` is created with `roles/artifactregistry.reader` for access image in Artifact Registry.
-// 3. An IAM policy binding is created between the Google service account and the Kubernetes service accounts with the `roles/iam.workloadIdentityUser` role.
-//
-//	gcloud iam service-accounts add-iam-policy-binding --project=${GCP_PROJECT} \
-//	   --role roles/iam.workloadIdentityUser \
-//	   --member "serviceAccount:${GCP_PROJECT}.svc.id.goog[config-management-system/root-reconciler]" \
-//	   e2e-test-ar-reader@${GCP_PROJECT}.iam.gserviceaccount.com
-//
-// 4. The following environment variables are set: GCP_PROJECT, GCP_CLUSTER, GCP_REGION|GCP_ZONE.
 func TestHelmLatestVersion(t *testing.T) {
 	rootSyncID := nomostest.DefaultRootSyncID
 	nt := nomostest.New(t,
-		nomostesting.WorkloadIdentity,
+		nomostesting.SyncSourceHelm,
 		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured),
 		ntopts.RequireHelmProvider,
 	)
@@ -477,12 +439,12 @@ func TestHelmLatestVersion(t *testing.T) {
 // TestHelmVersionRange verifies the Config Sync behavior for helm charts when helm.spec.version is specified as a range.
 // Helm-sync should pull the latest helm chart version within the range.
 func TestHelmVersionRange(t *testing.T) {
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceHelm,
 		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured))
 
 	nt.T.Log("Create RootSync to sync from a public Helm Chart with specified version range")
-	rs := rootSyncForWordpressHelmChart(nt, nil)
-	rs.Spec.Helm.Version = "^15.0.0"
+	rs := rootsyncForSimpleHelmChart(nt, nil)
+	rs.Spec.Helm.Version = "^1.0.0"
 
 	nt.T.Logf("Updating RootSync to sync from public helm chart with version range")
 	nt.Must(nt.KubeClient.Apply(rs))
@@ -495,14 +457,14 @@ func TestHelmVersionRange(t *testing.T) {
 	nomostest.SetExpectedSyncSource(nt, rootSyncID, &syncsource.HelmSyncSource{
 		ChartID: registryproviders.HelmChartID{
 			Name:    rs.Spec.Helm.Chart,
-			Version: "^15.0.0",
+			Version: "^1.0.0",
 		},
-		ExpectedChartVersion: "15.4.1", // latest minor+patch with the same major version
+		ExpectedChartVersion: "1.1.0", // latest minor+patch with the same major version
 	})
 	nt.Must(nt.WatchForAllSyncs())
 
 	nt.T.Log("Validate Deployment from chart exists")
-	nt.Must(nt.Validate("my-wordpress", "wordpress", &appsv1.Deployment{}))
+	nt.Must(nt.Validate("my-simple-pause", "test-ns", &appsv1.Deployment{}))
 }
 
 // TestHelmNamespaceRepo verifies RepoSync does not sync the helm chart with cluster-scoped resources. It also verifies that RepoSync can successfully
@@ -512,7 +474,7 @@ func TestHelmVersionRange(t *testing.T) {
 func TestHelmNamespaceRepo(t *testing.T) {
 	repoSyncID := core.RepoSyncID(configsync.RepoSyncName, testNs)
 	repoSyncNN := repoSyncID.ObjectKey
-	nt := nomostest.New(t, nomostesting.SyncSource, ntopts.RequireHelmProvider,
+	nt := nomostest.New(t, nomostesting.SyncSourceHelm, ntopts.RequireHelmProvider,
 		ntopts.RepoSyncPermissions(policy.AllAdmin()), // NS reconciler manages a bunch of resources.
 		ntopts.SyncWithGitSource(repoSyncID))
 	rootSyncGitRepo := nt.SyncSourceGitReadWriteRepository(nomostest.DefaultRootSyncID)
@@ -556,7 +518,7 @@ func TestHelmNamespaceRepo(t *testing.T) {
 func TestHelmConfigMapNamespaceRepo(t *testing.T) {
 	repoSyncID := core.RepoSyncID(configsync.RepoSyncName, testNs)
 	repoSyncNN := repoSyncID.ObjectKey
-	nt := nomostest.New(t, nomostesting.SyncSource, ntopts.RequireHelmProvider,
+	nt := nomostest.New(t, nomostesting.SyncSourceHelm, ntopts.RequireHelmProvider,
 		ntopts.RepoSyncPermissions(policy.AppsAdmin(), policy.CoreAdmin()),
 		ntopts.SyncWithGitSource(repoSyncID))
 	rootSyncGitRepo := nt.SyncSourceGitReadWriteRepository(nomostest.DefaultRootSyncID)
@@ -668,7 +630,7 @@ type ServiceAccountFile struct {
 // Test handles service account key rotation.
 func TestHelmARTokenAuth(t *testing.T) {
 	nt := nomostest.New(t,
-		nomostesting.SyncSource,
+		nomostesting.SyncSourceHelm,
 		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured),
 		ntopts.RequireGKE(t),
 		ntopts.RequireHelmArtifactRegistry(t),
@@ -727,7 +689,7 @@ func TestHelmARTokenAuth(t *testing.T) {
 // TestHelmEmptyChart verifies Config Sync can apply an empty Helm chart.
 func TestHelmEmptyChart(t *testing.T) {
 	nt := nomostest.New(t,
-		nomostesting.SyncSource,
+		nomostesting.SyncSourceHelm,
 		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured),
 		ntopts.RequireHelmProvider,
 	)
@@ -912,19 +874,15 @@ func generateServiceAccountKey(nt *nomostest.NT, projectID, gsaKeySecretID, gsaE
 	return nil
 }
 
-func rootSyncForWordpressHelmChart(nt *nomostest.NT, valuesMutator func(map[string]interface{})) *v1beta1.RootSync {
-	chartID := registryproviders.HelmChartID{Name: "wordpress", Version: "15.2.35"}
+func rootsyncForSimpleHelmChart(nt *nomostest.NT, valuesMutator func(map[string]interface{})) *v1beta1.RootSync {
+	chartID := registryproviders.HelmChartID{Name: "simple-pause", Version: "1.0.0"}
 	rs := nt.RootSyncObjectHelm(configsync.RootSyncName, chartID)
 	values := map[string]interface{}{
-		"image": map[string]interface{}{
-			"digest":     "sha256:362cb642db481ebf6f14eb0244fbfb17d531a84ecfe099cd3bba6810db56694e",
-			"pullPolicy": "Always",
+		"annotations": map[string]interface{}{
+			"foo": "baz",
 		},
-		"wordpressUsername": "test-user",
-		"wordpressEmail":    "test-user@example.com",
-		"extraEnvVars": []interface{}{
-			map[string]interface{}{"name": "TEST_1", "value": "val1"},
-			map[string]interface{}{"name": "TEST_2", "value": "val2"},
+		"image": map[string]interface{}{
+			"pullPolicy": "Always",
 		},
 		"resources": map[string]interface{}{
 			"requests": map[string]interface{}{
@@ -936,16 +894,6 @@ func rootSyncForWordpressHelmChart(nt *nomostest.NT, valuesMutator func(map[stri
 				"memory": "300Mi",
 			},
 		},
-		"mariadb": map[string]interface{}{
-			"primary": map[string]interface{}{
-				"persistence": map[string]interface{}{
-					"enabled": false,
-				},
-			},
-		},
-		"service": map[string]interface{}{
-			"type": "ClusterIP",
-		},
 	}
 	if valuesMutator != nil {
 		valuesMutator(values)
@@ -955,27 +903,18 @@ func rootSyncForWordpressHelmChart(nt *nomostest.NT, valuesMutator func(map[stri
 		nt.T.Fatal(err)
 	}
 	rs.Spec.Helm = &v1beta1.HelmRootSync{
-		Namespace: "wordpress",
+		Namespace: "test-ns",
 		HelmBase: v1beta1.HelmBase{
-			Repo:        "https://charts.bitnami.com/bitnami",
+			Repo:        nomostesting.ConfigSyncTestHelmChartsAddress,
 			Chart:       chartID.Name,
 			Version:     chartID.Version,
-			ReleaseName: "my-wordpress",
+			ReleaseName: "my-simple-pause",
 			Auth:        configsync.AuthNone,
 			Values: &apiextensionsv1.JSON{
 				Raw: out,
 			},
 		},
 	}
-	if nt.IsGKEAutopilot {
-		nt.T.Log("Increasing memory request/limit for helm-sync on Autopilot")
-		rs.Spec.SafeOverride().Resources = []v1beta1.ContainerResourcesSpec{
-			{ // This chart sometimes causes OOMKill on Autopilot with default limit
-				ContainerName: reconcilermanager.HelmSync,
-				MemoryRequest: resource.MustParse("600Mi"),
-				MemoryLimit:   resource.MustParse("600Mi"),
-			},
-		}
-	}
+
 	return rs
 }

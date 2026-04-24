@@ -20,7 +20,7 @@ import (
 	"sync"
 	"testing"
 
-	"kpt.dev/configsync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
 	"sigs.k8s.io/cli-utils/pkg/apis/actuation"
 	"sigs.k8s.io/cli-utils/pkg/object"
 	"sigs.k8s.io/cli-utils/pkg/testutil"

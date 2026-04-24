@@ -14,9 +14,12 @@
 
 package resourcegroup
 
-import "kpt.dev/configsync/pkg/api/configsync"
+import "github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
 
 const (
+	// ManagerContainerName is the name of the manager container of the resource-group controller.
+	ManagerContainerName = "manager"
+
 	// FieldManager is the field manager name used by the resource-group controller.
 	// This avoids conflicts with the reconciler and reconciler-manager.
 	FieldManager = configsync.ConfigSyncPrefix + "resource-group-controller"

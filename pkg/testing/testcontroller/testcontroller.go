@@ -45,7 +45,7 @@ func RunTestSuite(m *testing.M, setupFunc, cleanupFunc func() error) int {
 // This is useful for using to configured controllers and the controller-manager.
 // Must be called after `klog.InitFlags` and `flag.Parse`.
 // To see all logs, use:
-// go test kpt.dev/configsync/<package-path> -v -args -v=5
+// go test github.com/GoogleContainerTools/config-sync/<package-path> -v -args -v=5
 func NewTestLogger(t *testing.T) logr.Logger {
 	// Value is always a Getter, but needs to be cast for reverse-compat.
 	// And klog.InitFlags registers the "v" flag as a klog.Level.
@@ -64,8 +64,7 @@ func NewTestLogger(t *testing.T) logr.Logger {
 // This avoids async error logs from the test environment stopping before the
 // controller-manager.
 func StartTestManager(t *testing.T, mgr manager.Manager) func() {
-	// TODO: replace with `ctx := t.Context()` in Go 1.24.0+
-	ctx := context.Background()
+	ctx := t.Context()
 
 	ctx, cancel := context.WithCancel(ctx)
 	doneCh := make(chan struct{})

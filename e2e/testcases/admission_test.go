@@ -19,20 +19,20 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/ntopts"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/policy"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/taskgroup"
+	nomostesting "github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testpredicates"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testwatcher"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
 	corev1 "k8s.io/api/core/v1"
-	"kpt.dev/configsync/e2e/nomostest"
-	"kpt.dev/configsync/e2e/nomostest/ntopts"
-	"kpt.dev/configsync/e2e/nomostest/policy"
-	"kpt.dev/configsync/e2e/nomostest/taskgroup"
-	nomostesting "kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/e2e/nomostest/testpredicates"
-	"kpt.dev/configsync/e2e/nomostest/testwatcher"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/reconcilermanager"
 	kstatus "sigs.k8s.io/cli-utils/pkg/kstatus/status"
 )
 
@@ -222,7 +222,7 @@ func TestDisableWebhookConfigurationUpdateHierarchy(t *testing.T) {
 
 func TestDisableWebhookConfigurationUpdateUnstructured(t *testing.T) {
 	repoSyncID := core.RepoSyncID(configsync.RepoSyncName, namespaceRepo)
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.DriftControl,
 		ntopts.SyncWithGitSource(repoSyncID),
 		ntopts.RepoSyncPermissions(policy.CoreAdmin()))
 	repoSyncGitRepo := nt.SyncSourceGitReadWriteRepository(repoSyncID)

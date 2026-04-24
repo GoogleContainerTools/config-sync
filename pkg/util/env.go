@@ -22,8 +22,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/cmd/nomos/util"
 	"k8s.io/klog/v2"
-	"kpt.dev/configsync/cmd/nomos/util"
 )
 
 const (

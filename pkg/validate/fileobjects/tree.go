@@ -15,15 +15,15 @@
 package fileobjects
 
 import (
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement/v1/repo"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast/node"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/transform/tree"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem/cmpath"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"kpt.dev/configsync/pkg/api/configmanagement/v1/repo"
-	"kpt.dev/configsync/pkg/importer/analyzer/ast"
-	"kpt.dev/configsync/pkg/importer/analyzer/ast/node"
-	"kpt.dev/configsync/pkg/importer/analyzer/transform/tree"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation"
-	"kpt.dev/configsync/pkg/importer/filesystem/cmpath"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/status"
 )
 
 // TreeVisitor is a function that validates or hydrates Raw objects.

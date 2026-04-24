@@ -32,9 +32,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8sevent "sigs.k8s.io/controller-runtime/pkg/event"
 
-	"kpt.dev/configsync/pkg/api/kpt.dev/v1alpha1"
-	"kpt.dev/configsync/pkg/resourcegroup/controllers/resourcemap"
-	"kpt.dev/configsync/pkg/resourcegroup/controllers/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/resourcemap"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/status"
 )
 
 const (

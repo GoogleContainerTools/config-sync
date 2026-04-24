@@ -18,30 +18,34 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/gitproviders"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/syncsource"
+	nomostesting "github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testpredicates"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testwatcher"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager/controllers"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/rsync/validate"
 	appsv1 "k8s.io/api/apps/v1"
-	"kpt.dev/configsync/e2e/nomostest"
-	"kpt.dev/configsync/e2e/nomostest/gitproviders"
-	"kpt.dev/configsync/e2e/nomostest/syncsource"
-	nomostesting "kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/e2e/nomostest/testpredicates"
-	"kpt.dev/configsync/e2e/nomostest/testwatcher"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/reconcilermanager/controllers"
-	"kpt.dev/configsync/pkg/validate/rsync/validate"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func TestSyncingThroughAProxy(t *testing.T) {
 	rootSyncID := nomostest.DefaultRootSyncID
-	nt := nomostest.New(t, nomostesting.SyncSource)
+	nt := nomostest.New(t, nomostesting.SyncSourceGit)
 
 	nt.T.Logf("Set up the tiny proxy service and Override the RootSync object with proxy setting")
-	nt.MustKubectl("apply", "-f", "../testdata/proxy")
+	nt.MustKubectl("apply", "-f", "../testdata/proxy/namespace.yaml")
+	nt.Must(nt.Watcher.WatchForCurrentStatus(kinds.Namespace(), "proxy-test", ""))
+	nt.MustKubectl("apply", "-f", "../testdata/proxy/configs")
 	nt.T.Cleanup(func() {
-		nt.MustKubectl("delete", "-f", "../testdata/proxy")
+		nt.MustKubectl("delete", "-f", "../testdata/proxy/configs")
 		nt.Must(nt.Watcher.WatchForNotFound(kinds.Deployment(), "tinyproxy-deployment", "proxy-test"))
+		nt.MustKubectl("delete", "-f", "../testdata/proxy/namespace.yaml")
+		nt.Must(nt.Watcher.WatchForNotFound(kinds.Namespace(), "proxy-test", ""))
 	})
 	nt.Must(nt.Watcher.WatchObject(kinds.Deployment(), "tinyproxy-deployment", "proxy-test",
 		testwatcher.WatchPredicates(hasReadyReplicas(1))))
@@ -61,6 +65,11 @@ func TestSyncingThroughAProxy(t *testing.T) {
 	nt.T.Log("Verify the secretRef error")
 	nt.Must(nt.Watcher.WatchForRootSyncStalledError(rs.Name, "Validation",
 		validate.MissingKeyInAuthSecret(configsync.AuthToken, "token", "git-creds").Error()))
+	nt.T.Log("Set auth type to githubapp")
+	nt.MustMergePatch(rs, `{"spec": {"git": {"auth": "githubapp"}}}`)
+	nt.T.Log("Verify the secretRef error")
+	nt.Must(nt.Watcher.WatchForRootSyncStalledError(rs.Name, "Validation",
+		validate.MissingKeyInAuthSecret(configsync.AuthGithubApp, "github-app-private-key", "git-creds").Error()))
 	nt.T.Log("Set auth type to none")
 	nt.MustMergePatch(rs, `{"spec": {"git": {"auth": "none", "secretRef": {"name":""}}}}`)
 

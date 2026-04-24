@@ -21,8 +21,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/diff/difftest"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/remediator/queue"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/syncer/reconcile"
+	"github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest"
+	testfake "github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest/fake"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testmetrics"
 	"github.com/google/go-cmp/cmp"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,16 +40,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/utils/ptr"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/diff/difftest"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/remediator/queue"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/syncer/reconcile"
-	"kpt.dev/configsync/pkg/syncer/syncertest"
-	testfake "kpt.dev/configsync/pkg/syncer/syncertest/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -376,6 +376,11 @@ func TestFilteredWatcher(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			exporter, err := testmetrics.NewTestExporter()
+			if err != nil {
+				t.Fatalf("Failed to create test exporter: %v", err)
+			}
+			defer exporter.ClearMetrics()
 			dr := &declared.Resources{}
 			ctx := context.Background()
 			var cancel context.CancelFunc
@@ -386,10 +391,6 @@ func TestFilteredWatcher(t *testing.T) {
 			}
 			if _, err := dr.UpdateDeclared(ctx, tc.declared, "unused"); err != nil {
 				t.Fatalf("unexpected error %v", err)
-			}
-
-			if tc.ignored != nil {
-				dr.UpdateIgnored(tc.ignored...)
 			}
 
 			watches := make(chan watch.Interface) // TODO: test startWatch errors
@@ -429,7 +430,7 @@ func TestFilteredWatcher(t *testing.T) {
 				}
 			}()
 			// w.Run() blocks until w.Stop() is called or the context is cancelled.
-			err := w.Run(ctx)
+			err = w.Run(ctx)
 			require.Equal(t, tc.wantErr, err)
 
 			var got []core.ID
@@ -444,8 +445,6 @@ func TestFilteredWatcher(t *testing.T) {
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("did not get desired object IDs: %v", diff)
 			}
-
-			assert.Equal(t, tc.expectedCachedIgnored, dr.IgnoredObjects())
 		})
 	}
 }

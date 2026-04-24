@@ -17,8 +17,8 @@ package vettesting
 import (
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	"github.com/google/go-cmp/cmp"
-	"kpt.dev/configsync/pkg/status"
 )
 
 // ExpectErrors adds an error to testing if the expected and actual errors don't match.

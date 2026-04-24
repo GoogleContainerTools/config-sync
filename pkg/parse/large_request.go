@@ -15,7 +15,7 @@
 package parse
 
 import (
-	"kpt.dev/configsync/pkg/util"
+	"github.com/GoogleContainerTools/config-sync/pkg/util"
 )
 
 const defaultDenominator = 1

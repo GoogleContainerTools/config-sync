@@ -18,8 +18,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"kpt.dev/configsync/e2e"
-	"kpt.dev/configsync/e2e/nomostest"
+	"github.com/GoogleContainerTools/config-sync/e2e"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
 )
 
 // ValidateEnabled validates that the test cluster has Workload Identity

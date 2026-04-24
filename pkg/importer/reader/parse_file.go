@@ -21,12 +21,12 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/importer"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
-	"kpt.dev/configsync/pkg/importer"
-	"kpt.dev/configsync/pkg/metadata"
 )
 
 func parseFile(path string) ([]*unstructured.Unstructured, error) {

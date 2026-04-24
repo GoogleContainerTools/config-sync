@@ -17,8 +17,8 @@ package status
 import (
 	"fmt"
 
-	v1 "kpt.dev/configsync/pkg/api/configmanagement/v1"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
+	v1 "github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement/v1"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
 )
 
 // FakeMultiError returns a MultiError consisting of fake errors. For use in unit tests

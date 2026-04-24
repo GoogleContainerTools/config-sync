@@ -18,13 +18,13 @@ import (
 	"errors"
 	"testing"
 
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/importer/analyzer/ast"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation/system"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/util/repo"
-	"kpt.dev/configsync/pkg/validate/fileobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation/system"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/util/repo"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/fileobjects"
 )
 
 const notAllowedRepoVersion = "0.0.0"

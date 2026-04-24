@@ -17,7 +17,7 @@ package clusterversion
 import (
 	"testing"
 
-	"kpt.dev/configsync/pkg/testing/testerrors"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testerrors"
 	"sigs.k8s.io/cli-utils/pkg/testutil"
 )
 

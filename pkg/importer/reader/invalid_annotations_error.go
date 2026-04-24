@@ -17,7 +17,7 @@ package reader
 import (
 	"strings"
 
-	"kpt.dev/configsync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

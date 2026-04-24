@@ -22,10 +22,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
-	"kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
 
-	"kpt.dev/configsync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
 )
 
 // StatusWatchNamespace is the namespace for the sync status watch controller.
@@ -41,7 +41,7 @@ const ImagePlaceholder = "SYNC_STATUS_WATCH_CONTROLLER_IMAGE"
 const ManifestPath = "../../examples/post-sync/sync-watch-manifest.yaml"
 
 // TestImage is the image used for testing the sync status watch controller.
-const TestImage = testing.TestInfraArtifactRepositoryAddress + "/sync-status-watch-controller:v1.0.0-ae59aab0"
+const TestImage = testing.TestInfraArtifactRepositoryAddress + "/sync-status-watch-controller:v1.0.0-7824c395"
 
 // SetupSyncStatusWatchController sets up the sync status watch controller in the cluster.
 // It creates the necessary namespace and deploys the controller.

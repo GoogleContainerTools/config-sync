@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	"kpt.dev/configsync/cmd/nomos/status"
+	"github.com/GoogleContainerTools/config-sync/cmd/nomos/status"
 )
 
 func migrateMonoRepo(ctx context.Context, cc *status.ClusterClient, kubeCtx string) error {

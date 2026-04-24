@@ -15,21 +15,21 @@
 package root
 
 import (
-	"context"
 	"testing"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/resourcemap"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/typeresolver"
+	"github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest/fake"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testcontroller"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testmetrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"kpt.dev/configsync/pkg/api/kpt.dev/v1alpha1"
-	"kpt.dev/configsync/pkg/resourcegroup/controllers/resourcemap"
-	"kpt.dev/configsync/pkg/resourcegroup/controllers/typeresolver"
-	"kpt.dev/configsync/pkg/syncer/syncertest/fake"
-	"kpt.dev/configsync/pkg/testing/testcontroller"
 	"sigs.k8s.io/cli-utils/pkg/common"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -46,6 +46,13 @@ const (
 )
 
 func TestRootReconciler(t *testing.T) {
+	// Initialize metrics for this test
+	exporter, err := testmetrics.NewTestExporter()
+	if err != nil {
+		t.Fatalf("Failed to create test exporter: %v", err)
+	}
+	defer exporter.ClearMetrics()
+
 	var reconcilerKpt *Reconciler
 
 	// Configure controller-manager to log to the test logger
@@ -62,9 +69,7 @@ func TestRootReconciler(t *testing.T) {
 	require.NoError(t, err)
 	c := mgr.GetClient()
 
-	// TODO: replace with `ctx := t.Context()` in Go 1.24.0+
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	logger := testLogger.WithName("controllers")
 	reconcilerKpt, err = NewReconciler(mgr, logger.WithName("root"))
@@ -218,12 +223,9 @@ func TestRootReconciler(t *testing.T) {
 		assert.Equal(t, 0, reconcilerKpt.watches.Len())
 	}, 5*time.Second, time.Second)
 
-	// Validate that the Root controller didn't send a channel event
-	select {
-	case e := <-reconcilerKpt.channel:
-		t.Fatalf("expected channel NOT to be sent an event, but got %+v", e)
-	default: // success
-	}
+	// Validate that the Root controller sent a deletion event to the channel
+	// This allows the ResourceGroup controller to clean up metrics
+	waitForEvent(t, reconcilerKpt.channel, 5*time.Second)
 
 	// Validate that the Root controller updated the resMap
 	assert.NotNil(t, reconcilerKpt.resMap)

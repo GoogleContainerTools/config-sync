@@ -20,9 +20,9 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testkubeclient"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"kpt.dev/configsync/e2e/nomostest/testkubeclient"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/kustomize/kyaml/copyutil"
 	"sigs.k8s.io/kustomize/kyaml/filesys"

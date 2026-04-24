@@ -18,14 +18,14 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/reposync"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/util/mutate"
 	"k8s.io/klog/v2"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/reposync"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/util/mutate"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

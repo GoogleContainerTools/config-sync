@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
 	"github.com/ettle/strcase"
 	"k8s.io/apimachinery/pkg/util/validation"
-	"kpt.dev/configsync/e2e/nomostest/testing"
 )
 
 // TestClusterName returns the name of the test cluster.

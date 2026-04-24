@@ -17,13 +17,13 @@
 package discoverytest
 
 import (
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	utildiscovery "github.com/GoogleContainerTools/config-sync/pkg/util/discovery"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/restmapper"
-	"kpt.dev/configsync/pkg/api/configmanagement"
-	"kpt.dev/configsync/pkg/kinds"
-	utildiscovery "kpt.dev/configsync/pkg/util/discovery"
 )
 
 // Client returns a new test DiscoveryClient that has mappings for test and provided resources.

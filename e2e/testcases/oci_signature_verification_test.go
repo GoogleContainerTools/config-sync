@@ -18,19 +18,19 @@ import (
 	"fmt"
 	"testing"
 
-	"kpt.dev/configsync/e2e/nomostest"
-	"kpt.dev/configsync/e2e/nomostest/ntopts"
-	"kpt.dev/configsync/e2e/nomostest/policy"
-	"kpt.dev/configsync/e2e/nomostest/registryproviders"
-	nomostesting "kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/e2e/nomostest/testpredicates"
-	"kpt.dev/configsync/e2e/nomostest/testwatcher"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/ntopts"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/policy"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/registryproviders"
+	nomostesting "github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testpredicates"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testwatcher"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 )
 
 var cosignPassword = map[string]string{
@@ -39,7 +39,7 @@ var cosignPassword = map[string]string{
 
 func TestAddPreSyncAnnotationRepoSync(t *testing.T) {
 	repoSyncID := core.RepoSyncID(configsync.RepoSyncName, namespaceRepo)
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceOCI,
 		ntopts.RequireOCIProvider,
 		ntopts.SyncWithGitSource(repoSyncID),
 		ntopts.RepoSyncPermissions(policy.RBACAdmin(), policy.CoreAdmin()))
@@ -117,7 +117,7 @@ func TestAddPreSyncAnnotationRepoSync(t *testing.T) {
 func TestAddPreSyncAnnotationRootSync(t *testing.T) {
 	rootSyncID := nomostest.DefaultRootSyncID
 	rootSyncKey := rootSyncID.ObjectKey
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceOCI,
 		ntopts.SyncWithGitSource(rootSyncID, ntopts.Unstructured),
 		ntopts.RequireOCIProvider,
 	)

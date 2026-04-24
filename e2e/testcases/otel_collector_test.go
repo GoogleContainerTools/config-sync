@@ -23,26 +23,26 @@ import (
 
 	monitoringv2 "cloud.google.com/go/monitoring/apiv3/v2"
 	"cloud.google.com/go/monitoring/apiv3/v2/monitoringpb"
+	"github.com/GoogleContainerTools/config-sync/e2e"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/iam"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/ntopts"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/retry"
+	nomostesting "github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/workloadidentity"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metrics"
+	csmetrics "github.com/GoogleContainerTools/config-sync/pkg/metrics"
+	rgmetrics "github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/metrics"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"go.uber.org/multierr"
 	"google.golang.org/api/iterator"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"kpt.dev/configsync/e2e"
-	"kpt.dev/configsync/e2e/nomostest"
-	"kpt.dev/configsync/e2e/nomostest/iam"
-	"kpt.dev/configsync/e2e/nomostest/ntopts"
-	"kpt.dev/configsync/e2e/nomostest/retry"
-	nomostesting "kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/e2e/nomostest/workloadidentity"
-	"kpt.dev/configsync/pkg/api/configmanagement"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metrics"
-	csmetrics "kpt.dev/configsync/pkg/metrics"
-	rgmetrics "kpt.dev/configsync/pkg/resourcegroup/controllers/metrics"
 )
 
 const (
@@ -150,13 +150,12 @@ func TestOtelCollectorDeployment(t *testing.T) {
 	nt.Must(rootSyncGitRepo.CommitAndPush("Adding foo namespace"))
 	nt.Must(nt.WatchForAllSyncs())
 
-	nt.T.Log("Watch for metrics in GCM, timeout 2 minutes")
+	nt.T.Log("Watch for default metrics in GCM")
 	ctx := nt.Context
 	client, err := createGCMClient(ctx)
 	if err != nil {
 		nt.T.Fatal(err)
 	}
-	// retry for 2 minutes until metric is accessible from GCM
 	nt.Must(validateMetricTypes(ctx, nt, client, startTime, DefaultGCMMetricTypes))
 
 	nt.T.Log("Checking the otel-collector log contains no failure...")
@@ -237,10 +236,10 @@ func TestGCMMetrics(t *testing.T) {
 
 	nt.T.Log("Apply custom otel-collector ConfigMap that exports full metric list to GCM")
 	nt.MustKubectl("apply", "-f", "../testdata/otel-collector/otel-cm-full-gcm.yaml")
+	nt.Must(nt.Watcher.WatchForCurrentStatus(kinds.Deployment(), csmetrics.OtelCollectorName, configmanagement.MonitoringNamespace))
 
 	startTime := time.Now().UTC()
 
-	nt.T.Log("Watch for full list of metrics in GCM, timeout 2 minutes")
 	ctx := nt.Context
 	client, err := createGCMClient(ctx)
 	if err != nil {
@@ -308,7 +307,7 @@ func TestOtelCollectorGCMLabelAggregation(t *testing.T) {
 		nt.T.Fatal(err)
 	}
 	// retry for 2 minutes until metric is accessible from GCM
-	nt.Must(validateMetricTypes(ctx, nt, client, startTime, metricsWithCommitLabel, metricDoesNotHaveLabel(metrics.KeyCommit.Name())))
+	nt.Must(validateMetricTypes(ctx, nt, client, startTime, metricsWithCommitLabel, metricDoesNotHaveLabel(string(metrics.KeyCommit))))
 }
 
 func setupMetricsServiceAccount(nt *nomostest.NT) {

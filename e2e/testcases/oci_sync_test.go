@@ -22,29 +22,29 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/e2e"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/kustomizecomponents"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/ntopts"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/policy"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/registryproviders"
+	nomostesting "github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testpredicates"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testwatcher"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/oci"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"kpt.dev/configsync/e2e"
-	"kpt.dev/configsync/e2e/nomostest"
-	"kpt.dev/configsync/e2e/nomostest/kustomizecomponents"
-	"kpt.dev/configsync/e2e/nomostest/ntopts"
-	"kpt.dev/configsync/e2e/nomostest/policy"
-	"kpt.dev/configsync/e2e/nomostest/registryproviders"
-	nomostesting "kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/e2e/nomostest/testpredicates"
-	"kpt.dev/configsync/e2e/nomostest/testwatcher"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/oci"
-	"kpt.dev/configsync/pkg/reconcilermanager"
-	"kpt.dev/configsync/pkg/status"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -71,7 +71,7 @@ func gsaGCRReaderEmail() string {
 // It tests Config Sync can pull from public OCI images without any authentication.
 func TestPublicOCI(t *testing.T) {
 	rootSyncID := nomostest.DefaultRootSyncID
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceOCI,
 		ntopts.SyncWithGitSource(rootSyncID, ntopts.Unstructured))
 	var err error
 
@@ -111,11 +111,79 @@ func TestPublicOCI(t *testing.T) {
 	kustomizecomponents.ValidateAllTenants(nt, string(declared.RootScope), "../base", tenant)
 }
 
+// TestOCIARTokenAuth verifies Config Sync can pull an OCI image from a private
+// Artifact Registry with Token auth type.
+//
+// Test pre-requisites:
+//   - Google service account
+//     `e2e-test-ar-reader@${GCP_PROJECT}.iam.gserviceaccount.com` is created
+//     with `roles/artifactregistry.reader` for accessing images in Artifact
+//     Registry.
+//   - A JSON key file is generated for this service account and stored in
+//     Secret Manager
+//
+// Test handles service account key rotation.
+func TestOCIARTokenAuth(t *testing.T) {
+	nt := nomostest.New(t,
+		nomostesting.SyncSourceOCI,
+		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured),
+		ntopts.RequireGKE(t),
+		ntopts.RequireOCIArtifactRegistry(t),
+	)
+	rootSyncID := nomostest.DefaultRootSyncID
+	rootSyncKey := rootSyncID.ObjectKey
+
+	gsaKeySecretID := "config-sync-ci-ar-key"
+	gsaEmail := registryproviders.ArtifactRegistryReaderEmail()
+	gsaName := registryproviders.ArtifactRegistryReaderName
+	gsaKeyFilePath, err := fetchServiceAccountKeyFile(nt, *e2e.GCPProject, gsaKeySecretID, gsaEmail, gsaName)
+	if err != nil {
+		nt.T.Fatal(err)
+	}
+
+	nt.T.Log("Creating kubernetes secret for authentication")
+	_, err = nt.Shell.Kubectl("create", "secret", "generic", "foo",
+		"--namespace", configsync.ControllerNamespace,
+		"--from-literal", "username=_json_key",
+		"--from-file", fmt.Sprintf("password=%s", gsaKeyFilePath))
+	if err != nil {
+		nt.T.Fatalf("failed to create secret, err: %v", err)
+	}
+	nt.T.Cleanup(func() {
+		nt.MustKubectl("delete", "secret", "foo", "-n", configsync.ControllerNamespace, "--ignore-not-found")
+	})
+
+	// OCI image will only contain the bookinfo-admin role
+	bookinfoRole := k8sobjects.RoleObject(core.Name("bookinfo-admin"))
+	image, err := nt.BuildAndPushOCIImage(rootSyncKey, registryproviders.ImageInputObjects(nt.Scheme, bookinfoRole))
+	if err != nil {
+		nt.T.Fatalf("failed to push oci image: %v", err)
+	}
+
+	nt.T.Log("Update RootSync to sync from a private Artifact Registry")
+	rs := nt.RootSyncObjectOCI(configsync.RootSyncName, image.OCIImageID().WithoutDigest(), "", image.Digest)
+	rs.Spec.Oci = &v1beta1.Oci{
+		Image: rs.Spec.Oci.Image,
+		Auth:  configsync.AuthToken,
+		SecretRef: &v1beta1.SecretReference{
+			Name: "foo",
+		},
+		Period: metav1.Duration{Duration: 5 * time.Second},
+	}
+	nt.Must(nt.KubeClient.Apply(rs))
+
+	nt.T.Log("Wait for RootSync to sync from an oci image chart")
+	nt.Must(nt.WatchForAllSyncs())
+
+	nt.T.Log("Validate Role from OCI image exists")
+	nt.Must(nt.Validate(bookinfoRole.Name, "default", &rbacv1.Role{}))
+}
+
 func TestSwitchFromGitToOciCentralized(t *testing.T) {
 	namespace := testNs
 	rootSyncID := nomostest.DefaultRootSyncID
 	repoSyncID := core.RepoSyncID(configsync.RepoSyncName, namespace)
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceOCI,
 		ntopts.RequireOCIProvider,
 		ntopts.SyncWithGitSource(rootSyncID, ntopts.Unstructured),
 		ntopts.SyncWithGitSource(repoSyncID),
@@ -168,7 +236,7 @@ func TestSwitchFromGitToOciCentralized(t *testing.T) {
 func TestSwitchFromGitToOciDelegated(t *testing.T) {
 	namespace := testNs
 	repoSyncID := core.RepoSyncID(configsync.RepoSyncName, namespace)
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceOCI,
 		ntopts.WithDelegatedControl, ntopts.RequireOCIProvider,
 		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured),
 		ntopts.SyncWithGitSource(repoSyncID),
@@ -245,7 +313,7 @@ func isSourceType(sourceType configsync.SourceType) testpredicates.Predicate {
 func TestOciSyncWithDigest(t *testing.T) {
 	rootSyncID := nomostest.DefaultRootSyncID
 	rootSyncKey := rootSyncID.ObjectKey
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceOCI,
 		ntopts.SyncWithGitSource(rootSyncID, ntopts.Unstructured),
 		ntopts.RequireOCIProvider,
 	)
@@ -301,6 +369,57 @@ func TestOciSyncWithDigest(t *testing.T) {
 	if err == nil {
 		nt.T.Fatal("expected no source error code but found one")
 	}
+}
+
+// TestOCILocalRegistryTokenAuth can run only run on KinD clusters.
+// It tests RootSync can pull from a private OCI registry using basic auth.
+func TestOCILocalRegistryTokenAuth(t *testing.T) {
+	rootSyncID := nomostest.DefaultRootSyncID
+	nt := nomostest.New(t, nomostesting.SyncSourceOCI,
+		ntopts.SyncWithGitSource(rootSyncID, ntopts.Unstructured),
+		ntopts.RequireLocalOCIProvider)
+
+	nt.T.Log("Create OCI credentials secret")
+	secretName := "oci-creds"
+	secret := k8sobjects.SecretObject(
+		secretName,
+		core.Namespace(configsync.ControllerNamespace),
+	)
+	secret.Type = corev1.SecretTypeBasicAuth
+	secret.StringData = map[string]string{
+		corev1.BasicAuthUsernameKey: nomostest.RegistryUsername,
+		corev1.BasicAuthPasswordKey: nomostest.RegistryPassword,
+	}
+	nt.Must(nt.KubeClient.Create(secret))
+	nt.T.Cleanup(func() {
+		nt.Must(nt.KubeClient.Delete(secret))
+	})
+
+	// OCI image will only contain the bookinfo-admin role
+	bookinfoRole := k8sobjects.RoleObject(core.Name("bookinfo-admin"))
+	image, err := nt.BuildAndPushOCIImage(rootSyncID.ObjectKey, registryproviders.ImageInputObjects(nt.Scheme, bookinfoRole))
+	if err != nil {
+		nt.T.Fatalf("failed to push oci image: %v", err)
+	}
+
+	// Get the image URL and replace the registry address with the authenticated one
+	authImageID := image.OCIImageID().WithoutDigest()
+	authImageID.Registry = fmt.Sprintf("%s.%s", nomostest.TestRegistryServerAuthenticated, nomostest.TestRegistryNamespace)
+
+	nt.T.Log("Set the RootSync to sync from the authenticated registry without providing credentials")
+	rs := nt.RootSyncObjectOCI(rootSyncID.Name, authImageID, "", image.Digest)
+	rs.Spec.Oci.Auth = configsync.AuthNone
+	nt.Must(nt.KubeClient.Apply(rs))
+	nt.Must(nt.Watcher.WatchForRootSyncSourceError(rootSyncID.Name, status.SourceErrorCode, "Authorization Required"))
+
+	nt.T.Log("Set the RootSync to sync from the authenticated registry with credentials")
+	nt.MustMergePatch(rs, fmt.Sprintf(`{"spec": {"oci": {"auth": "token", "secretRef": {"name": "%s"}}}}`,
+		secretName))
+
+	nt.Must(nt.WatchForAllSyncs())
+
+	nt.T.Log("Validate Role from OCI image exists")
+	nt.Must(nt.Validate(bookinfoRole.Name, "default", &rbacv1.Role{}))
 }
 
 /*

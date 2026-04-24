@@ -20,21 +20,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
+	nomostesting "github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testpredicates"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testresourcegroup"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testutils"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testwatcher"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup"
 	"k8s.io/apimachinery/pkg/types"
-	"kpt.dev/configsync/e2e/nomostest"
-	nomostesting "kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/e2e/nomostest/testpredicates"
-	"kpt.dev/configsync/e2e/nomostest/testresourcegroup"
-	"kpt.dev/configsync/e2e/nomostest/testutils"
-	"kpt.dev/configsync/e2e/nomostest/testwatcher"
-	"kpt.dev/configsync/pkg/api/configmanagement"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/api/kpt.dev/v1alpha1"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/reconcilermanager"
-	"kpt.dev/configsync/pkg/resourcegroup"
 )
 
 func TestResourceGroupController(t *testing.T) {
@@ -527,23 +527,28 @@ func TestResourceGroupApplyStatus(t *testing.T) {
 	rg = &v1alpha1.ResourceGroup{}
 	nt.Must(nt.KubeClient.Get(rgNN.Name, rgNN.Namespace, rg))
 	rg.Status.ResourceStatuses = nil
+	// track resourceVersion to make sure the watch doesn't accept a stale object
+	resourceVersion := rg.ResourceVersion
 	nt.Must(nt.KubeClient.UpdateStatus(rg))
 
 	nt.T.Log("Wait for the ResourceGroup controller to update the ResourceGroup status")
 	nt.Must(nt.Watcher.WatchObject(kinds.ResourceGroup(), rgNN.Name, rgNN.Namespace,
 		testwatcher.WatchPredicates(
 			testpredicates.ResourceGroupStatusEquals(expectedStatus),
+			testpredicates.ResourceVersionNotEquals(nt.Scheme, resourceVersion),
 		)))
 
 	rg = &v1alpha1.ResourceGroup{}
 	nt.Must(nt.KubeClient.Get(rgNN.Name, rgNN.Namespace, rg))
-	resourceVersion := rg.ResourceVersion
+	resourceVersion = rg.ResourceVersion
 
 	nt.T.Log("Wait 60s to validate that the ResourceGroup controller doesn't make any more updates (no resourceVersion change)")
 	err := nt.Watcher.WatchObject(kinds.ResourceGroup(), rgNN.Name, rgNN.Namespace,
 		testwatcher.WatchPredicates(
 			testpredicates.ResourceVersionNotEquals(nt.Scheme, resourceVersion),
-		), testwatcher.WatchTimeout(60*time.Second))
+		),
+		testwatcher.WatchTimeout(60*time.Second),
+		testwatcher.AlwaysLogDiff()) // Always log diff since no updates are expected. This helps with debugging.
 	if err == nil {
 		nt.T.Fatal("expected ResourceGroup ResourceVersion to not change")
 	}

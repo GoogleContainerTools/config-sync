@@ -19,24 +19,17 @@ package kmetrics
 import (
 	"context"
 
-	"go.opencensus.io/stats"
-	"go.opencensus.io/tag"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"k8s.io/klog/v2"
-)
-
-var (
-	keyFieldName, _              = tag.NewKey("field_name")
-	keyDeprecatingField, _       = tag.NewKey("deprecating_field")
-	keySimplificationAdoption, _ = tag.NewKey("simplification_field")
-	keyK8sMetadata, _            = tag.NewKey("k8s_metadata_transformer")
-	keyHelmMetrics, _            = tag.NewKey("helm_inflator")
-	keyBaseCount, _              = tag.NewKey("base_source")
-	keyPatchCount, _             = tag.NewKey("patch_field")
-	keyTopTierCount, _           = tag.NewKey("top_tier_field")
 )
 
 // RecordKustomizeFieldCountData records all data relevant to the kustomization's field counts
 func RecordKustomizeFieldCountData(ctx context.Context, fieldCountData *KustomizeFieldMetrics) {
+
+	klog.V(5).Infof("METRIC DEBUG: Recording KustomizeFieldCountData - FieldCount: %d, DeprecationMetrics: %d, SimplMetrics: %d",
+		len(fieldCountData.FieldCount), len(fieldCountData.DeprecationMetrics), len(fieldCountData.SimplMetrics))
+
 	recordKustomizeFieldCount(ctx, fieldCountData.FieldCount)
 	recordKustomizeDeprecatingFields(ctx, fieldCountData.DeprecationMetrics)
 	recordKustomizeSimplification(ctx, fieldCountData.SimplMetrics)
@@ -47,85 +40,94 @@ func RecordKustomizeFieldCountData(ctx context.Context, fieldCountData *Kustomiz
 	recordKustomizeTopTierMetrics(ctx, fieldCountData.TopTierCount)
 }
 
-func record(ctx context.Context, ms ...stats.Measurement) {
-	stats.Record(ctx, ms...)
-	if klog.V(5).Enabled() {
-		for _, m := range ms {
-			klog.Infof("Metric recorded: { \"Name\": %q, \"Value\": %#v, \"Tags\": %s }", m.Measure().Name(), m.Value(), tag.FromContext(ctx))
-		}
-	}
-}
-
 // RecordKustomizeResourceCount produces measurement for KustomizeResourceCount view
 func RecordKustomizeResourceCount(ctx context.Context, resourceCount int) {
-	record(ctx, KustomizeResourceCount.M(int64(resourceCount)))
+	klog.V(5).Infof("METRIC DEBUG: Recording KustomizeResourceCount: resourceCount=%d", resourceCount)
+	KustomizeResourceCount.Record(ctx, int64(resourceCount))
 }
 
 // RecordKustomizeExecutionTime produces measurement for KustomizeExecutionTime view
 func RecordKustomizeExecutionTime(ctx context.Context, executionTime float64) {
-	record(ctx, KustomizeExecutionTime.M(executionTime))
+	klog.V(5).Infof("METRIC DEBUG: Recording KustomizeExecutionTime: executionTime=%.3fs", executionTime)
+	KustomizeExecutionTime.Record(ctx, executionTime)
 }
 
 // recordKustomizeFieldCount produces measurement for KustomizeFieldCount view
 func recordKustomizeFieldCount(ctx context.Context, fieldCount map[string]int) {
 	for field, count := range fieldCount {
-		tagCtx, _ := tag.New(ctx, tag.Upsert(keyFieldName, field))
-		record(tagCtx, KustomizeFieldCount.M(int64(count)))
+		attrs := []attribute.KeyValue{
+			KeyFieldName.String(field),
+		}
+		KustomizeFieldCount.Record(ctx, int64(count), metric.WithAttributes(attrs...))
 	}
 }
 
 // recordKustomizeDeprecatingFields produces measurement for KustomizeDeprecatingMetrics view
 func recordKustomizeDeprecatingFields(ctx context.Context, deprecationMetrics map[string]int) {
 	for field, count := range deprecationMetrics {
-		tagCtx, _ := tag.New(ctx, tag.Upsert(keyDeprecatingField, field))
-		record(tagCtx, KustomizeDeprecatingFields.M(int64(count)))
+		attrs := []attribute.KeyValue{
+			KeyDeprecatingField.String(field),
+		}
+		KustomizeDeprecatingFields.Record(ctx, int64(count), metric.WithAttributes(attrs...))
 	}
 }
 
 // recordKustomizeSimplification produces measurement for KustomizeSimplification view
 func recordKustomizeSimplification(ctx context.Context, simplMetrics map[string]int) {
 	for field, count := range simplMetrics {
-		tagCtx, _ := tag.New(ctx, tag.Upsert(keySimplificationAdoption, field))
-		record(tagCtx, KustomizeSimplification.M(int64(count)))
+		attrs := []attribute.KeyValue{
+			KeySimplificationField.String(field),
+		}
+		KustomizeSimplification.Record(ctx, int64(count), metric.WithAttributes(attrs...))
 	}
 }
 
 // recordKustomizeK8sMetadata produces measurement for KustomizeK8sMetadata view
 func recordKustomizeK8sMetadata(ctx context.Context, k8sMetadata map[string]int) {
 	for field, count := range k8sMetadata {
-		tagCtx, _ := tag.New(ctx, tag.Upsert(keyK8sMetadata, field))
-		record(tagCtx, KustomizeK8sMetadata.M(int64(count)))
+		attrs := []attribute.KeyValue{
+			KeyK8sMetadataTransformer.String(field),
+		}
+		KustomizeK8sMetadata.Record(ctx, int64(count), metric.WithAttributes(attrs...))
 	}
 }
 
 // recordKustomizeHelmMetrics produces measurement for KustomizeHelmMetrics view
 func recordKustomizeHelmMetrics(ctx context.Context, helmMetrics map[string]int) {
 	for helmInflator, count := range helmMetrics {
-		tagCtx, _ := tag.New(ctx, tag.Upsert(keyHelmMetrics, helmInflator))
-		record(tagCtx, KustomizeHelmMetrics.M(int64(count)))
+		attrs := []attribute.KeyValue{
+			KeyHelmInflator.String(helmInflator),
+		}
+		KustomizeHelmMetrics.Record(ctx, int64(count), metric.WithAttributes(attrs...))
 	}
 }
 
 // recordKustomizeBaseCount produces measurement for KustomizeBaseCount view
 func recordKustomizeBaseCount(ctx context.Context, baseCount map[string]int) {
 	for baseSource, count := range baseCount {
-		tagCtx, _ := tag.New(ctx, tag.Upsert(keyBaseCount, baseSource))
-		record(tagCtx, KustomizeBaseCount.M(int64(count)))
+		attrs := []attribute.KeyValue{
+			KeyBaseSource.String(baseSource),
+		}
+		KustomizeBaseCount.Record(ctx, int64(count), metric.WithAttributes(attrs...))
 	}
 }
 
 // recordKustomizePatchCount produces measurement for KustomizePatchCount view
 func recordKustomizePatchCount(ctx context.Context, patchCount map[string]int) {
 	for patchType, count := range patchCount {
-		tagCtx, _ := tag.New(ctx, tag.Upsert(keyPatchCount, patchType))
-		record(tagCtx, KustomizePatchCount.M(int64(count)))
+		attrs := []attribute.KeyValue{
+			KeyPatchField.String(patchType),
+		}
+		KustomizePatchCount.Record(ctx, int64(count), metric.WithAttributes(attrs...))
 	}
 }
 
 // recordKustomizeTopTierMetrics produces measurement for KustomizeTopTierMetrics view
 func recordKustomizeTopTierMetrics(ctx context.Context, topTierCount map[string]int) {
 	for field, count := range topTierCount {
-		tagCtx, _ := tag.New(ctx, tag.Upsert(keyTopTierCount, field))
-		record(tagCtx, KustomizeTopTierMetrics.M(int64(count)))
+		attrs := []attribute.KeyValue{
+			KeyTopTierField.String(field),
+		}
+		KustomizeTopTierMetrics.Record(ctx, int64(count), metric.WithAttributes(attrs...))
 	}
 }

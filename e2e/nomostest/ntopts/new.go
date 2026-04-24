@@ -15,9 +15,9 @@
 package ntopts
 
 import (
+	"github.com/GoogleContainerTools/config-sync/e2e"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
 	"k8s.io/client-go/rest"
-	"kpt.dev/configsync/e2e"
-	"kpt.dev/configsync/e2e/nomostest/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -155,6 +155,14 @@ func RequireKind(t testing.NTB) Opt {
 func RequireCloudSourceRepository(t testing.NTB) Opt {
 	if *e2e.GitProvider != e2e.CSR {
 		t.Skip("The --git-provider flag must be set to `csr` to run this test.")
+	}
+	return func(_ *New) {}
+}
+
+// RequireSecureSourceManagerRepository requires the --git-provider flag to be set to ssm
+func RequireSecureSourceManagerRepository(t testing.NTB) Opt {
+	if *e2e.GitProvider != e2e.SSM {
+		t.Skip("The --git-provider flag must be set to `ssm` to run this test.")
 	}
 	return func(_ *New) {}
 }

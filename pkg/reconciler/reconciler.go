@@ -19,36 +19,36 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/applier"
+	"github.com/GoogleContainerTools/config-sync/pkg/applyset"
+	"github.com/GoogleContainerTools/config-sync/pkg/client/restconfig"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem/cmpath"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/reader"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/parse"
+	"github.com/GoogleContainerTools/config-sync/pkg/parse/events"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconciler/finalizer"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconciler/namespacecontroller"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager/controllers"
+	"github.com/GoogleContainerTools/config-sync/pkg/remediator"
+	"github.com/GoogleContainerTools/config-sync/pkg/remediator/conflict"
+	"github.com/GoogleContainerTools/config-sync/pkg/remediator/watch"
+	syncerclient "github.com/GoogleContainerTools/config-sync/pkg/syncer/client"
+	"github.com/GoogleContainerTools/config-sync/pkg/syncer/metrics"
+	"github.com/GoogleContainerTools/config-sync/pkg/syncer/reconcile"
+	"github.com/GoogleContainerTools/config-sync/pkg/syncer/reconcile/fight"
+	"github.com/GoogleContainerTools/config-sync/pkg/util"
+	utilwatch "github.com/GoogleContainerTools/config-sync/pkg/util/watch"
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/applier"
-	"kpt.dev/configsync/pkg/applyset"
-	"kpt.dev/configsync/pkg/client/restconfig"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/importer/filesystem"
-	"kpt.dev/configsync/pkg/importer/filesystem/cmpath"
-	"kpt.dev/configsync/pkg/importer/reader"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/parse"
-	"kpt.dev/configsync/pkg/parse/events"
-	"kpt.dev/configsync/pkg/reconciler/finalizer"
-	"kpt.dev/configsync/pkg/reconciler/namespacecontroller"
-	"kpt.dev/configsync/pkg/reconcilermanager/controllers"
-	"kpt.dev/configsync/pkg/remediator"
-	"kpt.dev/configsync/pkg/remediator/conflict"
-	"kpt.dev/configsync/pkg/remediator/watch"
-	syncerclient "kpt.dev/configsync/pkg/syncer/client"
-	"kpt.dev/configsync/pkg/syncer/metrics"
-	"kpt.dev/configsync/pkg/syncer/reconcile"
-	"kpt.dev/configsync/pkg/syncer/reconcile/fight"
-	"kpt.dev/configsync/pkg/util"
-	utilwatch "kpt.dev/configsync/pkg/util/watch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -149,7 +149,6 @@ type RootOptions struct {
 func Run(opts Options) {
 	// Start listening to signals
 	signalCtx := signals.SetupSignalHandler()
-	fight.SetFightThreshold(opts.FightDetectionThreshold)
 
 	// Get a config to talk to the apiserver.
 	apiServerTimeout, err := time.ParseDuration(opts.APIServerTimeout)
@@ -190,7 +189,7 @@ func Run(opts Options) {
 	// Configure the Applier.
 	applySetID := applyset.IDFromSync(opts.SyncName, opts.ReconcilerScope)
 	genericClient := syncerclient.New(cl, metrics.APICallDuration)
-	baseApplier, err := reconcile.NewApplierForMultiRepo(cfg, genericClient, applySetID)
+	baseApplier, err := reconcile.NewApplierForMultiRepo(cfg, genericClient, applySetID, opts.FightDetectionThreshold)
 	if err != nil {
 		klog.Fatalf("Instantiating Applier: %v", err)
 	}

@@ -15,9 +15,9 @@
 package fake
 
 import (
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/syncer/reconcile/fight"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/syncer/reconcile/fight"
 )
 
 // FightHandler is a fake implementation of fight.Handler.

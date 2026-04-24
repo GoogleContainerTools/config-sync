@@ -24,6 +24,31 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/e2e"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/gitproviders"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/metrics"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/ntopts"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/registryproviders"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/syncsource"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/taskgroup"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testpredicates"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testwatcher"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1alpha1"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	"github.com/GoogleContainerTools/config-sync/pkg/applier"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem/cmpath"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/reader"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	ocmetrics "github.com/GoogleContainerTools/config-sync/pkg/metrics"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager/controllers"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/rsync/validate"
+	webhookconfig "github.com/GoogleContainerTools/config-sync/pkg/webhook/configuration"
 	"go.uber.org/multierr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -33,31 +58,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"kpt.dev/configsync/e2e"
-	"kpt.dev/configsync/e2e/nomostest/gitproviders"
-	"kpt.dev/configsync/e2e/nomostest/metrics"
-	"kpt.dev/configsync/e2e/nomostest/ntopts"
-	"kpt.dev/configsync/e2e/nomostest/registryproviders"
-	"kpt.dev/configsync/e2e/nomostest/syncsource"
-	"kpt.dev/configsync/e2e/nomostest/taskgroup"
-	"kpt.dev/configsync/e2e/nomostest/testpredicates"
-	"kpt.dev/configsync/e2e/nomostest/testwatcher"
-	"kpt.dev/configsync/pkg/api/configmanagement"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/api/configsync/v1alpha1"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	"kpt.dev/configsync/pkg/applier"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/importer/filesystem/cmpath"
-	"kpt.dev/configsync/pkg/importer/reader"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metadata"
-	ocmetrics "kpt.dev/configsync/pkg/metrics"
-	"kpt.dev/configsync/pkg/reconcilermanager"
-	"kpt.dev/configsync/pkg/reconcilermanager/controllers"
-	"kpt.dev/configsync/pkg/validate/rsync/validate"
-	webhookconfig "kpt.dev/configsync/pkg/webhook/configuration"
 	kstatus "sigs.k8s.io/cli-utils/pkg/kstatus/status"
 	"sigs.k8s.io/cli-utils/pkg/object/dependson"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -76,6 +76,16 @@ const (
 	// shortSyncPollingPeriod is the default override for the git-sync/oci-sync
 	// polling period used by tests. Using a shorter period speeds up the e2e tests.
 	shortSyncPollingPeriod = 5 * time.Second
+)
+
+// InstallMethod defines how Config Sync should be installed
+type InstallMethod string
+
+const (
+	// InstallMethodApply uses server-side apply (default)
+	InstallMethodApply InstallMethod = "apply"
+	// InstallMethodUpdate uses client-side update
+	InstallMethodUpdate InstallMethod = "update"
 )
 
 var (
@@ -230,16 +240,36 @@ func parseConfigSyncManifests(nt *NT) ([]client.Object, error) {
 }
 
 // InstallConfigSync installs ConfigSync on the test cluster
-func InstallConfigSync(nt *NT) error {
-	nt.T.Log("[SETUP] Installing Config Sync")
+func InstallConfigSync(nt *NT, method InstallMethod) error {
+	nt.T.Log("[SETUP] Installing Config Sync using method: ", method)
 	objs, err := parseConfigSyncManifests(nt)
 	if err != nil {
 		return err
 	}
 	for _, o := range objs {
 		nt.T.Logf("installConfigSync obj: %v", core.GKNN(o))
-		if err := nt.KubeClient.Apply(o); err != nil {
-			return err
+		switch method {
+		case InstallMethodApply:
+			if err := nt.KubeClient.Apply(o); err != nil {
+				return err
+			}
+		case InstallMethodUpdate:
+			currentObj := o.DeepCopyObject().(client.Object)
+			if err := nt.KubeClient.Get(currentObj.GetName(), currentObj.GetNamespace(), currentObj); err != nil {
+				if apierrors.IsNotFound(err) {
+					if err := nt.KubeClient.Create(o); err != nil {
+						return err
+					}
+				} else {
+					return err
+				}
+			} else {
+				// Attach existing resourceVersion to the object
+				o.SetResourceVersion(currentObj.GetResourceVersion())
+				if err := nt.KubeClient.Update(o); err != nil {
+					return err
+				}
+			}
 		}
 	}
 	return nil
@@ -773,6 +803,9 @@ func rootSyncObjectV1Alpha1Git(name, repoURL string, sourceFormat configsync.Sou
 			rs.Spec.Git.Auth = configsync.AuthGCPServiceAccount
 			rs.Spec.Git.GCPServiceAccountEmail = gitproviders.CSRReaderEmail()
 		}
+	case e2e.SSM:
+		rs.Spec.Git.Auth = configsync.AuthGCPServiceAccount
+		rs.Spec.Git.GCPServiceAccountEmail = gitproviders.SSMServiceAccountEmail()
 	default:
 		rs.Spec.Git.Auth = configsync.AuthSSH
 		rs.Spec.Git.SecretRef = &v1alpha1.SecretReference{
@@ -821,6 +854,9 @@ func rootSyncObjectV1Beta1Git(name, repoURL string, branch, revision, syncPath s
 			rs.Spec.Git.Auth = configsync.AuthGCPServiceAccount
 			rs.Spec.Git.GCPServiceAccountEmail = gitproviders.CSRReaderEmail()
 		}
+	case e2e.SSM:
+		rs.Spec.Git.Auth = configsync.AuthGCPServiceAccount
+		rs.Spec.Git.GCPServiceAccountEmail = gitproviders.SSMServiceAccountEmail()
 	default:
 		rs.Spec.Git.Auth = configsync.AuthSSH
 		rs.Spec.Git.SecretRef = &v1beta1.SecretReference{
@@ -889,6 +925,9 @@ func repoSyncObjectV1Alpha1Git(nn types.NamespacedName, repoURL string) *v1alpha
 			rs.Spec.Git.Auth = configsync.AuthGCPServiceAccount
 			rs.Spec.Git.GCPServiceAccountEmail = gitproviders.CSRReaderEmail()
 		}
+	case e2e.SSM:
+		rs.Spec.Git.Auth = configsync.AuthGCPServiceAccount
+		rs.Spec.Git.GCPServiceAccountEmail = gitproviders.SSMServiceAccountEmail()
 	default:
 		rs.Spec.Git.Auth = configsync.AuthSSH
 		rs.Spec.Git.SecretRef = &v1alpha1.SecretReference{
@@ -939,6 +978,9 @@ func repoSyncObjectV1Beta1Git(nn types.NamespacedName, repoURL, branch, revision
 			rs.Spec.Git.Auth = configsync.AuthGCPServiceAccount
 			rs.Spec.Git.GCPServiceAccountEmail = gitproviders.CSRReaderEmail()
 		}
+	case e2e.SSM:
+		rs.Spec.Git.Auth = configsync.AuthGCPServiceAccount
+		rs.Spec.Git.GCPServiceAccountEmail = gitproviders.SSMServiceAccountEmail()
 	default:
 		rs.Spec.Git.Auth = configsync.AuthSSH
 		rs.Spec.Git.SecretRef = &v1beta1.SecretReference{
@@ -1396,6 +1438,23 @@ func podHasReadyCondition(conditions []corev1.PodCondition) bool {
 		}
 	}
 	return false
+}
+
+// ValidatePodByLabel validates that all Pods matching the provided label pass the
+// provided list of predicates.
+func ValidatePodByLabel(nt *NT, label, value string, predicates ...testpredicates.Predicate) error {
+	newPods := &corev1.PodList{}
+	if err := nt.KubeClient.List(newPods, client.InNamespace(configmanagement.ControllerNamespace), client.MatchingLabels{label: value}); err != nil {
+		return err
+	}
+	tg := taskgroup.New()
+	for _, pod := range newPods.Items {
+		po := pod
+		tg.Go(func() error {
+			return nt.Validate(po.Name, po.Namespace, &corev1.Pod{}, predicates...)
+		})
+	}
+	return tg.Wait()
 }
 
 // NewPodReady checks if the new created pods are ready.

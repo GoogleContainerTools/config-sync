@@ -19,11 +19,11 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
+	nomostesting "github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"kpt.dev/configsync/e2e/nomostest"
-	nomostesting "kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
 )
 
 func TestChangeCustomResourceDefinitionSchema(t *testing.T) {

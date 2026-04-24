@@ -15,8 +15,8 @@
 package v1alpha1
 
 import (
+	v1beta1 "github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
 	conversion "k8s.io/apimachinery/pkg/conversion"
-	v1beta1 "kpt.dev/configsync/pkg/api/configsync/v1beta1"
 )
 
 // Convert_v1beta1_HelmRootSync_To_v1alpha1_HelmRootSync converts HelmRootSync

@@ -18,18 +18,18 @@ import (
 	"strings"
 	"testing"
 
-	"kpt.dev/configsync/e2e/nomostest"
-	"kpt.dev/configsync/e2e/nomostest/ntopts"
-	nomostesting "kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/e2e/nomostest/testpredicates"
-	"kpt.dev/configsync/e2e/nomostest/testwatcher"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metrics"
-	"kpt.dev/configsync/pkg/reconcilermanager"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/ntopts"
+	nomostesting "github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testpredicates"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testwatcher"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metrics"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
 )
 
 func TestOverrideRootSyncLogLevel(t *testing.T) {
@@ -107,15 +107,15 @@ func TestOverrideRootSyncLogLevel(t *testing.T) {
 
 	// try invalid log level value
 	maxError := "logLevel in body should be less than or equal to 10"
-	minError := "logLevel in body should be greater than or equal to 0"
+	minError := "logLevel in body should be greater than or equal to -10"
 
 	err := nt.KubeClient.MergePatch(rootSyncV1, `{"spec": {"override": {"logLevels": [{"containerName": "reconciler", "logLevel": 13}]}}}`)
 	if !strings.Contains(err.Error(), maxError) {
 		nt.T.Fatalf("Expecting invalid value error: %q, got %s", maxError, err.Error())
 	}
 
-	err = nt.KubeClient.MergePatch(rootSyncV1, `{"spec": {"override": {"logLevels": [{"containerName": "reconciler", "logLevel": -3}]}}}`)
-	if !strings.Contains(err.Error(), minError) {
+	err = nt.KubeClient.MergePatch(rootSyncV1, `{"spec": {"override": {"logLevels": [{"containerName": "reconciler", "logLevel": -13}]}}}`)
+	if err == nil || !strings.Contains(err.Error(), minError) {
 		nt.T.Fatalf("Expecting invalid value error: %q, got %s", minError, err.Error())
 	}
 }

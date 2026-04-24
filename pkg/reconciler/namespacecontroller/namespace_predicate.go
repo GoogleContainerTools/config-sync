@@ -15,9 +15,9 @@
 package namespacecontroller
 
 import (
+	"github.com/GoogleContainerTools/config-sync/pkg/syncer/differ"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
-	"kpt.dev/configsync/pkg/syncer/differ"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"

@@ -15,10 +15,10 @@
 package validate
 
 import (
-	"kpt.dev/configsync/pkg/importer/analyzer/validation/syntax"
-	"kpt.dev/configsync/pkg/importer/id"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/validate/fileobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation/syntax"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/id"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/fileobjects"
 )
 
 // DisallowedFields verifies if the given Raw objects contain any fields which

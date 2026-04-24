@@ -20,8 +20,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
 	corev1 "k8s.io/api/core/v1"
-	"kpt.dev/configsync/pkg/api/configsync"
 )
 
 const (

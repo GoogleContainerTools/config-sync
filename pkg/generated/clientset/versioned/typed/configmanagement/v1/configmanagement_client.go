@@ -5,29 +5,22 @@ package v1
 import (
 	http "net/http"
 
+	configmanagementv1 "github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement/v1"
+	scheme "github.com/GoogleContainerTools/config-sync/pkg/generated/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
-	configmanagementv1 "kpt.dev/configsync/pkg/api/configmanagement/v1"
-	scheme "kpt.dev/configsync/pkg/generated/clientset/versioned/scheme"
 )
 
 type ConfigmanagementV1Interface interface {
 	RESTClient() rest.Interface
-	ClusterConfigsGetter
 	ClusterSelectorsGetter
 	HierarchyConfigsGetter
-	NamespaceConfigsGetter
 	NamespaceSelectorsGetter
 	ReposGetter
-	SyncsGetter
 }
 
 // ConfigmanagementV1Client is used to interact with features provided by the configmanagement.gke.io group.
 type ConfigmanagementV1Client struct {
 	restClient rest.Interface
-}
-
-func (c *ConfigmanagementV1Client) ClusterConfigs() ClusterConfigInterface {
-	return newClusterConfigs(c)
 }
 
 func (c *ConfigmanagementV1Client) ClusterSelectors() ClusterSelectorInterface {
@@ -38,20 +31,12 @@ func (c *ConfigmanagementV1Client) HierarchyConfigs() HierarchyConfigInterface {
 	return newHierarchyConfigs(c)
 }
 
-func (c *ConfigmanagementV1Client) NamespaceConfigs() NamespaceConfigInterface {
-	return newNamespaceConfigs(c)
-}
-
 func (c *ConfigmanagementV1Client) NamespaceSelectors() NamespaceSelectorInterface {
 	return newNamespaceSelectors(c)
 }
 
 func (c *ConfigmanagementV1Client) Repos() RepoInterface {
 	return newRepos(c)
-}
-
-func (c *ConfigmanagementV1Client) Syncs() SyncInterface {
-	return newSyncs(c)
 }
 
 // NewForConfig creates a new ConfigmanagementV1Client for the given config.

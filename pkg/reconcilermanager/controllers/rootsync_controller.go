@@ -23,6 +23,21 @@ import (
 	"sync"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	hubv1 "github.com/GoogleContainerTools/config-sync/pkg/api/hub/v1"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/metrics"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
+	"github.com/GoogleContainerTools/config-sync/pkg/rootsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/util/compare"
+	"github.com/GoogleContainerTools/config-sync/pkg/util/mutate"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/rsync/validate"
+	webhookconfiguration "github.com/GoogleContainerTools/config-sync/pkg/webhook/configuration"
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
@@ -36,21 +51,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	hubv1 "kpt.dev/configsync/pkg/api/hub/v1"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/metrics"
-	"kpt.dev/configsync/pkg/reconcilermanager"
-	"kpt.dev/configsync/pkg/rootsync"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/util/compare"
-	"kpt.dev/configsync/pkg/util/mutate"
-	"kpt.dev/configsync/pkg/validate/rsync/validate"
-	webhookconfiguration "kpt.dev/configsync/pkg/webhook/configuration"
 	kstatus "sigs.k8s.io/cli-utils/pkg/kstatus/status"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -669,7 +669,7 @@ func (r *RootSyncReconciler) mapSecretToRootSyncs(ctx context.Context, secret cl
 		switch sRef.Name {
 		case rootSyncGitSecretName(&rs), rootSyncGitCACertSecretName(&rs),
 			rootSyncOCICACertSecretName(&rs), rootSyncHelmCACertSecretName(&rs),
-			rootSyncHelmSecretName(&rs):
+			rootSyncOCISecretName(&rs), rootSyncHelmSecretName(&rs):
 			attachedRSNames = append(attachedRSNames, rs.GetName())
 			requests = append(requests, reconcile.Request{
 				NamespacedName: client.ObjectKeyFromObject(&rs),
@@ -746,6 +746,19 @@ func rootSyncHelmSecretName(rs *v1beta1.RootSync) string {
 		return ""
 	}
 	return rs.Spec.Helm.SecretRef.Name
+}
+
+func rootSyncOCISecretName(rs *v1beta1.RootSync) string {
+	if rs == nil {
+		return ""
+	}
+	if rs.Spec.Oci == nil {
+		return ""
+	}
+	if rs.Spec.Oci.SecretRef == nil {
+		return ""
+	}
+	return rs.Spec.Oci.SecretRef.Name
 }
 
 func (r *RootSyncReconciler) populateContainerEnvs(ctx context.Context, rs *v1beta1.RootSync, reconcilerName string) (map[string][]corev1.EnvVar, error) {
@@ -1115,6 +1128,7 @@ func (r *RootSyncReconciler) mutationsFor(ctx context.Context, rs *v1beta1.RootS
 		case configsync.OciSource:
 			auth = rs.Spec.Oci.Auth
 			gcpSAEmail = rs.Spec.Oci.GCPServiceAccountEmail
+			secretRefName = v1beta1.GetSecretName(rs.Spec.Oci.SecretRef)
 			caCertSecretRefName = v1beta1.GetSecretName(rs.Spec.Oci.CACertSecretRef)
 		case configsync.HelmSource:
 			auth = rs.Spec.Helm.Auth
@@ -1191,6 +1205,9 @@ func (r *RootSyncReconciler) mutationsFor(ctx context.Context, rs *v1beta1.RootS
 				} else {
 					container.Env = append(container.Env, containerEnvs[container.Name]...)
 					container.VolumeMounts = volumeMounts(rs.Spec.Oci.Auth, caCertSecretRefName, rs.Spec.SourceType, container.VolumeMounts)
+					if authTypeToken(rs.Spec.Oci.Auth) {
+						container.Env = append(container.Env, ociSyncTokenAuthEnv(secretRefName)...)
+					}
 					injectFWICredsToContainer(&container, injectFWICreds)
 				}
 			case reconcilermanager.HelmSync:

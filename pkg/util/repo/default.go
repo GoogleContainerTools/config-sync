@@ -15,9 +15,9 @@
 package repo
 
 import (
+	v1 "github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement/v1"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "kpt.dev/configsync/pkg/api/configmanagement/v1"
-	"kpt.dev/configsync/pkg/kinds"
 )
 
 // CurrentVersion is the version of the format for the ConfigManagement Repo.

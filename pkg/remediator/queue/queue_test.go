@@ -18,9 +18,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
 	"github.com/google/go-cmp/cmp"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

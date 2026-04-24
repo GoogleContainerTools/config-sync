@@ -22,10 +22,10 @@ import (
 	"strings"
 	"time"
 
-	"kpt.dev/configsync/e2e"
-	"kpt.dev/configsync/e2e/nomostest/retry"
-	"kpt.dev/configsync/e2e/nomostest/taskgroup"
-	"kpt.dev/configsync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/e2e"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/retry"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/taskgroup"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
 )
 
 const (

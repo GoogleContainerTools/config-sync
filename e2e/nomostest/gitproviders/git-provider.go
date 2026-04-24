@@ -15,10 +15,12 @@
 package gitproviders
 
 import (
-	"kpt.dev/configsync/e2e"
-	"kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/e2e/nomostest/testlogger"
-	"kpt.dev/configsync/e2e/nomostest/testshell"
+	"strings"
+
+	"github.com/GoogleContainerTools/config-sync/e2e"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testlogger"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testshell"
 )
 
 const (
@@ -49,20 +51,37 @@ type GitProvider interface {
 func NewGitProvider(t testing.NTB, provider, clusterName string, logger *testlogger.TestLogger, shell *testshell.TestShell) GitProvider {
 	switch provider {
 	case e2e.Bitbucket:
-		client, err := newBitbucketClient(logger)
+		repoSuffix := *e2e.GCPProject + "/" + clusterName
+		client, err := newBitbucketClient(repoSuffix, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
 		return client
 	case e2e.GitLab:
-		client, err := newGitlabClient()
+		repoSuffix := *e2e.GCPProject + "/" + clusterName
+		client, err := newGitlabClient(repoSuffix, logger)
 		if err != nil {
 			t.Fatal(err)
 		}
 		return client
 	case e2e.CSR:
 		return newCSRClient(clusterName, shell)
+	case e2e.SSM:
+		out, err := shell.ExecWithDebug("gcloud", "projects", "describe", *e2e.GCPProject, "--format", "value(projectNumber)")
+		if err != nil {
+			t.Fatalf("getting project number: %w", err)
+		}
+
+		projectNumber := strings.Split(string(out), "\n")[0]
+
+		// Add suffix for repoPrefix to fix SSM testgrid failure
+		return newSSMClient(clusterName+"-v2", shell, projectNumber)
 	default:
 		return &LocalProvider{}
 	}
+}
+
+// IsGoogleGitProvider returns true if the GitProvider is a Google-hosted Git service.
+func IsGoogleGitProvider(provider GitProvider) bool {
+	return provider.Type() == e2e.CSR || provider.Type() == e2e.SSM
 }

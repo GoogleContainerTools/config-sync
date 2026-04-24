@@ -19,13 +19,13 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/testerrors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"kpt.dev/configsync/pkg/testing/testerrors"
 	"sigs.k8s.io/cli-utils/pkg/testutil"
 )
 

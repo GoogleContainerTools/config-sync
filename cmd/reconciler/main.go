@@ -15,26 +15,27 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
 	"strings"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem/cmpath"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	ocmetrics "github.com/GoogleContainerTools/config-sync/pkg/metrics"
+	"github.com/GoogleContainerTools/config-sync/pkg/profiler"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconciler"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager/controllers"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/util"
+	"github.com/GoogleContainerTools/config-sync/pkg/util/log"
 	"k8s.io/klog/v2"
 	"k8s.io/klog/v2/textlogger"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/importer/filesystem"
-	"kpt.dev/configsync/pkg/importer/filesystem/cmpath"
-	"kpt.dev/configsync/pkg/metadata"
-	ocmetrics "kpt.dev/configsync/pkg/metrics"
-	"kpt.dev/configsync/pkg/profiler"
-	"kpt.dev/configsync/pkg/reconciler"
-	"kpt.dev/configsync/pkg/reconcilermanager"
-	"kpt.dev/configsync/pkg/reconcilermanager/controllers"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/util"
-	"kpt.dev/configsync/pkg/util/log"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -71,7 +72,7 @@ var (
 	hydratedLinkDir = flag.String("hydrated-link", "rev",
 		"The name of (a symlink to) the source directory under --hydrated-root, which contains the hydrated configs")
 	fightDetectionThreshold = flag.Float64(
-		"fight-detection-threshold", 5.0,
+		"fight-detection-threshold", configsync.DefaultFightThreshold,
 		"The rate of updates per minute to an API Resource at which the Syncer logs warnings about too many updates to the resource.")
 	fullSyncPeriod = flag.Duration("full-sync-period", configsync.DefaultReconcilerFullSyncPeriod,
 		"Period of time between forced re-syncs from source (even without a new commit).")
@@ -140,20 +141,18 @@ func main() {
 		status.EnablePanicOnMisuse()
 	}
 
-	// Register the OpenCensus views
-	if err := ocmetrics.RegisterReconcilerMetricsViews(); err != nil {
-		klog.Fatalf("Failed to register OpenCensus views: %v", err)
-	}
-
-	// Register the OC Agent exporter
-	oce, err := ocmetrics.RegisterOCAgentExporter(reconcilermanager.Reconciler)
+	// Register the OTLP metrics exporter and metrics instruments
+	ctx := context.Background()
+	oce, err := ocmetrics.RegisterOTelExporter(ctx, reconcilermanager.Reconciler)
 	if err != nil {
-		klog.Fatalf("Failed to register the OC Agent exporter: %v", err)
+		klog.Fatalf("Failed to register the OTLP metrics exporter: %v", err)
 	}
 
 	defer func() {
-		if err := oce.Stop(); err != nil {
-			klog.Fatalf("Unable to stop the OC Agent exporter: %v", err)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), ocmetrics.ShutdownTimeout)
+		defer cancel()
+		if err := oce.Shutdown(shutdownCtx); err != nil {
+			klog.Fatalf("Unable to stop the OTLP metrics exporter: %v", err)
 		}
 	}()
 

@@ -18,8 +18,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"kpt.dev/configsync/pkg/api/kpt.dev/v1alpha1"
 )
 
 func newReconcilingCondition(status v1alpha1.ConditionStatus, reason, message string) v1alpha1.Condition {

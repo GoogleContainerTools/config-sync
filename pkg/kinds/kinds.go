@@ -15,6 +15,12 @@
 package kinds
 
 import (
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
+	v1 "github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement/v1"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1alpha1"
+	configsyncv1beta1 "github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	resourcegroupv1alpha1 "github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -25,12 +31,6 @@ import (
 	rbacv1beta1 "k8s.io/api/rbac/v1beta1"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"kpt.dev/configsync/pkg/api/configmanagement"
-	v1 "kpt.dev/configsync/pkg/api/configmanagement/v1"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/api/configsync/v1alpha1"
-	configsyncv1beta1 "kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	resourcegroupv1alpha1 "kpt.dev/configsync/pkg/api/kpt.dev/v1alpha1"
 )
 
 // Anvil returns the GroupVersionKind for Anvil Custom Resource used in tests.

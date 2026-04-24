@@ -20,9 +20,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/syncer/reconcile"
 	"k8s.io/apimachinery/pkg/runtime"
 	jserializer "k8s.io/apimachinery/pkg/runtime/serializer/json"
-	"kpt.dev/configsync/pkg/syncer/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

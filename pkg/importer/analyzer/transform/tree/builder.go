@@ -17,9 +17,9 @@ package tree
 import (
 	"sort"
 
-	"kpt.dev/configsync/pkg/importer/analyzer/ast"
-	"kpt.dev/configsync/pkg/importer/analyzer/ast/node"
-	"kpt.dev/configsync/pkg/importer/filesystem/cmpath"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast/node"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem/cmpath"
 )
 
 // builder handles constructing an ast.TreeNode tree from directory paths.

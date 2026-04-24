@@ -20,16 +20,16 @@ import (
 	"os"
 	"strings"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/hydrate"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem/cmpath"
+	"github.com/GoogleContainerTools/config-sync/pkg/kmetrics"
+	"github.com/GoogleContainerTools/config-sync/pkg/profiler"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager/controllers"
+	"github.com/GoogleContainerTools/config-sync/pkg/util/log"
 	"k8s.io/klog/v2"
 	"k8s.io/klog/v2/textlogger"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/hydrate"
-	"kpt.dev/configsync/pkg/importer/filesystem/cmpath"
-	"kpt.dev/configsync/pkg/kmetrics"
-	"kpt.dev/configsync/pkg/profiler"
-	"kpt.dev/configsync/pkg/reconcilermanager"
-	"kpt.dev/configsync/pkg/reconcilermanager/controllers"
-	"kpt.dev/configsync/pkg/util/log"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -79,20 +79,18 @@ func main() {
 	profiler.Service()
 	ctrl.SetLogger(textlogger.NewLogger(textlogger.NewConfig()))
 
-	// Register the kustomize usage metric views.
-	if err := kmetrics.RegisterKustomizeMetricsViews(); err != nil {
-		klog.Fatalf("Failed to register OpenCensus views: %v", err)
-	}
-
-	// Register the OC Agent exporter
-	oce, err := kmetrics.RegisterOCAgentExporter(reconcilermanager.HydrationController)
+	// Register the OTLP metrics exporter and metrics instruments
+	ctx := context.Background()
+	oce, err := kmetrics.RegisterOTelExporter(ctx, reconcilermanager.HydrationController)
 	if err != nil {
-		klog.Fatalf("Failed to register the OC Agent exporter: %v", err)
+		klog.Fatalf("Failed to register the OTLP metrics exporter: %v", err)
 	}
 
 	defer func() {
-		if err := oce.Stop(); err != nil {
-			klog.Fatalf("Unable to stop the OC Agent exporter: %v", err)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), kmetrics.ShutdownTimeout)
+		defer cancel()
+		if err := oce.Shutdown(shutdownCtx); err != nil {
+			klog.Fatalf("Unable to stop the OTLP metrics exporter: %v", err)
 		}
 	}()
 

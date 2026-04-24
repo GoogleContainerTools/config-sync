@@ -19,8 +19,8 @@ import (
 	"path"
 	"testing"
 
-	"kpt.dev/configsync/pkg/importer/filesystem/cmpath"
-	"kpt.dev/configsync/pkg/importer/reader"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem/cmpath"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/reader"
 )
 
 // FileContentMap specifies files that should be created as part of a parser

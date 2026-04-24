@@ -21,6 +21,33 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
+	v1 "github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement/v1"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/hnc"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation/hierarchyconfig"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation/nonhierarchical"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation/semantic"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation/syntax"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation/system"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem/cmpath"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	csmetadata "github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconciler/namespacecontroller"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	syncerFake "github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest/fake"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/discoverytest"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/openapitest"
+	"github.com/GoogleContainerTools/config-sync/pkg/util/discovery"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/fileobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/raw/validate"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -28,32 +55,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"kpt.dev/configsync/pkg/api/configmanagement"
-	v1 "kpt.dev/configsync/pkg/api/configmanagement/v1"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/importer/analyzer/ast"
-	"kpt.dev/configsync/pkg/importer/analyzer/hnc"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation/hierarchyconfig"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation/metadata"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation/nonhierarchical"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation/semantic"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation/syntax"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation/system"
-	"kpt.dev/configsync/pkg/importer/filesystem/cmpath"
-	"kpt.dev/configsync/pkg/kinds"
-	csmetadata "kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/reconciler/namespacecontroller"
-	"kpt.dev/configsync/pkg/status"
-	syncerFake "kpt.dev/configsync/pkg/syncer/syncertest/fake"
-	"kpt.dev/configsync/pkg/testing/discoverytest"
-	"kpt.dev/configsync/pkg/testing/openapitest"
-	"kpt.dev/configsync/pkg/util/discovery"
-	"kpt.dev/configsync/pkg/validate/raw/validate"
 	"sigs.k8s.io/cli-utils/pkg/common"
 	"sigs.k8s.io/cli-utils/pkg/testutil"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -249,7 +250,7 @@ func TestHierarchical(t *testing.T) {
 		{
 			name: "CR without CRD and allow unknown kinds",
 			options: Options{
-				AllowUnknownKinds: true,
+				AllowUnknownKindMatcher: &fileobjects.MatchAll{},
 			},
 			objs: []ast.FileObject{
 				k8sobjects.Repo(),
@@ -1244,6 +1245,70 @@ func TestUnstructured(t *testing.T) {
 					csmetadata.WithManagementMode(csmetadata.ManagementDisabled),
 					core.Annotation(csmetadata.SourcePathAnnotationKey, dir+"/foo/validator.yaml")),
 			},
+		},
+		{
+			name: "CR without CRD and skip unknown kinds",
+			options: Options{
+				Scope: declared.RootScope,
+				AllowUnknownKindMatcher: &fileobjects.GroupMatcher{
+					Groups: []string{"anthos.cloud.google.com"},
+				},
+			},
+			objs: []ast.FileObject{
+				k8sobjects.UnstructuredAtPath(
+					schema.GroupVersionKind{
+						Group:   "anthos.cloud.google.com",
+						Version: "v1alpha1",
+						Kind:    "Foo",
+					},
+					"foo/foo.yaml",
+					core.Namespace("foo")),
+			},
+			want: []ast.FileObject{
+				k8sobjects.UnstructuredAtPath(
+					schema.GroupVersionKind{
+						Group:   "anthos.cloud.google.com",
+						Version: "v1alpha1",
+						Kind:    "Foo",
+					},
+					"foo/foo.yaml",
+					core.Namespace("foo"),
+					core.Label(csmetadata.DeclaredVersionLabel, "v1alpha1"),
+					core.Annotation(csmetadata.UnknownScopeAnnotationKey, csmetadata.UnknownScopeAnnotationValue),
+					core.Annotation(csmetadata.SourcePathAnnotationKey, dir+"/foo/foo.yaml")),
+			},
+		}, {
+			name: "CR without CRD and skip unknown kinds (no match)",
+			options: Options{
+				Scope: declared.RootScope,
+				AllowUnknownKindMatcher: &fileobjects.GroupMatcher{
+					Groups: []string{"no.match.google.com"},
+				},
+			},
+			objs: []ast.FileObject{
+				k8sobjects.UnstructuredAtPath(
+					schema.GroupVersionKind{
+						Group:   "anthos.cloud.google.com",
+						Version: "v1alpha1",
+						Kind:    "Foo",
+					},
+					"foo/foo.yaml",
+					core.Namespace("foo")),
+			},
+			want: []ast.FileObject{
+				k8sobjects.UnstructuredAtPath(
+					schema.GroupVersionKind{
+						Group:   "anthos.cloud.google.com",
+						Version: "v1alpha1",
+						Kind:    "Foo",
+					},
+					"foo/foo.yaml",
+					core.Namespace("foo"),
+					core.Label(csmetadata.DeclaredVersionLabel, "v1alpha1"),
+					core.Annotation(csmetadata.UnknownScopeAnnotationKey, csmetadata.UnknownScopeAnnotationValue),
+					core.Annotation(csmetadata.SourcePathAnnotationKey, dir+"/foo/foo.yaml")),
+			},
+			wantErrs: status.FakeMultiError(status.UnknownKindErrorCode),
 		},
 		{
 			name:    "duplicate objects fails",

@@ -17,14 +17,14 @@ package fake
 import (
 	"context"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/remediator"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"kpt.dev/configsync/pkg/remediator"
-	"kpt.dev/configsync/pkg/status"
 )
 
 // Remediator fakes remediator.Remediator.
 //
-// This is not in kpt.dev/configsync/pkg/testing/fake because that would cause
+// This is not in github.com/GoogleContainerTools/config-sync/pkg/testing/fake because that would cause
 // a import loop (remediator -> fake -> remediator).
 type Remediator struct {
 	ManagementConflictOutput bool

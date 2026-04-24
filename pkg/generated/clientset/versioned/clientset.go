@@ -6,14 +6,14 @@ import (
 	fmt "fmt"
 	http "net/http"
 
+	configmanagementv1 "github.com/GoogleContainerTools/config-sync/pkg/generated/clientset/versioned/typed/configmanagement/v1"
+	configsyncv1alpha1 "github.com/GoogleContainerTools/config-sync/pkg/generated/clientset/versioned/typed/configsync/v1alpha1"
+	configsyncv1beta1 "github.com/GoogleContainerTools/config-sync/pkg/generated/clientset/versioned/typed/configsync/v1beta1"
+	hubv1 "github.com/GoogleContainerTools/config-sync/pkg/generated/clientset/versioned/typed/hub/v1"
+	kptv1alpha1 "github.com/GoogleContainerTools/config-sync/pkg/generated/clientset/versioned/typed/kpt.dev/v1alpha1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
-	configmanagementv1 "kpt.dev/configsync/pkg/generated/clientset/versioned/typed/configmanagement/v1"
-	configsyncv1alpha1 "kpt.dev/configsync/pkg/generated/clientset/versioned/typed/configsync/v1alpha1"
-	configsyncv1beta1 "kpt.dev/configsync/pkg/generated/clientset/versioned/typed/configsync/v1beta1"
-	hubv1 "kpt.dev/configsync/pkg/generated/clientset/versioned/typed/hub/v1"
-	kptv1alpha1 "kpt.dev/configsync/pkg/generated/clientset/versioned/typed/kpt.dev/v1alpha1"
 )
 
 type Interface interface {

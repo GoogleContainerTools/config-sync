@@ -15,8 +15,8 @@
 package syncsource
 
 import (
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
 )
 
 // Set of RootSync & RepoSync IDs that map to SyncSources.

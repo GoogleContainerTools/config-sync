@@ -14,7 +14,7 @@
 
 package hydrate
 
-import "kpt.dev/configsync/pkg/status"
+import "github.com/GoogleContainerTools/config-sync/pkg/status"
 
 // HydrationError is a wrapper of the error in the hydration process with the error code.
 type HydrationError interface {

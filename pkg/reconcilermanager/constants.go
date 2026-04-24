@@ -14,7 +14,7 @@
 
 package reconcilermanager
 
-import "kpt.dev/configsync/pkg/api/configsync"
+import "github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
 
 const (
 	// ManagerName is the name of the controller which creates reconcilers.

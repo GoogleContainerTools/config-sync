@@ -17,7 +17,7 @@ package parse
 import (
 	"context"
 
-	"kpt.dev/configsync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 )
 
 // SyncStatusClient provides methods to read and write RSync object status.

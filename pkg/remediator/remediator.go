@@ -19,18 +19,18 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager/controllers"
+	"github.com/GoogleContainerTools/config-sync/pkg/remediator/conflict"
+	"github.com/GoogleContainerTools/config-sync/pkg/remediator/queue"
+	"github.com/GoogleContainerTools/config-sync/pkg/remediator/reconcile"
+	"github.com/GoogleContainerTools/config-sync/pkg/remediator/watch"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	syncerreconcile "github.com/GoogleContainerTools/config-sync/pkg/syncer/reconcile"
+	"github.com/GoogleContainerTools/config-sync/pkg/syncer/reconcile/fight"
+	utilwatch "github.com/GoogleContainerTools/config-sync/pkg/util/watch"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/reconcilermanager/controllers"
-	"kpt.dev/configsync/pkg/remediator/conflict"
-	"kpt.dev/configsync/pkg/remediator/queue"
-	"kpt.dev/configsync/pkg/remediator/reconcile"
-	"kpt.dev/configsync/pkg/remediator/watch"
-	"kpt.dev/configsync/pkg/status"
-	syncerreconcile "kpt.dev/configsync/pkg/syncer/reconcile"
-	"kpt.dev/configsync/pkg/syncer/reconcile/fight"
-	utilwatch "kpt.dev/configsync/pkg/util/watch"
 )
 
 // Remediator knows how to keep the state of a Kubernetes cluster in sync with

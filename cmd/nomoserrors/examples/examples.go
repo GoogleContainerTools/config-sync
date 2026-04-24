@@ -19,35 +19,35 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/applier"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/hnc"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/transform/selectors"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation/hierarchyconfig"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation/nonhierarchical"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation/semantic"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation/syntax"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/validation/system"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem/cmpath"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/id"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/reader"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	csmetadata "github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/parse"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/syncer/client"
+	"github.com/GoogleContainerTools/config-sync/pkg/util/clusterconfig"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/raw/validate"
+	rsyncvalidate "github.com/GoogleContainerTools/config-sync/pkg/validate/rsync/validate"
+	"github.com/GoogleContainerTools/config-sync/pkg/vet"
+	"github.com/GoogleContainerTools/config-sync/pkg/webhook/configuration"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"kpt.dev/configsync/pkg/api/configmanagement"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/applier"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/importer/analyzer/hnc"
-	"kpt.dev/configsync/pkg/importer/analyzer/transform/selectors"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation/hierarchyconfig"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation/metadata"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation/nonhierarchical"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation/semantic"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation/syntax"
-	"kpt.dev/configsync/pkg/importer/analyzer/validation/system"
-	"kpt.dev/configsync/pkg/importer/filesystem/cmpath"
-	"kpt.dev/configsync/pkg/importer/id"
-	"kpt.dev/configsync/pkg/importer/reader"
-	"kpt.dev/configsync/pkg/kinds"
-	csmetadata "kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/parse"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/syncer/client"
-	"kpt.dev/configsync/pkg/util/clusterconfig"
-	"kpt.dev/configsync/pkg/validate/raw/validate"
-	rsyncvalidate "kpt.dev/configsync/pkg/validate/rsync/validate"
-	"kpt.dev/configsync/pkg/vet"
-	"kpt.dev/configsync/pkg/webhook/configuration"
 )
 
 // ExamplesOrDeprecated contains either a list of example errors, or that the
@@ -166,8 +166,7 @@ func Generate() AllExamples {
 	result.add(system.UnsupportedRepoSpecVersion(k8sobjects.Repo(k8sobjects.RepoVersion("")), "0.0.0"))
 
 	// 1028
-	result.add(syntax.ReservedDirectoryNameError(cmpath.RelativeSlash("namespaces/" + configmanagement.ControllerNamespace)))
-	result.add(syntax.InvalidDirectoryNameError(cmpath.RelativeSlash("namespaces/ABC")))
+	result.markDeprecated("1028")
 
 	// 1029
 	result.add(nonhierarchical.NamespaceCollisionError("qux",
@@ -186,7 +185,7 @@ func Generate() AllExamples {
 	))
 
 	// 1030
-	result.add(semantic.MultipleSingletonsError(k8sobjects.Namespace("namespaces/foo"), k8sobjects.Namespace("namespaces/foo")))
+	result.markDeprecated("1030")
 
 	// 1031
 	result.add(nonhierarchical.MissingObjectNameError(k8sobjects.Role(core.Name(""))))
@@ -195,8 +194,7 @@ func Generate() AllExamples {
 	result.add(nonhierarchical.IllegalHierarchicalKind(k8sobjects.Repo()))
 
 	// 1033
-	result.add(syntax.IllegalSystemResourcePlacementError(k8sobjects.RepoAtPath("namespaces/repo.yaml")))
-	result.add(syntax.IllegalSystemResourcePlacementError(k8sobjects.HierarchyConfigAtPath("system/hierarchy-config.yaml")))
+	result.markDeprecated("1033")
 
 	// 1034
 	result.add(nonhierarchical.IllegalNamespace(k8sobjects.Namespace("namespaces/" + configmanagement.ControllerNamespace)))
@@ -361,8 +359,7 @@ func Generate() AllExamples {
 	result.add(status.ResourceWrap(errors.New("specific problem with resource"), "general message", k8sobjects.Role()))
 
 	// 2011
-	result.add(status.MissingResourceWrap(errors.New("the Role 'foo' in Namespace 'bar' was not found"),
-		"unable to update resource", k8sobjects.Role(core.Name("foo"), core.Namespace("bar"))))
+	result.markDeprecated("2011")
 
 	// 2012
 	result.add(status.MultipleSingletonsError(k8sobjects.Repo(), k8sobjects.Repo()))

@@ -18,33 +18,33 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/e2e"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/gitproviders"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/iam"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/kustomizecomponents"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/ntopts"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/policy"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/registryproviders"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/retry"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/taskgroup"
+	nomostesting "github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testpredicates"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testutils"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testwatcher"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/workloadidentity"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager/controllers"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"kpt.dev/configsync/e2e"
-	"kpt.dev/configsync/e2e/nomostest"
-	"kpt.dev/configsync/e2e/nomostest/gitproviders"
-	"kpt.dev/configsync/e2e/nomostest/iam"
-	"kpt.dev/configsync/e2e/nomostest/kustomizecomponents"
-	"kpt.dev/configsync/e2e/nomostest/ntopts"
-	"kpt.dev/configsync/e2e/nomostest/policy"
-	"kpt.dev/configsync/e2e/nomostest/registryproviders"
-	"kpt.dev/configsync/e2e/nomostest/retry"
-	"kpt.dev/configsync/e2e/nomostest/taskgroup"
-	nomostesting "kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/e2e/nomostest/testpredicates"
-	"kpt.dev/configsync/e2e/nomostest/testutils"
-	"kpt.dev/configsync/e2e/nomostest/testwatcher"
-	"kpt.dev/configsync/e2e/nomostest/workloadidentity"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/reconcilermanager"
-	"kpt.dev/configsync/pkg/reconcilermanager/controllers"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -75,6 +75,7 @@ func TestWorkloadIdentity(t *testing.T) {
 		requireHelmGAR   bool
 		requireOCIGAR    bool
 		requireCSR       bool
+		requireSSM       bool
 		testKSAMigration bool
 		newRootSrcCfg    sourceConfig
 		newNSSrcCfg      sourceConfig
@@ -96,6 +97,24 @@ func TestWorkloadIdentity(t *testing.T) {
 			sourceType:  configsync.GitSource,
 			gsaEmail:    gitproviders.CSRReaderEmail(),
 			requireCSR:  true,
+		},
+		{
+			name:        "Authenticate to Git repo on SSM with GKE WI",
+			fleetWITest: false,
+			rootSrcCfg:  sourceConfig{pkg: "hydration/kustomize-components", dir: "kustomize-components", commitFn: nomostest.DefaultRootSha1Fn},
+			nsSrcCfg:    sourceConfig{pkg: "hydration/namespace-repo", dir: "namespace-repo", commitFn: nomostest.DefaultRepoSha1Fn},
+			sourceType:  configsync.GitSource,
+			gsaEmail:    gitproviders.SSMServiceAccountEmail(),
+			requireSSM:  true,
+		},
+		{
+			name:        "Authenticate to Git repo on SSM with Fleet WI in the same project",
+			fleetWITest: true,
+			rootSrcCfg:  sourceConfig{pkg: "hydration/kustomize-components", dir: "kustomize-components", commitFn: nomostest.DefaultRootSha1Fn},
+			nsSrcCfg:    sourceConfig{pkg: "hydration/namespace-repo", dir: "namespace-repo", commitFn: nomostest.DefaultRepoSha1Fn},
+			sourceType:  configsync.GitSource,
+			gsaEmail:    gitproviders.SSMServiceAccountEmail(),
+			requireSSM:  true,
 		},
 		{
 			name:             "Authenticate to OCI image on AR with GKE WI",
@@ -223,6 +242,10 @@ func TestWorkloadIdentity(t *testing.T) {
 			if tc.requireCSR {
 				opts = append(opts, ntopts.RequireCloudSourceRepository(t))
 			}
+			if tc.requireSSM {
+				opts = append(opts, ntopts.RequireSecureSourceManagerRepository(t))
+			}
+
 			nt := nomostest.New(t, nomostesting.WorkloadIdentity, opts...)
 			if err = workloadidentity.ValidateEnabled(nt); err != nil {
 				nt.T.Fatal(err)

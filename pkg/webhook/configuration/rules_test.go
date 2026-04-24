@@ -17,6 +17,8 @@ package configuration
 import (
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
@@ -25,8 +27,6 @@ import (
 	rbacv1beta1 "k8s.io/api/rbac/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metadata"
 )
 
 func TestToWebhookConfiguration(t *testing.T) {

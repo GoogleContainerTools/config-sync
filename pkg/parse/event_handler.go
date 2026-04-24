@@ -17,10 +17,10 @@ package parse
 import (
 	"context"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/parse/events"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconciler/namespacecontroller"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	"k8s.io/klog/v2"
-	"kpt.dev/configsync/pkg/parse/events"
-	"kpt.dev/configsync/pkg/reconciler/namespacecontroller"
-	"kpt.dev/configsync/pkg/status"
 )
 
 // EventHandler is a events.Subscriber implementation that handles events and

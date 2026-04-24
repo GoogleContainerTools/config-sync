@@ -17,8 +17,8 @@ package bugreport
 import (
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
 	v1 "k8s.io/api/core/v1"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
 )
 
 func TestLogSourceGetPathName(t *testing.T) {

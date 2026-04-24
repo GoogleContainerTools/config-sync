@@ -23,7 +23,7 @@ import (
 
 // TestMain executes the tests for this package, with optional logging.
 // To see all logs, use:
-// go test kpt.dev/configsync/pkg/util/clusterconfig -v -args -v=5
+// go test github.com/GoogleContainerTools/config-sync/pkg/util/clusterconfig -v -args -v=5
 func TestMain(m *testing.M) {
 	klog.InitFlags(nil)
 	os.Exit(m.Run())

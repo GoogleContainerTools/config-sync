@@ -15,7 +15,7 @@
 package transform
 
 import (
-	v1 "kpt.dev/configsync/pkg/api/configmanagement/v1"
+	v1 "github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement/v1"
 )
 
 // InheritanceSpec defines the spec for inherited resources.

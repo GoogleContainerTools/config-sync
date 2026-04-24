@@ -15,9 +15,9 @@
 package semantic
 
 import (
-	"kpt.dev/configsync/pkg/importer/analyzer/ast/node"
-	"kpt.dev/configsync/pkg/importer/id"
-	"kpt.dev/configsync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast/node"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/id"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 )
 
 // UnsyncableResourcesErrorCode is the error code for UnsyncableResourcesError

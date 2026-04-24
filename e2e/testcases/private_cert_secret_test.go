@@ -20,25 +20,25 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/ntopts"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/policy"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/registryproviders"
+	nomostesting "github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testpredicates"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testwatcher"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1alpha1"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager/controllers"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"kpt.dev/configsync/e2e/nomostest"
-	"kpt.dev/configsync/e2e/nomostest/ntopts"
-	"kpt.dev/configsync/e2e/nomostest/policy"
-	"kpt.dev/configsync/e2e/nomostest/registryproviders"
-	nomostesting "kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/e2e/nomostest/testpredicates"
-	"kpt.dev/configsync/e2e/nomostest/testwatcher"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/api/configsync/v1alpha1"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/reconcilermanager"
-	"kpt.dev/configsync/pkg/reconcilermanager/controllers"
-	"kpt.dev/configsync/pkg/status"
 )
 
 func caCertSecretPatch(sourceType configsync.SourceType, name string) string {
@@ -67,7 +67,7 @@ func secretDataDeletePatch(key string) string {
 
 func TestCACertSecretRefV1Alpha1(t *testing.T) {
 	repoSyncID := core.RepoSyncID(configsync.RepoSyncName, backendNamespace)
-	nt := nomostest.New(t, nomostesting.SyncSource, ntopts.RequireLocalGitProvider,
+	nt := nomostest.New(t, nomostesting.SyncSourceGit, ntopts.RequireLocalGitProvider,
 		ntopts.SyncWithGitSource(repoSyncID))
 	rootSyncGitRepo := nt.SyncSourceGitReadWriteRepository(nomostest.DefaultRootSyncID)
 	repoSyncKey := repoSyncID.ObjectKey
@@ -181,7 +181,7 @@ func TestCACertSecretRefV1Alpha1(t *testing.T) {
 
 func TestCACertSecretRefV1Beta1(t *testing.T) {
 	repoSyncID := core.RepoSyncID(configsync.RepoSyncName, backendNamespace)
-	nt := nomostest.New(t, nomostesting.SyncSource, ntopts.RequireLocalGitProvider,
+	nt := nomostest.New(t, nomostesting.SyncSourceGit, ntopts.RequireLocalGitProvider,
 		ntopts.SyncWithGitSource(repoSyncID))
 	rootSyncGitRepo := nt.SyncSourceGitReadWriteRepository(nomostest.DefaultRootSyncID)
 	repoSyncKey := repoSyncID.ObjectKey
@@ -300,7 +300,7 @@ func TestCACertSecretRefV1Beta1(t *testing.T) {
 
 func TestCACertSecretWatch(t *testing.T) {
 	repoSyncID := core.RepoSyncID(configsync.RepoSyncName, backendNamespace)
-	nt := nomostest.New(t, nomostesting.SyncSource, ntopts.RequireLocalGitProvider,
+	nt := nomostest.New(t, nomostesting.SyncSourceGit, ntopts.RequireLocalGitProvider,
 		ntopts.SyncWithGitSource(repoSyncID))
 	rootSyncGitRepo := nt.SyncSourceGitReadWriteRepository(nomostest.DefaultRootSyncID)
 	repoSyncKey := repoSyncID.ObjectKey
@@ -384,7 +384,7 @@ func TestCACertSecretWatch(t *testing.T) {
 // It tests RootSyncs can pull from OCI images using a CA certificate.
 func TestOCICACertSecretRefRootRepo(t *testing.T) {
 	rootSyncID := nomostest.DefaultRootSyncID
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceOCI,
 		ntopts.SyncWithGitSource(rootSyncID, ntopts.Unstructured),
 		ntopts.RequireLocalOCIProvider)
 
@@ -413,7 +413,7 @@ func TestOCICACertSecretRefRootRepo(t *testing.T) {
 // It tests RepoSyncs can pull from OCI images using a CA certificate.
 func TestOCICACertSecretRefNamespaceRepo(t *testing.T) {
 	repoSyncID := core.RepoSyncID(configsync.RepoSyncName, backendNamespace)
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceOCI,
 		ntopts.RequireLocalOCIProvider,
 		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured),
 		ntopts.SyncWithGitSource(repoSyncID),
@@ -469,7 +469,7 @@ func TestOCICACertSecretRefNamespaceRepo(t *testing.T) {
 // It tests RootSyncs can pull from OCI images using a CA certificate.
 func TestHelmCACertSecretRefRootRepo(t *testing.T) {
 	rootSyncID := nomostest.DefaultRootSyncID
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceHelm,
 		ntopts.SyncWithGitSource(rootSyncID, ntopts.Unstructured),
 		ntopts.RequireLocalHelmProvider)
 
@@ -501,7 +501,7 @@ func TestHelmCACertSecretRefRootRepo(t *testing.T) {
 // It tests RepoSyncs can pull from OCI images using a CA certificate.
 func TestHelmCACertSecretRefNamespaceRepo(t *testing.T) {
 	repoSyncID := core.RepoSyncID(configsync.RepoSyncName, backendNamespace)
-	nt := nomostest.New(t, nomostesting.SyncSource,
+	nt := nomostest.New(t, nomostesting.SyncSourceHelm,
 		ntopts.RequireLocalHelmProvider,
 		ntopts.SyncWithGitSource(nomostest.DefaultRootSyncID, ntopts.Unstructured),
 		ntopts.SyncWithGitSource(repoSyncID),

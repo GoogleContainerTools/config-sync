@@ -17,10 +17,10 @@ package fight
 import (
 	"sync"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	"github.com/elliotchance/orderedmap/v2"
 	"k8s.io/klog/v2"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/status"
 )
 
 // Handler is the generic interface of the fight handler.

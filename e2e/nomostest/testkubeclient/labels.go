@@ -15,9 +15,9 @@
 package testkubeclient
 
 import (
-	"kpt.dev/configsync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
 
-	"kpt.dev/configsync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
 )
 
 // TestLabel is the label added to all test objects, ensuring we can clean up

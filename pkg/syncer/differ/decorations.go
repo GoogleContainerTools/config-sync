@@ -15,8 +15,8 @@
 package differ
 
 import (
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

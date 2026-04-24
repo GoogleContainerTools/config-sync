@@ -3,8 +3,8 @@
 package configmanagement
 
 import (
-	v1 "kpt.dev/configsync/pkg/generated/informers/externalversions/configmanagement/v1"
-	internalinterfaces "kpt.dev/configsync/pkg/generated/informers/externalversions/internalinterfaces"
+	v1 "github.com/GoogleContainerTools/config-sync/pkg/generated/informers/externalversions/configmanagement/v1"
+	internalinterfaces "github.com/GoogleContainerTools/config-sync/pkg/generated/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to each of this group's versions.

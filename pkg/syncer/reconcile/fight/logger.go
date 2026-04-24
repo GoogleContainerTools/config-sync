@@ -18,9 +18,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	"k8s.io/klog/v2"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/status"
 )
 
 // logger is used to log errors about fights from Detector at most

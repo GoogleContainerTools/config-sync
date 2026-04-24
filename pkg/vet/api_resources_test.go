@@ -18,9 +18,9 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/util/discovery"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/util/discovery"
 )
 
 func TestAddLines(t *testing.T) {

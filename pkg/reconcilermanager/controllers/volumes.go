@@ -19,10 +19,10 @@ import (
 	"sort"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	hubv1 "github.com/GoogleContainerTools/config-sync/pkg/api/hub/v1"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
 	corev1 "k8s.io/api/core/v1"
-	"kpt.dev/configsync/pkg/api/configsync"
-	hubv1 "kpt.dev/configsync/pkg/api/hub/v1"
-	"kpt.dev/configsync/pkg/metadata"
 )
 
 // GitCredentialVolume is the volume name of the git credentials.

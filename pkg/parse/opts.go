@@ -17,10 +17,10 @@ package parse
 import (
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem"
+	"github.com/GoogleContainerTools/config-sync/pkg/util/discovery"
 	"k8s.io/utils/clock"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/importer/filesystem"
-	"kpt.dev/configsync/pkg/util/discovery"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

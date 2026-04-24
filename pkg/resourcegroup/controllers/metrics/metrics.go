@@ -17,7 +17,8 @@ limitations under the License.
 package metrics
 
 import (
-	"go.opencensus.io/stats"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric"
 )
 
 const (
@@ -47,63 +48,120 @@ var (
 	// label `reason`: the `Reason` field of the `Stalled` condition in a ResourceGroup CR.
 	// reason can be: StartReconciling, FinishReconciling, ComponentFailed, ExceedTimeout.
 	// This metric should be updated in the ResourceGroup controller.
-	ReconcileDuration = stats.Float64(
-		RGReconcileDurationName,
-		"Time duration in seconds of reconciling a ResourceGroup CR by the ResourceGroup controller",
-		stats.UnitSeconds)
+	ReconcileDuration metric.Float64Histogram
 
 	// ResourceGroupTotal tracks the total number of ResourceGroup CRs in a cluster.
 	// This metric should be updated in the Root controller.
-	ResourceGroupTotal = stats.Int64(
-		ResourceGroupTotalName,
-		"Total number of ResourceGroup CRs in a cluster",
-		stats.UnitDimensionless)
+	ResourceGroupTotal metric.Int64Gauge
 
 	// ResourceCount tracks the number of resources in a ResourceGroup CR.
 	// This metric should be updated in the Root controller.
-	ResourceCount = stats.Int64(
-		ResourceCountName,
-		"The number of resources in a ResourceGroup CR",
-		stats.UnitDimensionless)
+	ResourceCount metric.Int64Gauge
 
 	// ReadyResourceCount tracks the number of resources with Current status in a ResourceGroup CR.
 	// This metric should be updated in the ResourceGroup controller.
-	ReadyResourceCount = stats.Int64(
-		ReadyResourceCountName,
-		"The number of resources with Current status in a ResourceGroup CR",
-		stats.UnitDimensionless)
+	ReadyResourceCount metric.Int64Gauge
 
 	// KCCResourceCount tracks the number of KCC resources in a ResourceGroup CR.
 	// This metric should be updated in the ResourceGroup controller.
-	KCCResourceCount = stats.Int64(
-		KCCResourceCountName,
-		"The number of KCC resources in a ResourceGroup CR",
-		stats.UnitDimensionless)
+	KCCResourceCount metric.Int64Gauge
 
 	// NamespaceCount tracks the number of resource namespaces in a ResourceGroup CR.
 	// This metric should be updated in the Root controller.
-	NamespaceCount = stats.Int64(
-		NamespaceCountName,
-		"The number of resource namespaces in a ResourceGroup CR",
-		stats.UnitDimensionless)
+	NamespaceCount metric.Int64Gauge
 
 	// ClusterScopedResourceCount tracks the number of cluster-scoped resources in a ResourceGroup CR.
 	// This metric should be updated in the Root controller.
-	ClusterScopedResourceCount = stats.Int64(
-		ClusterScopedResourceCountName,
-		"The number of cluster-scoped resources in a ResourceGroup CR",
-		stats.UnitDimensionless)
+	ClusterScopedResourceCount metric.Int64Gauge
 
 	// CRDCount tracks the number of CRDs in a ResourceGroup CR.
 	// This metric should be updated in the Root controller.
-	CRDCount = stats.Int64(
-		CRDCountName,
-		"The number of CRDs in a ResourceGroup CR",
-		stats.UnitDimensionless)
+	CRDCount metric.Int64Gauge
 
 	// PipelineError tracks the error that happened when syncing a commit
-	PipelineError = stats.Int64(
-		PipelineErrorName,
-		"A boolean value indicates if error happened at readiness stage when syncing a commit",
-		stats.UnitDimensionless)
+	PipelineError metric.Int64Gauge
 )
+
+// InitializeOTelResourceGroupMetrics initializes OpenTelemetry Resource Group metrics instruments
+func InitializeOTelResourceGroupMetrics() error {
+	meter := otel.Meter("config-sync-resourcegroup")
+
+	var err error
+
+	// Initialize histogram instruments
+	ReconcileDuration, err = meter.Float64Histogram(
+		RGReconcileDurationName,
+		metric.WithDescription("Time duration in seconds of reconciling a ResourceGroup CR by the ResourceGroup controller"),
+		metric.WithUnit("s"),
+	)
+	if err != nil {
+		return err
+	}
+
+	// Initialize gauge instruments
+	ResourceGroupTotal, err = meter.Int64Gauge(
+		ResourceGroupTotalName,
+		metric.WithDescription("Total number of ResourceGroup CRs in a cluster"),
+	)
+	if err != nil {
+		return err
+	}
+
+	ResourceCount, err = meter.Int64Gauge(
+		ResourceCountName,
+		metric.WithDescription("The number of resources in a ResourceGroup CR"),
+	)
+	if err != nil {
+		return err
+	}
+
+	ReadyResourceCount, err = meter.Int64Gauge(
+		ReadyResourceCountName,
+		metric.WithDescription("The number of resources with Current status in a ResourceGroup CR"),
+	)
+	if err != nil {
+		return err
+	}
+
+	KCCResourceCount, err = meter.Int64Gauge(
+		KCCResourceCountName,
+		metric.WithDescription("The number of KCC resources in a ResourceGroup CR"),
+	)
+	if err != nil {
+		return err
+	}
+
+	NamespaceCount, err = meter.Int64Gauge(
+		NamespaceCountName,
+		metric.WithDescription("The number of resource namespaces in a ResourceGroup CR"),
+	)
+	if err != nil {
+		return err
+	}
+
+	ClusterScopedResourceCount, err = meter.Int64Gauge(
+		ClusterScopedResourceCountName,
+		metric.WithDescription("The number of cluster-scoped resources in a ResourceGroup CR"),
+	)
+	if err != nil {
+		return err
+	}
+
+	CRDCount, err = meter.Int64Gauge(
+		CRDCountName,
+		metric.WithDescription("The number of CRDs in a ResourceGroup CR"),
+	)
+	if err != nil {
+		return err
+	}
+
+	PipelineError, err = meter.Int64Gauge(
+		PipelineErrorName,
+		metric.WithDescription("A boolean value indicates if error happened at readiness stage when syncing a commit"),
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -22,8 +22,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem/cmpath"
 	"github.com/google/go-cmp/cmp"
-	"kpt.dev/configsync/pkg/importer/filesystem/cmpath"
 )
 
 func TestListPolicyFiles(t *testing.T) {

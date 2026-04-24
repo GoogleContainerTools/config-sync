@@ -22,10 +22,10 @@ import (
 	"strconv"
 	"strings"
 
+	v1 "github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement/v1"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/id"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "kpt.dev/configsync/pkg/api/configmanagement/v1"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	"kpt.dev/configsync/pkg/importer/id"
 	"sigs.k8s.io/cli-utils/pkg/multierror"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -84,6 +84,9 @@ var registered = map[string]bool{
 	"1024": true,
 	"1025": true,
 	"1026": true,
+	"1028": true,
+	"1030": true,
+	"1033": true,
 	"1035": true,
 	"1037": true,
 	"1040": true,

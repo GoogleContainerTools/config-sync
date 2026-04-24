@@ -18,27 +18,27 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/metrics"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/ntopts"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/policy"
+	nomostesting "github.com/GoogleContainerTools/config-sync/e2e/nomostest/testing"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testpredicates"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testwatcher"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
+	v1 "github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement/v1"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/transform/selectors"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	clusterregistry "k8s.io/cluster-registry/pkg/apis/clusterregistry/v1alpha1"
-	"kpt.dev/configsync/e2e/nomostest"
-	"kpt.dev/configsync/e2e/nomostest/metrics"
-	"kpt.dev/configsync/e2e/nomostest/ntopts"
-	"kpt.dev/configsync/e2e/nomostest/policy"
-	nomostesting "kpt.dev/configsync/e2e/nomostest/testing"
-	"kpt.dev/configsync/e2e/nomostest/testpredicates"
-	"kpt.dev/configsync/e2e/nomostest/testwatcher"
-	"kpt.dev/configsync/pkg/api/configmanagement"
-	v1 "kpt.dev/configsync/pkg/api/configmanagement/v1"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
-	"kpt.dev/configsync/pkg/importer/analyzer/transform/selectors"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/reconcilermanager"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -684,7 +684,7 @@ func TestClusterSelectorForCRD(t *testing.T) {
 	crd.SetAnnotations(map[string]string{metadata.ClusterNameSelectorAnnotationKey: testClusterName})
 	nt.Must(rootSyncGitRepo.Add("acme/cluster/anvil-crd.yaml", crd))
 	nt.Must(rootSyncGitRepo.CommitAndPush("Add a custom resource definition with an unselected cluster-name-selector annotation"))
-	nt.Must(nt.WatchForAllSyncs())
+	nt.Must(nt.WatchForAllSyncs(nomostest.SkipAllResourceGroupChecks()))
 	// CRD should be marked as deleted, but may not be NotFound yet, because its
 	// finalizer will block until all objects of that type are deleted.
 	nt.Must(nt.Watcher.WatchForNotFound(kinds.CustomResourceDefinitionV1(), crd.Name, crd.Namespace))
@@ -724,7 +724,7 @@ func TestClusterSelectorForCRD(t *testing.T) {
 	crd.SetAnnotations(legacyTestClusterSelectorAnnotation)
 	nt.Must(rootSyncGitRepo.Add("acme/cluster/anvil-crd.yaml", crd))
 	nt.Must(rootSyncGitRepo.CommitAndPush("Add a custom resource definition with an unselected ClusterSelector"))
-	nt.Must(nt.WatchForAllSyncs())
+	nt.Must(nt.WatchForAllSyncs(nomostest.SkipAllResourceGroupChecks()))
 	// CRD should be marked as deleted, but may not be NotFound yet, because its
 	// finalizer will block until all objects of that type are deleted.
 	nt.Must(nt.Watcher.WatchForNotFound(kinds.CustomResourceDefinitionV1(), crd.Name, crd.Namespace))

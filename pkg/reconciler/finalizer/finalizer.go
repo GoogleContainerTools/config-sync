@@ -18,9 +18,9 @@ import (
 	"context"
 	"fmt"
 
-	"kpt.dev/configsync/pkg/applier"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/applier"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )

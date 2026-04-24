@@ -23,6 +23,21 @@ import (
 	"sync"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
+	hubv1 "github.com/GoogleContainerTools/config-sync/pkg/api/hub/v1"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/metrics"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
+	"github.com/GoogleContainerTools/config-sync/pkg/reposync"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/util/compare"
+	"github.com/GoogleContainerTools/config-sync/pkg/util/mutate"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/rsync/validate"
+	webhookconfiguration "github.com/GoogleContainerTools/config-sync/pkg/webhook/configuration"
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
@@ -36,21 +51,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/api/configsync/v1beta1"
-	hubv1 "kpt.dev/configsync/pkg/api/hub/v1"
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/kinds"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/metrics"
-	"kpt.dev/configsync/pkg/reconcilermanager"
-	"kpt.dev/configsync/pkg/reposync"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/util/compare"
-	"kpt.dev/configsync/pkg/util/mutate"
-	"kpt.dev/configsync/pkg/validate/rsync/validate"
-	webhookconfiguration "kpt.dev/configsync/pkg/webhook/configuration"
 	kstatus "sigs.k8s.io/cli-utils/pkg/kstatus/status"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -599,6 +599,7 @@ func (r *RepoSyncReconciler) mapMembershipToRepoSyncs(ctx context.Context, obj c
 // - `spec.git.secretRef.name`
 // - `spec.git.caCertSecretRef.name`
 // - `spec.helm.secretRef.name`
+// - `spec.oci.secretRef.name`
 // The update to the Secret object will trigger a reconciliation of the RepoSync objects.
 func (r *RepoSyncReconciler) mapSecretToRepoSyncs(ctx context.Context, secret client.Object) []reconcile.Request {
 	sRef := client.ObjectKeyFromObject(secret)
@@ -667,7 +668,7 @@ func (r *RepoSyncReconciler) mapSecretToRepoSyncs(ctx context.Context, secret cl
 		switch sRef.Name {
 		case repoSyncGitSecretName(&rs), repoSyncGitCACertSecretName(&rs),
 			repoSyncOCICACertSecretName(&rs), repoSyncHelmCACertSecretName(&rs),
-			repoSyncHelmSecretName(&rs):
+			repoSyncOciSecretName(&rs), repoSyncHelmSecretName(&rs):
 			attachedRSNames = append(attachedRSNames, rs.GetName())
 			requests = append(requests, reconcile.Request{
 				NamespacedName: client.ObjectKeyFromObject(&rs),
@@ -725,6 +726,19 @@ func repoSyncOCICACertSecretName(rs *v1beta1.RepoSync) string {
 		return ""
 	}
 	return rs.Spec.Oci.CACertSecretRef.Name
+}
+
+func repoSyncOciSecretName(rs *v1beta1.RepoSync) string {
+	if rs == nil {
+		return ""
+	}
+	if rs.Spec.Oci == nil {
+		return ""
+	}
+	if rs.Spec.Oci.SecretRef == nil {
+		return ""
+	}
+	return rs.Spec.Oci.SecretRef.Name
 }
 
 func repoSyncHelmCACertSecretName(rs *v1beta1.RepoSync) string {
@@ -1011,13 +1025,18 @@ func (r *RepoSyncReconciler) validateHelmDependencies(ctx context.Context, rs *v
 func (r *RepoSyncReconciler) validateNamespaceSecret(ctx context.Context, repoSync *v1beta1.RepoSync, reconcilerName string) status.Error {
 	var authType configsync.AuthType
 	var namespaceSecretName string
-	if repoSync.Spec.SourceType == configsync.GitSource {
+	switch repoSync.Spec.SourceType {
+	case configsync.GitSource:
 		authType = repoSync.Spec.Auth
 		namespaceSecretName = v1beta1.GetSecretName(repoSync.Spec.SecretRef)
-	} else if repoSync.Spec.SourceType == configsync.HelmSource {
+	case configsync.HelmSource:
 		authType = repoSync.Spec.Helm.Auth
 		namespaceSecretName = v1beta1.GetSecretName(repoSync.Spec.Helm.SecretRef)
+	case configsync.OciSource:
+		authType = repoSync.Spec.Oci.Auth
+		namespaceSecretName = v1beta1.GetSecretName(repoSync.Spec.Oci.SecretRef)
 	}
+
 	if SkipForAuth(authType) {
 		// There is no Secret to check for the Config object.
 		return nil
@@ -1144,6 +1163,7 @@ func (r *RepoSyncReconciler) mutationsFor(ctx context.Context, rs *v1beta1.RepoS
 		case configsync.OciSource:
 			auth = rs.Spec.Oci.Auth
 			gcpSAEmail = rs.Spec.Oci.GCPServiceAccountEmail
+			secretRefName = v1beta1.GetSecretName(rs.Spec.Oci.SecretRef)
 			caCertSecretRefName = v1beta1.GetSecretName(rs.Spec.Oci.CACertSecretRef)
 		case configsync.HelmSource:
 			auth = rs.Spec.Helm.Auth
@@ -1223,6 +1243,9 @@ func (r *RepoSyncReconciler) mutationsFor(ctx context.Context, rs *v1beta1.RepoS
 				} else {
 					container.Env = append(container.Env, containerEnvs[container.Name]...)
 					container.VolumeMounts = volumeMounts(rs.Spec.Oci.Auth, caCertSecretRefName, rs.Spec.SourceType, container.VolumeMounts)
+					if authTypeToken(rs.Spec.Oci.Auth) {
+						container.Env = append(container.Env, ociSyncTokenAuthEnv(secretName)...)
+					}
 					injectFWICredsToContainer(&container, injectFWICreds)
 				}
 			case reconcilermanager.HelmSync:

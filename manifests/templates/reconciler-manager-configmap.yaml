@@ -176,9 +176,6 @@ data:
            - /otelcontribcol
            args:
            - "--config=/conf/otel-agent-reconciler-config.yaml"
-           # The prometheus transformer appends `_ratio` to gauge metrics: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/v0.86.0/pkg/translator/prometheus/normalize_name.go#L149
-           # Add the feature gate to enable metric suffix trimming.
-           - "--feature-gates=-pkg.translator.prometheus.NormalizeName"
            securityContext:
              allowPrivilegeEscalation: false
              readOnlyRootFilesystem: true
@@ -186,20 +183,15 @@ data:
                drop:
                - ALL
            ports:
-           - containerPort: 55678 # Default OpenCensus receiver port.
+           - containerPort: 4317 # OTLP gRPC receiver port.
+             protocol: TCP
+           - containerPort: 4318 # OTLP HTTP receiver port.
              protocol: TCP
            - containerPort: 8888  # Metrics.
-             protocol: TCP
-           - containerPort: 13133 # Health check
              protocol: TCP
            volumeMounts:
            - name: otel-agent-config-reconciler-vol
              mountPath: /conf
-           readinessProbe:
-             httpGet:
-               path: /
-               port: 13133 # Health Check extension default port.
-               scheme: HTTP
            imagePullPolicy: IfNotPresent
            # These KUBE env vars help populate OTEL_RESOURCE_ATTRIBUTES which
            # is used by the otel-agent to populate resource attributes when

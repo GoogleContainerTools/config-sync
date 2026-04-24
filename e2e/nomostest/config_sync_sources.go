@@ -17,8 +17,8 @@ package nomostest
 import (
 	"reflect"
 
-	"kpt.dev/configsync/e2e/nomostest/syncsource"
-	"kpt.dev/configsync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/syncsource"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
 )
 
 // SetExpectedSyncSource creates, updates, or replaces the SyncSource for the

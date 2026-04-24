@@ -17,13 +17,13 @@ package bugreport
 import (
 	"fmt"
 
+	"github.com/GoogleContainerTools/config-sync/cmd/nomos/flags"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
+	"github.com/GoogleContainerTools/config-sync/pkg/bugreport"
+	"github.com/GoogleContainerTools/config-sync/pkg/client/restconfig"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
-	"kpt.dev/configsync/cmd/nomos/flags"
-	"kpt.dev/configsync/pkg/api/configmanagement"
-	"kpt.dev/configsync/pkg/bugreport"
-	"kpt.dev/configsync/pkg/client/restconfig"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

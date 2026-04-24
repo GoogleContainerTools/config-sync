@@ -24,14 +24,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	apiruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"kpt.dev/configsync/pkg/api/kpt.dev/v1alpha1"
-	"kpt.dev/configsync/pkg/core"
 	"sigs.k8s.io/cli-utils/pkg/testutil"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
@@ -69,7 +69,6 @@ func TestAsYAML(t *testing.T) {
 			expectedOutput: `apiVersion: v1
 kind: Namespace
 metadata:
-  creationTimestamp: null
   name: example
 spec: {}
 status: {}
@@ -176,7 +175,6 @@ func TestAsYAMLDiff(t *testing.T) {
 			expectedOutput: ` apiVersion: v1
  kind: Namespace
  metadata:
-   creationTimestamp: null
    labels:
 -    key1: value1
 +    key2: value2
@@ -308,7 +306,6 @@ func TestAsYAMLDiff(t *testing.T) {
 +apiVersion: v1
 +kind: Namespace
 +metadata:
-+  creationTimestamp: null
 +  name: example
 +spec: {}
 +status: {}
@@ -410,7 +407,6 @@ func TestAsYAMLDiffWithScheme(t *testing.T) {
 				buff.WriteString(" apiVersion: kpt.dev/v1alpha1\n")
 				buff.WriteString(" kind: ResourceGroup\n")
 				buff.WriteString(" metadata:\n")
-				buff.WriteString("   creationTimestamp: null\n")
 				buff.WriteString("   name: root-sync\n")
 				buff.WriteString("   namespace: config-management-system\n")
 				buff.WriteString(" spec:\n")
@@ -472,7 +468,6 @@ func TestAsYAMLDiffWithScheme(t *testing.T) {
 				buff.WriteString(" apiVersion: kpt.dev/v1alpha1\n")
 				buff.WriteString(" kind: ResourceGroup\n")
 				buff.WriteString(" metadata:\n")
-				buff.WriteString("   creationTimestamp: null\n")
 				buff.WriteString("   name: root-sync\n")
 				buff.WriteString("   namespace: config-management-system\n")
 				buff.WriteString(" spec:\n")

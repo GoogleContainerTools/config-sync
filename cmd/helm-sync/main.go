@@ -22,13 +22,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/auth"
+	"github.com/GoogleContainerTools/config-sync/pkg/helm"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
+	"github.com/GoogleContainerTools/config-sync/pkg/util"
+	utillog "github.com/GoogleContainerTools/config-sync/pkg/util/log"
 	"k8s.io/klog/v2/textlogger"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/auth"
-	"kpt.dev/configsync/pkg/helm"
-	"kpt.dev/configsync/pkg/reconcilermanager"
-	"kpt.dev/configsync/pkg/util"
-	utillog "kpt.dev/configsync/pkg/util/log"
 )
 
 var (

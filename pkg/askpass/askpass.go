@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/auth"
 	"k8s.io/klog/v2"
-	"kpt.dev/configsync/pkg/auth"
 )
 
 // Server contains server wide state and settings for the askpass sidecar

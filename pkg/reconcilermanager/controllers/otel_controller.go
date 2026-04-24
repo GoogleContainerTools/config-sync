@@ -18,14 +18,14 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configmanagement"
+	"github.com/GoogleContainerTools/config-sync/pkg/auth"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/metrics"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"kpt.dev/configsync/pkg/api/configmanagement"
-	"kpt.dev/configsync/pkg/auth"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/metrics"
-	"kpt.dev/configsync/pkg/status"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -140,7 +140,7 @@ func (r *OtelReconciler) configureGooglecloudConfigMap(ctx context.Context) ([]b
 			metadata.SystemLabel: "true",
 			metadata.ArchLabel:   "csmr",
 		}
-		configYAML, yamlErr := metrics.CollectorConfigGooglecloudYAML()
+		configYAML, yamlErr := metrics.CollectorConfigOTLPGooglecloudYAML()
 		if yamlErr != nil {
 			return fmt.Errorf("failed to marshal otel-collector-googlecloud config to YAML: %w", yamlErr)
 		}

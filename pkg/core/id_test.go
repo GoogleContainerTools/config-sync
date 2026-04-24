@@ -17,8 +17,8 @@ package core_test
 import (
 	"testing"
 
-	"kpt.dev/configsync/pkg/core"
-	"kpt.dev/configsync/pkg/core/k8sobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/core"
+	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

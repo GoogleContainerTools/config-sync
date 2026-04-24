@@ -69,6 +69,11 @@ func (e ErrorClient) Update(_ context.Context, _ client.Object, _ ...client.Upda
 	return e.error
 }
 
+// Apply implements client.Client.
+func (e ErrorClient) Apply(_ context.Context, _ runtime.ApplyConfiguration, _ ...client.ApplyOption) error {
+	return e.error
+}
+
 // Patch implements client.Client.
 func (e ErrorClient) Patch(_ context.Context, _ client.Object, _ client.Patch, _ ...client.PatchOption) error {
 	return e.error
@@ -123,5 +128,10 @@ func (e SubResourceErrorClient) Update(_ context.Context, _ client.Object, _ ...
 
 // Patch implements client.SubResourceWriter
 func (e SubResourceErrorClient) Patch(_ context.Context, _ client.Object, _ client.Patch, _ ...client.SubResourcePatchOption) error {
+	return e.error
+}
+
+// Apply implements client.SubResourceWriter
+func (e SubResourceErrorClient) Apply(_ context.Context, _ runtime.ApplyConfiguration, _ ...client.SubResourceApplyOption) error {
 	return e.error
 }

@@ -15,11 +15,11 @@
 package raw
 
 import (
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/validate/fileobjects"
-	"kpt.dev/configsync/pkg/validate/raw/hydrate"
-	"kpt.dev/configsync/pkg/validate/raw/validate"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/fileobjects"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/raw/hydrate"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/raw/validate"
 )
 
 // Hierarchical performs initial validation and hydration for a structured

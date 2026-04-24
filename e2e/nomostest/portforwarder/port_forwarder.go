@@ -24,11 +24,11 @@ import (
 	"sync"
 	"time"
 
-	"kpt.dev/configsync/e2e/nomostest/retry"
-	"kpt.dev/configsync/e2e/nomostest/testkubeclient"
-	"kpt.dev/configsync/e2e/nomostest/testlogger"
-	"kpt.dev/configsync/e2e/nomostest/testwatcher"
-	"kpt.dev/configsync/pkg/kinds"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/retry"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testkubeclient"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testlogger"
+	"github.com/GoogleContainerTools/config-sync/e2e/nomostest/testwatcher"
+	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
 )
 
 var errTerminal = errors.New("terminal PortForwarder error")

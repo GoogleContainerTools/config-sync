@@ -15,10 +15,10 @@
 package fileobjects
 
 import (
-	"kpt.dev/configsync/pkg/declared"
-	"kpt.dev/configsync/pkg/importer/analyzer/ast"
-	"kpt.dev/configsync/pkg/reconciler/namespacecontroller"
-	"kpt.dev/configsync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/declared"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconciler/namespacecontroller"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 )
 
 // ScopedVisitor is a function that validates or hydrates Scoped objects.

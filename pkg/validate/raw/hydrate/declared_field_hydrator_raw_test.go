@@ -17,11 +17,11 @@ package hydrate
 import (
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/generated/clientset/versioned/scheme"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast"
+	"github.com/GoogleContainerTools/config-sync/pkg/testing/openapitest"
+	"github.com/GoogleContainerTools/config-sync/pkg/validate/fileobjects"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"kpt.dev/configsync/pkg/generated/clientset/versioned/scheme"
-	"kpt.dev/configsync/pkg/importer/analyzer/ast"
-	"kpt.dev/configsync/pkg/testing/openapitest"
-	"kpt.dev/configsync/pkg/validate/fileobjects"
 )
 
 func TestRawYAML(t *testing.T) {

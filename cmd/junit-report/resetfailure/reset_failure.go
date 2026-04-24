@@ -56,13 +56,13 @@ func ResetFailure(path string) error {
 	}
 
 	failureTestSuite := junit.Testsuite{
-		Name: "kpt.dev/configsync/e2e/testcases",
+		Name: "github.com/GoogleContainerTools/config-sync/e2e/testcases",
 		ID:   len(testSuites.Suites),
 		Time: "0",
 		Testcases: []junit.Testcase{
 			{
 				Name:      "Failure",
-				Classname: "kpt.dev/configsync/e2e/testcases",
+				Classname: "github.com/GoogleContainerTools/config-sync/e2e/testcases",
 				Time:      "0",
 			},
 		},

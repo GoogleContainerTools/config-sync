@@ -21,14 +21,14 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/hydrate"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem/cmpath"
+	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/util"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/hydrate"
-	"kpt.dev/configsync/pkg/importer/filesystem/cmpath"
-	"kpt.dev/configsync/pkg/metadata"
-	"kpt.dev/configsync/pkg/reconcilermanager"
-	"kpt.dev/configsync/pkg/status"
-	"kpt.dev/configsync/pkg/util"
 )
 
 // FileSource includes all settings to configure where a Parser reads files from.
@@ -59,19 +59,6 @@ type FileSource struct {
 type Files struct {
 	// TODO: unwrap composition
 	FileSource
-}
-
-// sourceState contains all state read from the mounted source repo.
-type sourceState struct {
-	// spec is the source specification as read from the FileSource.
-	// This cache avoids re-generating the spec every time the status is updated.
-	spec SourceSpec
-	// commit is the commit read from the source of truth.
-	commit string
-	// syncPath is the absolute path to the sync directory that includes the configurations.
-	syncPath cmpath.Absolute
-	// files is the list of all observed files in the sync directory (recursively).
-	files []cmpath.Absolute
 }
 
 // readConfigFiles reads all the files under state.syncPath and sets state.files.

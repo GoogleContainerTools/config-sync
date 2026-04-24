@@ -20,6 +20,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
+	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager/controllers"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/handler"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/metrics"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/resourcemap"
+	controllerstatus "github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/resourcegroup/controllers/typeresolver"
 	"github.com/go-logr/logr"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -28,13 +35,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"kpt.dev/configsync/pkg/api/kpt.dev/v1alpha1"
-	"kpt.dev/configsync/pkg/reconcilermanager/controllers"
-	"kpt.dev/configsync/pkg/resourcegroup/controllers/handler"
-	"kpt.dev/configsync/pkg/resourcegroup/controllers/metrics"
-	"kpt.dev/configsync/pkg/resourcegroup/controllers/resourcemap"
-	controllerstatus "kpt.dev/configsync/pkg/resourcegroup/controllers/status"
-	"kpt.dev/configsync/pkg/resourcegroup/controllers/typeresolver"
 	"sigs.k8s.io/cli-utils/pkg/common"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -88,6 +88,10 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	err := r.client.Get(ctx, req.NamespacedName, rgObj)
 	if err != nil {
 		if errors.IsNotFound(err) {
+			// ResourceGroup has been deleted, reset all resource metrics to zero
+			// This ensures the metrics stop being emitted and can expire
+			r.Logger(ctx).V(3).Info("ResourceGroup not found, resetting all metrics")
+			resetResourceMetrics(ctx, req.NamespacedName)
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
@@ -95,6 +99,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	if rgObj.DeletionTimestamp != nil {
 		r.Logger(ctx).V(3).Info("Skipping ResourceGroup status update: ResourceGroup being deleted")
+		// ResourceGroup is being deleted, reset all resource metrics to zero
+		// This ensures the metrics stop being emitted and can expire
+		resetResourceMetrics(ctx, req.NamespacedName)
 		return ctrl.Result{}, nil
 	}
 
@@ -160,6 +167,18 @@ func updateResourceMetrics(ctx context.Context, nn types.NamespacedName, statuse
 	metrics.RecordClusterScopedResourceCount(ctx, nn, int64(clusterScopedCount))
 	metrics.RecordCRDCount(ctx, nn, int64(len(crds)))
 	metrics.RecordKCCResourceCount(ctx, nn, int64(kccCount))
+}
+
+// resetResourceMetrics resets all resource metrics to zero when a ResourceGroup is deleted.
+// This ensures the metrics stop being emitted and can expire.
+func resetResourceMetrics(ctx context.Context, nn types.NamespacedName) {
+	metrics.RecordReadyResourceCount(ctx, nn, 0)
+	metrics.RecordResourceCount(ctx, nn, 0)
+	metrics.RecordNamespaceCount(ctx, nn, 0)
+	metrics.RecordClusterScopedResourceCount(ctx, nn, 0)
+	metrics.RecordCRDCount(ctx, nn, 0)
+	metrics.RecordKCCResourceCount(ctx, nn, 0)
+	metrics.RecordPipelineError(ctx, nn, readinessComponent, false)
 }
 
 // updateStatusKptGroup updates the ResourceGroup status.
@@ -278,12 +297,18 @@ func (r *reconciler) computeStatus(
 		log := r.Logger(ctx).WithValues("inventory.object", res)
 
 		cachedStatus := r.resMap.GetStatus(res)
+		ignoreMutation := false
 
 		// Add status to cache, if not present.
 		switch {
 		case cachedStatus != nil:
 			log.V(4).Info("Resource object status found in the cache")
-			setResStatus(id, &resStatus, cachedStatus)
+			ignoreMutation = cachedStatus.IgnoreMutation
+			if cachedStatus.Status == v1alpha1.NotFound {
+				resStatus.Status = v1alpha1.NotFound
+			} else {
+				setResStatus(id, &resStatus, cachedStatus)
+			}
 		default:
 			log.V(4).Info("Resource object status not found in the cache")
 			resObj := new(unstructured.Unstructured)
@@ -322,6 +347,8 @@ func (r *reconciler) computeStatus(
 			r.resMap.SetStatus(res, cachedStatus)
 			// Update the new resource status.
 			setResStatus(id, &resStatus, cachedStatus)
+			// set ignore mutation variable
+			ignoreMutation = cachedStatus.IgnoreMutation
 		}
 
 		if resStatus.Status == v1alpha1.Failed || controllerstatus.IsCNRMResource(resStatus.Group) && resStatus.Status != v1alpha1.Current {
@@ -336,16 +363,21 @@ func (r *reconciler) computeStatus(
 
 			// Update the reconcile status based on the Strategy & Actuation
 			// from the last apply attempt, and the newly computed kstatus.
-			if reconcile, err := UpdateReconcileStatusToReflectKstatus(resStatus); err != nil {
+			if reconcile, err := UpdateReconcileStatusToReflectKstatus(resStatus, ignoreMutation); err != nil {
 				// Keep existing Reconcile status
 				log.Error(err, "Resource object status unknown: failed to compute")
 			} else {
 				resStatus.Reconcile = reconcile
 			}
 
-			// Update the status field to reflect source -> spec -> status,
-			// not just spec -> status.
-			resStatus.Status = UpdateStatusToReflectActuation(resStatus)
+			if ignoreMutation {
+				// If it's a mutation-ignored object, the status field only reflects spec -> status.
+				log.V(4).Info("Skipping actuation status update. Status will only reflect reconciliation.")
+			} else {
+				// Update the status field to reflect source -> spec -> status,
+				// not just spec -> status.
+				resStatus.Status = UpdateStatusToReflectActuation(resStatus)
+			}
 		}
 
 		log.V(5).Info("Resource object status computed", "status", resStatus)
@@ -364,7 +396,7 @@ func (r *reconciler) computeStatus(
 // UpdateReconcileStatusToReflectKstatus uses the current Strategy and Actuation
 // status from the applier and the newly computed kstatus to compute the
 // Reconcile status. Returns an error if one of the inputs is invalid.
-func UpdateReconcileStatusToReflectKstatus(status v1alpha1.ResourceStatus) (v1alpha1.Reconcile, error) {
+func UpdateReconcileStatusToReflectKstatus(status v1alpha1.ResourceStatus, ignoreMutation bool) (v1alpha1.Reconcile, error) {
 	switch status.Strategy {
 	case v1alpha1.Apply:
 		switch status.Actuation {
@@ -373,6 +405,12 @@ func UpdateReconcileStatusToReflectKstatus(status v1alpha1.ResourceStatus) (v1al
 		case v1alpha1.ActuationPending:
 			return v1alpha1.ReconcilePending, nil
 		case v1alpha1.ActuationSkipped:
+			if ignoreMutation {
+				// If the object is allowed to drift, it's expected that actuation is skipped.
+				// Compute the reconcile status to reflect the on-cluster object, even
+				// if it may not necessarily reflect the object in the source.
+				return computeReconcileStatusForSuccessfulApply(status.Status, status.Reconcile)
+			}
 			return v1alpha1.ReconcileSkipped, nil
 		case v1alpha1.ActuationFailed:
 			return v1alpha1.ReconcileSkipped, nil

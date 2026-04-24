@@ -17,16 +17,16 @@ package fake
 import (
 	"fmt"
 
-	"kpt.dev/configsync/pkg/api/configsync"
-	"kpt.dev/configsync/pkg/importer/analyzer/ast"
-	"kpt.dev/configsync/pkg/importer/filesystem"
-	"kpt.dev/configsync/pkg/importer/reader"
-	"kpt.dev/configsync/pkg/status"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/analyzer/ast"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem"
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/reader"
+	"github.com/GoogleContainerTools/config-sync/pkg/status"
 )
 
 // ConfigParser fakes filesystem.ConfigParser.
 //
-// This is not in kpt.dev/configsync/pkg/testing/fake because that would cause
+// This is not in github.com/GoogleContainerTools/config-sync/pkg/testing/fake because that would cause
 // a import loop (filesystem -> fake -> filesystem).
 type ConfigParser struct {
 	Calls   int

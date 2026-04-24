@@ -18,8 +18,8 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/importer/filesystem/cmpath"
 	"github.com/google/go-cmp/cmp"
-	"kpt.dev/configsync/pkg/importer/filesystem/cmpath"
 )
 
 func toCmpath(t *testing.T, files []string) []cmpath.Absolute {
