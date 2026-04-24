@@ -267,9 +267,16 @@ func gitSyncEnvs(_ context.Context, opts options) ([]corev1.EnvVar, error) {
 		})
 	}
 	if useCACert(opts.caCertSecretRef) {
+		caCertFilePath := fmt.Sprintf("%s/%s", CACertPath, CACertSecretKey)
 		result = append(result, corev1.EnvVar{
 			Name:  GitSSLCAInfo,
-			Value: fmt.Sprintf("%s/%s", CACertPath, CACertSecretKey),
+			Value: caCertFilePath,
+		})
+		// SSL_CERT_FILE is needed for Github App token exchange
+		// as it uses net/http client and not the git CLI.
+		result = append(result, corev1.EnvVar{
+			Name:  "SSL_CERT_FILE",
+			Value: caCertFilePath,
 		})
 	}
 	if opts.depth != nil && *opts.depth >= 0 {

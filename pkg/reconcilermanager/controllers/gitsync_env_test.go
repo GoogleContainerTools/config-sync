@@ -15,8 +15,11 @@
 package controllers
 
 import (
+	"context"
 	"testing"
+	"time"
 
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
 	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -156,6 +159,63 @@ func TestGitSyncEnvVars(t *testing.T) {
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			assert.Equal(t, tc.expectedEnvVars, tc.githubApp.GitSyncEnvVars(tc.secretName))
+		})
+	}
+}
+
+func TestGitSyncEnvsWithGithubAppCACert(t *testing.T) {
+	testCases := map[string]struct {
+		opts                  options
+		containsCACertEnvVar  bool
+		containsSSLCertEnvVar bool
+	}{
+		"github app with CA cert should set both CA env vars": {
+			opts: options{
+				repo:            "https://example.com/repo.git",
+				secretType:      configsync.AuthGithubApp,
+				period:          15 * time.Second,
+				caCertSecretRef: "ca-cert-secret",
+			},
+			containsCACertEnvVar:  true,
+			containsSSLCertEnvVar: true,
+		},
+		"github app without CA cert should not set CA env vars": {
+			opts: options{
+				repo:       "https://example.com/repo.git",
+				secretType: configsync.AuthGithubApp,
+				period:     15 * time.Second,
+			},
+			containsCACertEnvVar:  false,
+			containsSSLCertEnvVar: false,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			envs, err := gitSyncEnvs(context.Background(), tc.opts)
+
+			assert.NoError(t, err)
+
+			caInfoEnvVar := corev1.EnvVar{
+				Name:  GitSSLCAInfo,
+				Value: CACertPath + "/" + CACertSecretKey,
+			}
+			sslCertFileEnvVar := corev1.EnvVar{
+				Name:  "SSL_CERT_FILE",
+				Value: CACertPath + "/" + CACertSecretKey,
+			}
+
+			if tc.containsCACertEnvVar {
+				assert.Contains(t, envs, caInfoEnvVar)
+			} else {
+				assert.NotContains(t, envs, caInfoEnvVar)
+			}
+
+			if tc.containsSSLCertEnvVar {
+				assert.Contains(t, envs, sslCertFileEnvVar)
+			} else {
+				assert.NotContains(t, envs, sslCertFileEnvVar)
+			}
 		})
 	}
 }
