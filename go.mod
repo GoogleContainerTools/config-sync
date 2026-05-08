@@ -5,7 +5,7 @@ go 1.25.9
 require (
 	cloud.google.com/go/auth v0.20.0
 	cloud.google.com/go/compute/metadata v0.9.0
-	cloud.google.com/go/logging v1.17.0
+	cloud.google.com/go/logging v1.18.0
 	cloud.google.com/go/monitoring v1.28.0
 	cloud.google.com/go/trace v1.15.0
 	github.com/GoogleContainerTools/kpt-functions-catalog/functions/go/set-namespace v0.4.1-0.20220713210718-d955e7d3a800
