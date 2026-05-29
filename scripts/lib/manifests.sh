@@ -52,7 +52,3 @@ config_sync_images() {
   echo "${images[@]}"
   return 0
 }
-
-
-
-

@@ -24,7 +24,7 @@ CHART_SRC_DIR="${REPO_ROOT}/e2e/testdata/helm-charts/${CHART_NAME}"
 TMP_DIR=$(mktemp -d)
 
 function cleanup() {
-    rm -rf -- "$TMP_DIR"
+  rm -rf -- "$TMP_DIR"
 }
 
 # Ensures the temporary directory is cleaned up on exit

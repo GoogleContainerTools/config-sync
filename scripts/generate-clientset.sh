@@ -45,12 +45,12 @@ source "${CODEGEN_PKG}/kube_codegen.sh"
 GOMOD_NAME="$(grep "^module" "${SCRIPT_ROOT}/go.mod" | cut -d' ' -f2)"
 
 kube::codegen::gen_helpers \
-    --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.txt" \
-    "${SCRIPT_ROOT}/pkg/api"
+  --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.txt" \
+  "${SCRIPT_ROOT}/pkg/api"
 
 kube::codegen::gen_client \
-    --with-watch \
-    --output-dir "${SCRIPT_ROOT}/pkg/generated" \
-    --output-pkg "${GOMOD_NAME}/pkg/generated" \
-    --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.txt" \
-    "${SCRIPT_ROOT}/pkg/api"
+  --with-watch \
+  --output-dir "${SCRIPT_ROOT}/pkg/generated" \
+  --output-pkg "${GOMOD_NAME}/pkg/generated" \
+  --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.txt" \
+  "${SCRIPT_ROOT}/pkg/api"

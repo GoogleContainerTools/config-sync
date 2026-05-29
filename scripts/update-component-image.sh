@@ -1,5 +1,5 @@
 #!/bin/bash
-# 
+#
 # Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -56,13 +56,13 @@ case "${COMPONENT}" in
     VAR_NAME="KUSTOMIZE_VERSION"
     GCS_PATH="gs://config-management-release/config-sync/kustomize/tag/"
     STRIP_BASE_PATTERN="-gke.*"
-    QUERY_TYPE="gsutil"
+    QUERY_TYPE="gcloud-storage"
     ;;
   helm)
     VAR_NAME="HELM_VERSION"
     GCS_PATH="gs://config-management-release/config-sync/helm/tag/"
     STRIP_BASE_PATTERN="-gke.*"
-    QUERY_TYPE="gsutil"
+    QUERY_TYPE="gcloud-storage"
     ;;
   *)
     echo "Unknown component: ${COMPONENT}" >&2
@@ -101,8 +101,8 @@ elif [[ "${UPDATE_TYPE}" == "latest-build" ]]; then
   fi
   FILTER="tags:${BASE_VERSION}*"
   GREP_PATTERN="^${BASE_VERSION}"
-  if [ "${QUERY_TYPE}" == "gsutil" ]; then
-    FILTER="${BASE_VERSION%-gke.*}*"
+  if [ "${QUERY_TYPE}" == "gcloud-storage" ]; then
+    FILTER=""
     GREP_PATTERN="^${BASE_VERSION%-gke.*}"
   fi
 else
@@ -117,7 +117,7 @@ if [ "${QUERY_TYPE}" == "gcloud" ]; then
     --format="value(tags)" | tr ',' '\n' | grep "${GREP_PATTERN}" | sort -V | tail -n 1)
 else
   # Query GCS and strip path/trailing slash
-  LATEST_TAG=$(gsutil ls -d "${GCS_PATH}${FILTER}/" | sed "s|${GCS_PATH}||; s|/||" | grep "${GREP_PATTERN}" | sort -V | tail -n 1)
+  LATEST_TAG=$(gcloud storage ls "${GCS_PATH}" | sed "s|${GCS_PATH}||; s|/||" | grep "${GREP_PATTERN}" | sort -V | tail -n 1)
 fi
 
 if [ -z "${LATEST_TAG}" ]; then

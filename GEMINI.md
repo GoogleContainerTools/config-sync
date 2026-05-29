@@ -35,7 +35,6 @@ Configurations are declared using custom resources like `RootSync` and `RepoSync
 *   Make
 *   Docker
 *   gcloud CLI
-*   gsutil
 
 **Common Commands (from Makefile):**
 

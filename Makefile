@@ -234,7 +234,6 @@ DOCKER_RUN_ARGS = \
 	-v $(GO_DIR)/std/windows_amd64_static:/usr/local/go/pkg/windows_amd64_static   \
 	-v $(TEMP_OUTPUT_DIR):/tmp                                         \
 	-v $${HOME}/.config:/.config                                       \
-	-v $${HOME}/.gsutil:/.gsutil                                       \
 	-w /go/src/$(REPO)                                                 \
 	--rm                                                               \
 	$(BUILDENV_IMAGE)                                                  \

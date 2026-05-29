@@ -27,7 +27,7 @@ fi
 
 kubectl delete deployment -n config-management-system config-management-operator --ignore-not-found --cascade=foreground
 
-if kubectl get configmanagement config-management &> /dev/null ; then
+if kubectl get configmanagement config-management &>/dev/null; then
   kubectl patch configmanagement config-management --type="merge" -p '{"metadata":{"finalizers":[]}}'
   kubectl delete configmanagement config-management --cascade=orphan --ignore-not-found
 fi

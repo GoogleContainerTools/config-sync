@@ -8,11 +8,10 @@ You must have the following tools:
 * [make]
 * [docker]
 * [gcloud]
-* [gsutil]
 
 ### Login to gcloud
 
-In order to download some build artifacts and dependencies from Google Cloud Storage (GCS) with `gsutil`, you may need to be authenticated with `gcloud`.
+In order to download some build artifacts and dependencies from Google Cloud Storage (GCS) with `gcloud storage`, you may need to be authenticated with `gcloud`.
 
 One way to do this is with `gcloud auth login`. For other options, see https://cloud.google.com/docs/authentication/gcloud
 
@@ -157,5 +156,4 @@ make run-oss
 [make]: https://www.gnu.org/software/make/
 [docker]: https://www.docker.com/get-started
 [gcloud]: https://cloud.google.com/sdk/docs/install
-[gsutil]: https://cloud.google.com/storage/docs/gsutil_install
 [create your own fork]: https://docs.github.com/en/get-started/quickstart/fork-a-repo

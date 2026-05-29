@@ -88,8 +88,8 @@ ENV GOCACHE=/go/cache
 
 COPY --from=tools-base /go/bin/* /bin/
 
-# Install gcloud & gsutil
-# Requires /.config/ & /.gsutil/ volumes mounted for authentication
+# Install gcloud & gcloud storage components
+# Requires /.config/ volume mounted for authentication
 COPY --from=gcloud-install /usr/lib/google-cloud-sdk /usr/lib/google-cloud-sdk
 ENV PATH "$PATH:/usr/lib/google-cloud-sdk/bin"
 

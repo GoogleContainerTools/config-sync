@@ -29,7 +29,7 @@ function pretty_print {
 
 function local_image_exists {
   image="$1"
-  docker image inspect "${image}" &> /dev/null
+  docker image inspect "${image}" &>/dev/null
 }
 
 function remote_image_exists {
@@ -37,12 +37,12 @@ function remote_image_exists {
   flags=()
   # must pass --insecure flag for local registry (e.g. localhost:5000)
   [[ "${image}" == "localhost"* ]] && flags+=("--insecure")
-  docker manifest inspect "${flags[@]}" "${image}" &> /dev/null
+  docker manifest inspect "${flags[@]}" "${image}" &>/dev/null
 }
 
 pretty_print "Current commit" "$(git describe --tags --always --dirty --long)"
 
-read -r -a images <<< "$(config_sync_images)"
+read -r -a images <<<"$(config_sync_images)"
 [[ ${#images[@]} -eq 0 ]] && exit 1
 declare -A status_map
 cs_tag=""
