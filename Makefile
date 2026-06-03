@@ -95,12 +95,12 @@ COSIGN := $(BIN_DIR)/cosign
 
 # To automatically update, run this command:
 # UPDATE_TYPE=<latest-version|latest-build> make update-git-sync-image
-GIT_SYNC_VERSION := v4.4.2-gke.25__linux_amd64
+GIT_SYNC_VERSION := v4.4.2-gke.26__linux_amd64
 GIT_SYNC_IMAGE_NAME := gcr.io/config-management-release/git-sync:$(GIT_SYNC_VERSION)
 
 # To automatically update, run this command:
 # UPDATE_TYPE=<latest-version|latest-build> make update-otelcontribcol-image
-OTELCONTRIBCOL_VERSION := v0.152.0-gke.2
+OTELCONTRIBCOL_VERSION := v0.152.0-gke.4
 OTELCONTRIBCOL_IMAGE_NAME := gcr.io/config-management-release/otelcontribcol:$(OTELCONTRIBCOL_VERSION)
 
 # Directory used for staging Docker contexts.
