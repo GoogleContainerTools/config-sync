@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 #
 # golang e2e test launcher.
 # This wraps the e2e test execution and creates a junit report.
@@ -27,7 +26,7 @@ start_time=$(date +%s)
 go test ./e2e/testcases/... --p 1 --e2e --test.v "$@" | tee test_results.txt
 exit_code=$?
 end_time=$(date +%s)
-echo "Tests took $(( end_time - start_time )) seconds"
+echo "Tests took $((end_time - start_time)) seconds"
 
 # Save test results to ARTIFACTS directory. The ARTIFACTS env var is set by prow.
 # The containerized entry points mount the ARTIFACTS directory to a path inside
@@ -35,7 +34,7 @@ echo "Tests took $(( end_time - start_time )) seconds"
 # enables running this script more flexibly, e.g. without docker in docker.
 if [[ -n "${ARTIFACTS}" && -d "${ARTIFACTS}" ]]; then
   echo "Creating junit xml report"
-  go-junit-report --subtest-mode=exclude-parents < test_results.txt > "${ARTIFACTS}/junit_report.xml"
+  go-junit-report --subtest-mode=exclude-parents <test_results.txt >"${ARTIFACTS}/junit_report.xml"
   if [ "$exit_code" -eq 0 ]; then
     echo "Running junit-report post processor"
     # build our in-repo junit report post-processor binary

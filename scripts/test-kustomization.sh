@@ -22,8 +22,8 @@ out=$(kustomize build --load-restrictor=LoadRestrictionsNone "${REPO_ROOT}/test/
 expected_file="${REPO_ROOT}/test/kustomization/expected.yaml"
 
 if [[ "${UPDATE_EXPECTED_OUTPUT:-}" == "true" ]]; then
-  echo "${out}" > "${expected_file}"
+  echo "${out}" >"${expected_file}"
   exit 0
 fi
 
-diff "${expected_file}" <( echo "${out}" )
+diff "${expected_file}" <(echo "${out}")

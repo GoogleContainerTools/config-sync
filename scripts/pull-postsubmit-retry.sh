@@ -25,10 +25,10 @@ num_intervals=80
 interval=15
 SECONDS=0
 until [[ "$n" -ge $num_intervals ]]; do
-   make pull-gcs-postsubmit && exit 0
-   echo "++++ Failed to pull postsubmit artifacts. Waiting ${interval} seconds to retry."
-   n=$((n+1))
-   sleep "${interval}"
+  make pull-gcs-postsubmit && exit 0
+  echo "++++ Failed to pull postsubmit artifacts. Waiting ${interval} seconds to retry."
+  n=$((n + 1))
+  sleep "${interval}"
 done
 
 echo "++++ Postsubmit artifacts not found after retrying for ${SECONDS} seconds"

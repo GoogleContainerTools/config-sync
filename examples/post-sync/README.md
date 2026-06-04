@@ -173,7 +173,7 @@ export SINK_NAME="sync-status-errors"
 export BUCKET_NAME="sync-status-logs-${PROJECT_ID}"
 
 # Create the storage bucket
-gsutil mb -l ${REGION} gs://${BUCKET_NAME}
+gcloud storage buckets create gs://${BUCKET_NAME} --location=${REGION}
 
 # Create the log sink
 gcloud logging sinks create ${SINK_NAME} storage.googleapis.com/${BUCKET_NAME} \
@@ -183,7 +183,7 @@ gcloud logging sinks create ${SINK_NAME} storage.googleapis.com/${BUCKET_NAME} \
 export SINK_SA=$(gcloud logging sinks describe ${SINK_NAME} --format='value(writerIdentity)')
 
 # Grant permissions to write to the bucket
-gsutil iam ch ${SINK_SA}:roles/storage.objectCreator gs://${BUCKET_NAME}
+gcloud storage buckets add-iam-policy-binding gs://${BUCKET_NAME} --member=${SINK_SA} --role=roles/storage.objectCreator
 ```
 
 ## Setting Up Alerting with Pub/Sub and Cloud Functions
@@ -502,7 +502,7 @@ gcloud iam service-accounts delete ${LOG_GSA_NAME}@${PROJECT_ID}.iam.gserviceacc
 gcloud iam service-accounts delete ${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com
 
 # Delete the storage bucket (if created)
-gsutil rm -r gs://${BUCKET_NAME}
+gcloud storage rm --recursive gs://${BUCKET_NAME}
 
 # Delete GAR repository (optional)
 gcloud artifacts repositories delete ${GAR_REPO_NAME} --location=${REGION}

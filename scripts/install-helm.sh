@@ -30,17 +30,17 @@ OUTPUT_DIR=${OUTPUT_DIR:-${REPO_ROOT}/.output}
 STAGING_DIR=${STAGING_DIR:-${OUTPUT_DIR}/third_party/helm}
 
 function helm_version_installed() {
-    local version
-    version=$("${INSTALL_DIR}/helm" version --short)
-    echo "${version%+*}" # remove commit suffix
+  local version
+  version=$("${INSTALL_DIR}/helm" version --short)
+  echo "${version%+*}" # remove commit suffix
 }
 
 # Check installed version
 if [[ -f "${INSTALL_DIR}/helm" ]] && [[ -x "${INSTALL_DIR}/helm" ]]; then
-    if [[ "$(helm_version_installed)" == "${HELM_VERSION}" ]]; then
-        echo "helm version: ${HELM_VERSION} (already installed)"
-        exit 0
-    fi
+  if [[ "$(helm_version_installed)" == "${HELM_VERSION}" ]]; then
+    echo "helm version: ${HELM_VERSION} (already installed)"
+    exit 0
+  fi
 fi
 
 HELM_TARBALL_URL=gs://config-management-release/config-sync/helm/tag/${HELM_VERSION}/helm-${HELM_VERSION}-linux-amd64.tar.gz
@@ -49,14 +49,14 @@ HELM_TARBALL=${TMPDIR}/helm-${HELM_VERSION}-linux-amd64.tar.gz
 HELM_CHECKSUM=${HELM_TARBALL}.sha256
 
 function cleanup() {
-    rm -f "${HELM_TARBALL}"
-    rm -f "${HELM_CHECKSUM}"
+  rm -f "${HELM_TARBALL}"
+  rm -f "${HELM_CHECKSUM}"
 }
 trap cleanup EXIT
 
 echo "Downloading helm ${HELM_VERSION}"
-gsutil cp "${HELM_TARBALL_URL}" "${HELM_TARBALL}"
-gsutil cp "${HELM_CHECKSUM_URL}" "${HELM_CHECKSUM}"
+gcloud storage cp "${HELM_TARBALL_URL}" "${HELM_TARBALL}"
+gcloud storage cp "${HELM_CHECKSUM_URL}" "${HELM_CHECKSUM}"
 
 echo "Verifying helm checksum"
 echo "$(cat "${HELM_CHECKSUM}")  ${HELM_TARBALL}" | sha256sum -c

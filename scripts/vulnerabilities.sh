@@ -34,7 +34,7 @@ scripts_dir="$(dirname "$(realpath "$0")")"
 # shellcheck source=scripts/lib/manifests.sh
 source "${scripts_dir}/lib/manifests.sh"
 
-read -r -a images <<< "$(config_sync_images)"
+read -r -a images <<<"$(config_sync_images)"
 [[ ${#images[@]} -eq 0 ]] && exit 1
 fixable_total=0
 scan_failure_total=0

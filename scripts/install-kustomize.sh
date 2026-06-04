@@ -30,15 +30,15 @@ OUTPUT_DIR=${OUTPUT_DIR:-${REPO_ROOT}/.output}
 STAGING_DIR=${STAGING_DIR:-${OUTPUT_DIR}/third_party/kustomize}
 
 function helm_version_installed() {
-    "${INSTALL_DIR}/kustomize" version
+  "${INSTALL_DIR}/kustomize" version
 }
 
 # Check installed version
 if [[ -f "${INSTALL_DIR}/kustomize" ]] && [[ -x "${INSTALL_DIR}/kustomize" ]]; then
-    if [[ "$(helm_version_installed)" == "${KUSTOMIZE_VERSION}" ]]; then
-        echo "kustomize version: ${KUSTOMIZE_VERSION} (already installed)"
-        exit 0
-    fi
+  if [[ "$(helm_version_installed)" == "${KUSTOMIZE_VERSION}" ]]; then
+    echo "kustomize version: ${KUSTOMIZE_VERSION} (already installed)"
+    exit 0
+  fi
 fi
 
 KUSTOMIZE_TARBALL_URL=gs://config-management-release/config-sync/kustomize/tag/${KUSTOMIZE_VERSION}/kustomize-${KUSTOMIZE_VERSION}-linux-amd64.tar.gz
@@ -47,14 +47,14 @@ KUSTOMIZE_TARBALL=${TMPDIR}/kustomize-${KUSTOMIZE_VERSION}-linux-amd64.tar.gz
 KUSTOMIZE_CHECKSUM=${KUSTOMIZE_TARBALL}.sha256
 
 function cleanup() {
-    rm -f "${KUSTOMIZE_TARBALL}"
-    rm -f "${KUSTOMIZE_CHECKSUM}"
+  rm -f "${KUSTOMIZE_TARBALL}"
+  rm -f "${KUSTOMIZE_CHECKSUM}"
 }
 trap cleanup EXIT
 
 echo "Downloading kustomize ${KUSTOMIZE_VERSION}"
-gsutil cp "${KUSTOMIZE_TARBALL_URL}" "${KUSTOMIZE_TARBALL}"
-gsutil cp "${KUSTOMIZE_CHECKSUM_URL}" "${KUSTOMIZE_CHECKSUM}"
+gcloud storage cp "${KUSTOMIZE_TARBALL_URL}" "${KUSTOMIZE_TARBALL}"
+gcloud storage cp "${KUSTOMIZE_CHECKSUM_URL}" "${KUSTOMIZE_CHECKSUM}"
 
 echo "Verifying kustomize checksum"
 echo "$(cat "${KUSTOMIZE_CHECKSUM}")  ${KUSTOMIZE_TARBALL}" | sha256sum -c

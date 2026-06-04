@@ -28,7 +28,7 @@ GO_MODULE="$(grep "^module" "go.mod" | cut -d' ' -f2)"
 source_paths=("pkg" "cmd")
 
 function render_main_test() {
-  cat << EOF
+  cat <<EOF
 package ${PACKAGE_NAME}
 
 import (
@@ -51,16 +51,16 @@ EOF
 # find_test_dirs loops through all the directories under the specified path
 # and prints the ones directly containing go tests.
 function find_test_dirs() {
-    local parent_path="$1"
-    local test_dir_path
-    declare -A test_dir_paths
-    while IFS= read -r file_path; do
-        test_dir_path="$(dirname "${file_path}")"
-        test_dir_paths[$test_dir_path]="1"
-    done <<< "$(find "${parent_path}" -type f -name "*_test.go")"
-    for test_dir_path in "${!test_dir_paths[@]}"; do
-        echo "${test_dir_path}"
-    done
+  local parent_path="$1"
+  local test_dir_path
+  declare -A test_dir_paths
+  while IFS= read -r file_path; do
+    test_dir_path="$(dirname "${file_path}")"
+    test_dir_paths[$test_dir_path]="1"
+  done <<<"$(find "${parent_path}" -type f -name "*_test.go")"
+  for test_dir_path in "${!test_dir_paths[@]}"; do
+    echo "${test_dir_path}"
+  done
 }
 
 for source_path in "${source_paths[@]}"; do
@@ -69,7 +69,7 @@ for source_path in "${source_paths[@]}"; do
     echo "Generating ${file_name}"
     PACKAGE_NAME="$(basename "${test_dir_path}")"
     PACKAGE_PATH="${test_dir_path}"
-    render_main_test > "${file_name}"
+    render_main_test >"${file_name}"
     "addlicense" -c "Google LLC" -f LICENSE_TEMPLATE "${file_name}"
-  done <<< "$(find_test_dirs "${source_path}")"
+  done <<<"$(find_test_dirs "${source_path}")"
 done

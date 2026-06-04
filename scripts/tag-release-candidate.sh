@@ -106,7 +106,7 @@ echo "+++ Incremented RC.  NEXT_RC: $NEXT_RC"
 if [[ "${branch}" == "main" ]]; then
   git log --oneline --graph -30 "${remote_sha}"
 else
-  git fetch "${REMOTE}" main > /dev/null
+  git fetch "${REMOTE}" main >/dev/null
   main_sha=$(git rev-parse FETCH_HEAD)
   git log --oneline --graph -30 "${main_sha}" "${remote_sha}"
 fi
