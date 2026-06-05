@@ -38,13 +38,13 @@ GO_DIR := $(OUTPUT_DIR)/go
 
 # Base image used for all golang containers
 # Uses trusted google-built golang image
-GOLANG_IMAGE_VERSION := 1.25.10
+GOLANG_IMAGE_VERSION := 1.25.11
 GOLANG_IMAGE := google-go.pkg.dev/golang:$(GOLANG_IMAGE_VERSION)
 # Base image used for debian containers
 # When updating you can use this command:
 # gcloud container images list-tags gcr.io/gke-release/debian-base --filter="tags:bookworm*"
 # Or run: UPDATE_TYPE=<latest-version|latest-build> make update-debian-base-image
-DEBIAN_BASE_IMAGE := gcr.io/gke-release/debian-base:bookworm-v1.0.7-gke.4
+DEBIAN_BASE_IMAGE := gcr.io/gke-release/debian-base:bookworm-v1.0.7-gke.5
 # Base image used for gcloud install, primarily for test images.
 # We use -slim for a smaller base image where we can choose which components to install.
 # https://cloud.google.com/sdk/docs/downloads-docker#docker_image_options
@@ -80,13 +80,13 @@ GOLANGCI_LINT := $(BIN_DIR)/golangci-lint
 
 # To automatically update, run this command:
 # UPDATE_TYPE=<latest-version|latest-build> make update-kustomize-image
-KUSTOMIZE_VERSION := v5.4.2-gke.7
+KUSTOMIZE_VERSION := v5.4.2-gke.8
 KUSTOMIZE := $(BIN_DIR)/kustomize
 KUSTOMIZE_STAGING_DIR := $(OUTPUT_DIR)/third_party/kustomize
 
 # To automatically update, run this command:
 # UPDATE_TYPE=<latest-version|latest-build> make update-helm-image
-HELM_VERSION := v3.20.2-gke.3
+HELM_VERSION := v3.20.2-gke.8
 HELM := $(BIN_DIR)/helm
 HELM_STAGING_DIR := $(OUTPUT_DIR)/third_party/helm
 
@@ -95,12 +95,12 @@ COSIGN := $(BIN_DIR)/cosign
 
 # To automatically update, run this command:
 # UPDATE_TYPE=<latest-version|latest-build> make update-git-sync-image
-GIT_SYNC_VERSION := v4.4.2-gke.24__linux_amd64
+GIT_SYNC_VERSION := v4.4.2-gke.26__linux_amd64
 GIT_SYNC_IMAGE_NAME := gcr.io/config-management-release/git-sync:$(GIT_SYNC_VERSION)
 
 # To automatically update, run this command:
 # UPDATE_TYPE=<latest-version|latest-build> make update-otelcontribcol-image
-OTELCONTRIBCOL_VERSION := v0.150.0-gke.5
+OTELCONTRIBCOL_VERSION := v0.152.0-gke.4
 OTELCONTRIBCOL_IMAGE_NAME := gcr.io/config-management-release/otelcontribcol:$(OTELCONTRIBCOL_VERSION)
 
 # Directory used for staging Docker contexts.
