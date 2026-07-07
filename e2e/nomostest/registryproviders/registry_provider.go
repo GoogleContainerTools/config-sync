@@ -218,7 +218,11 @@ func deleteOCIImage(client CraneClient, imageLocalAddress, digest string) error 
 // deleteOCIImage instead.
 func pushHelmPackage(provider HelmRegistryProvider, repoURL, localChartTgzPath string) (*HelmPackage, error) {
 	client := provider.Client()
-	if _, err := client.Helm("push", localChartTgzPath, repoURL); err != nil {
+	args := []string{"push", localChartTgzPath, repoURL}
+	if provider.Type() == e2e.Local {
+		args = append(args, "--plain-http")
+	}
+	if _, err := client.Helm(args...); err != nil {
 		return nil, fmt.Errorf("pushing helm chart: %w", err)
 	}
 
