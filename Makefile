@@ -80,7 +80,7 @@ GOLANGCI_LINT := $(BIN_DIR)/golangci-lint
 
 # To automatically update, run this command:
 # UPDATE_TYPE=<latest-version|latest-build> make update-kustomize-image
-KUSTOMIZE_VERSION := v5.4.2-gke.8
+KUSTOMIZE_VERSION := v5.4.2-gke.9
 KUSTOMIZE := $(BIN_DIR)/kustomize
 KUSTOMIZE_STAGING_DIR := $(OUTPUT_DIR)/third_party/kustomize
 
