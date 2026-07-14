@@ -86,7 +86,7 @@ KUSTOMIZE_STAGING_DIR := $(OUTPUT_DIR)/third_party/kustomize
 
 # To automatically update, run this command:
 # UPDATE_TYPE=<latest-version|latest-build> make update-helm-image
-HELM_VERSION := v3.21.1-gke.2
+HELM_VERSION := v3.21.1-gke.3
 HELM := $(BIN_DIR)/helm
 HELM_STAGING_DIR := $(OUTPUT_DIR)/third_party/helm
 
