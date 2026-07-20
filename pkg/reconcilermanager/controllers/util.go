@@ -41,6 +41,15 @@ func updateHydrationControllerImage(image string, overrides v1beta1.OverrideSpec
 	return strings.ReplaceAll(image, reconcilermanager.HydrationController+":", reconcilermanager.HydrationControllerWithShell+":")
 }
 
+// IsMonitoringEnabled returns true if monitoring is enabled.
+// It defaults to true if the spec or the enabled field is nil.
+func IsMonitoringEnabled(spec *v1beta1.MonitoringSpec) bool {
+	if spec == nil || spec.Enabled == nil {
+		return true
+	}
+	return *spec.Enabled
+}
+
 type hydrationOptions struct {
 	sourceType     configsync.SourceType
 	gitConfig      *v1beta1.Git

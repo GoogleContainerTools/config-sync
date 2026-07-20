@@ -285,6 +285,14 @@ spec:
                 - chart
                 - repo
                 type: object
+              monitoring:
+                description: monitoring defines the monitoring configuration.
+                properties:
+                  enabled:
+                    default: true
+                    description: enabled controls whether metrics exporting is enabled.
+                    type: boolean
+                type: object
               oci:
                 description: oci contains configuration specific to importing resources
                   from an OCI package.
@@ -1408,6 +1416,14 @@ spec:
                 - auth
                 - chart
                 - repo
+                type: object
+              monitoring:
+                description: monitoring defines the monitoring configuration.
+                properties:
+                  enabled:
+                    default: true
+                    description: enabled controls whether metrics exporting is enabled.
+                    type: boolean
                 type: object
               oci:
                 description: oci contains configuration specific to importing resources

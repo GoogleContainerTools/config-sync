@@ -26,6 +26,10 @@ import (
 
 // RegisterOTelExporter creates the OTLP metrics exporter.
 func RegisterOTelExporter(ctx context.Context, containerName string) (*otlpmetricgrpc.Exporter, error) {
+	if os.Getenv("DISABLE_MONITORING") == "true" {
+		err := InitializeOTelResourceGroupMetrics()
+		return nil, err
+	}
 
 	err := os.Setenv(
 		"OTEL_RESOURCE_ATTRIBUTES",
