@@ -20,8 +20,10 @@ import (
 	"time"
 
 	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
+	"github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
 	hubv1 "github.com/GoogleContainerTools/config-sync/pkg/api/hub/v1"
 	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/metrics"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -51,10 +53,13 @@ var expirationSeconds = int64((48 * time.Hour).Seconds())
 // filterVolumes returns the volumes depending on different auth types.
 // If authType is `none`, `gcenode`, or `gcpserviceaccount`, it won't mount the `git-creds` volume.
 // If authType is `gcpserviceaccount` with fleet membership available, it also mounts a `gcp-ksa` volume.
-func filterVolumes(existing []corev1.Volume, authType configsync.AuthType, secretName, caCertSecretName string, sourceType configsync.SourceType, membership *hubv1.Membership) []corev1.Volume {
+func filterVolumes(existing []corev1.Volume, authType configsync.AuthType, secretName, caCertSecretName string, sourceType configsync.SourceType, membership *hubv1.Membership, monitoring *v1beta1.MonitoringSpec) []corev1.Volume {
 	var updatedVolumes []corev1.Volume
 
 	for _, volume := range existing {
+		if volume.Name == metrics.OtelAgentName+"-config-reconciler-vol" && !IsMonitoringEnabled(monitoring) {
+			continue
+		}
 		if volume.Name == GitCredentialVolume {
 			// Don't mount git-creds volume if auth is 'none', 'gcenode', or 'gcpserviceaccount'
 			if SkipForAuth(authType) || sourceType != configsync.GitSource {

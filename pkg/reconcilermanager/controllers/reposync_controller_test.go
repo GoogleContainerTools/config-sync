@@ -34,6 +34,7 @@ import (
 	"github.com/GoogleContainerTools/config-sync/pkg/core/k8sobjects"
 	"github.com/GoogleContainerTools/config-sync/pkg/kinds"
 	"github.com/GoogleContainerTools/config-sync/pkg/metadata"
+	"github.com/GoogleContainerTools/config-sync/pkg/metrics"
 	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager"
 	"github.com/GoogleContainerTools/config-sync/pkg/reposync"
 	syncerFake "github.com/GoogleContainerTools/config-sync/pkg/syncer/syncertest/fake"
@@ -5367,4 +5368,98 @@ func newDeploymentCondition(condType appsv1.DeploymentConditionType, status core
 		Reason:             reason,
 		Message:            message,
 	}
+}
+
+func TestRepoSyncReconcile_DisableMonitoring(t *testing.T) {
+	// Mock out parseDeployment for testing
+	parseDeployment = func(de *appsv1.Deployment) error {
+		de.Spec = appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					metadata.ReconcilerLabel: reconcilermanager.Reconciler,
+				},
+			},
+			Replicas: &reconcilerDeploymentReplicaCount,
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: append(defaultContainers(), corev1.Container{
+						Name:  "otel-agent",
+						Image: "otel-agent-image",
+					}),
+					Volumes: []corev1.Volume{{Name: "repo"}, {Name: metrics.OtelAgentName + "-config-reconciler-vol"}},
+				},
+			},
+		}
+		return nil
+	}
+
+	t.Run("Monitoring.Enabled=false", func(t *testing.T) {
+		f := false
+		rs := repoSyncWithGit(reposyncName, reposyncNs, reposyncRef(gitRevision), reposyncBranch(branch), reposyncSecretType(GitSecretConfigKeySSH), reposyncSecretRef(reposyncSSHKey))
+		rs.Spec.Monitoring = &v1beta1.MonitoringSpec{Enabled: &f}
+
+		reqNamespacedName := namespacedName(rs.Name, rs.Namespace)
+		fakeClient, _, testReconciler := setupNSReconciler(t, rs, secretObj(t, reposyncSSHKey, configsync.AuthSSH, configsync.GitSource, core.Namespace(rs.Namespace)))
+
+		ctx := t.Context()
+		if _, err := testReconciler.Reconcile(ctx, reqNamespacedName); err != nil {
+			t.Fatalf("unexpected reconciliation error, got error: %q, want error: nil", err)
+		}
+
+		// Verify deployment
+		dep := &appsv1.Deployment{}
+		err := fakeClient.Get(ctx, client.ObjectKey{
+			Name:      core.NsReconcilerName(rs.Namespace, rs.Name),
+			Namespace: configsync.ControllerNamespace,
+		}, dep)
+		require.NoError(t, err)
+
+		// Verify otel-agent is NOT present
+		for _, container := range dep.Spec.Template.Spec.Containers {
+			require.NotEqual(t, "otel-agent", container.Name, "otel-agent should be omitted")
+		}
+
+		// Verify DISABLE_MONITORING=true is in reconciler and hydration-controller
+		for _, container := range dep.Spec.Template.Spec.Containers {
+			if container.Name == reconcilermanager.Reconciler || container.Name == reconcilermanager.HydrationController {
+				hasEnv := false
+				for _, env := range container.Env {
+					if env.Name == "DISABLE_MONITORING" {
+						require.Equal(t, "true", env.Value)
+						hasEnv = true
+					}
+				}
+				require.True(t, hasEnv, "DISABLE_MONITORING env var should be present in %s", container.Name)
+			}
+		}
+	})
+
+	t.Run("Monitoring.Enabled=true (default)", func(t *testing.T) {
+		rs := repoSyncWithGit(reposyncName, reposyncNs, reposyncRef(gitRevision), reposyncBranch(branch), reposyncSecretType(GitSecretConfigKeySSH), reposyncSecretRef(reposyncSSHKey))
+
+		reqNamespacedName := namespacedName(rs.Name, rs.Namespace)
+		fakeClient, _, testReconciler := setupNSReconciler(t, rs, secretObj(t, reposyncSSHKey, configsync.AuthSSH, configsync.GitSource, core.Namespace(rs.Namespace)))
+
+		ctx := t.Context()
+		if _, err := testReconciler.Reconcile(ctx, reqNamespacedName); err != nil {
+			t.Fatalf("unexpected reconciliation error, got error: %q, want error: nil", err)
+		}
+
+		// Verify deployment
+		dep := &appsv1.Deployment{}
+		err := fakeClient.Get(ctx, client.ObjectKey{
+			Name:      core.NsReconcilerName(rs.Namespace, rs.Name),
+			Namespace: configsync.ControllerNamespace,
+		}, dep)
+		require.NoError(t, err)
+
+		// Verify otel-agent IS present
+		hasOtel := false
+		for _, container := range dep.Spec.Template.Spec.Containers {
+			if container.Name == "otel-agent" {
+				hasOtel = true
+			}
+		}
+		require.True(t, hasOtel, "otel-agent should be present")
+	})
 }

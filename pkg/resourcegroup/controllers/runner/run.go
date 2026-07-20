@@ -81,11 +81,13 @@ func run() error {
 		return fmt.Errorf("failed to register the OTLP metrics exporter: %w", err)
 	}
 
-	defer func() {
-		if err := oce.Shutdown(ctx); err != nil {
-			klog.Error(err, "Unable to stop the OTLP metrics exporter")
-		}
-	}()
+	if oce != nil {
+		defer func() {
+			if err := oce.Shutdown(ctx); err != nil {
+				klog.Error(err, "Unable to stop the OTLP metrics exporter")
+			}
+		}()
+	}
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Logger: logger.WithName("controller-manager"),
 		Scheme: scheme,

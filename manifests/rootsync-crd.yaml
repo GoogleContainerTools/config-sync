@@ -297,6 +297,19 @@ spec:
                 - chart
                 - repo
                 type: object
+              monitoring:
+                description: monitoring specifies the observability configuration
+                  for the reconciler.
+                properties:
+                  enabled:
+                    default: true
+                    description: |-
+                      enabled controls whether the OpenTelemetry (otel-agent) sidecar is deployed
+                      alongside the reconciler container. When enabled, the sidecar intercepts
+                      and exports metrics.
+                      Default: true.
+                    type: boolean
+                type: object
               oci:
                 description: oci contains configuration specific to importing resources
                   from an OCI package.
@@ -1481,6 +1494,19 @@ spec:
                 - auth
                 - chart
                 - repo
+                type: object
+              monitoring:
+                description: monitoring specifies the observability configuration
+                  for the reconciler.
+                properties:
+                  enabled:
+                    default: true
+                    description: |-
+                      enabled controls whether the OpenTelemetry (otel-agent) sidecar is deployed
+                      alongside the reconciler container. When enabled, the sidecar intercepts
+                      and exports metrics.
+                      Default: true.
+                    type: boolean
                 type: object
               oci:
                 description: oci contains configuration specific to importing resources

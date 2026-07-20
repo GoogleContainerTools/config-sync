@@ -221,3 +221,40 @@ func TestOCISyncEnvs(t *testing.T) {
 		})
 	}
 }
+
+func TestIsMonitoringEnabled(t *testing.T) {
+	trueVal := true
+	falseVal := false
+	testCases := []struct {
+		name     string
+		spec     *v1beta1.MonitoringSpec
+		expected bool
+	}{
+		{
+			name:     "nil spec",
+			spec:     nil,
+			expected: true,
+		},
+		{
+			name:     "empty spec",
+			spec:     &v1beta1.MonitoringSpec{},
+			expected: true,
+		},
+		{
+			name:     "spec with enabled true",
+			spec:     &v1beta1.MonitoringSpec{Enabled: &trueVal},
+			expected: true,
+		},
+		{
+			name:     "spec with enabled false",
+			spec:     &v1beta1.MonitoringSpec{Enabled: &falseVal},
+			expected: false,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := IsMonitoringEnabled(tc.spec)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
