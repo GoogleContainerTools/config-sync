@@ -249,3 +249,11 @@ type ResourceRef struct {
 	// +optional
 	GVK metav1.GroupVersionKind `json:"gvk,omitempty"`
 }
+
+// MonitoringSpec defines the monitoring configuration.
+type MonitoringSpec struct {
+	// enabled controls whether metrics exporting is enabled.
+	// +optional
+	// +kubebuilder:default:=true
+	Enabled *bool `json:"enabled,omitempty"`
+}

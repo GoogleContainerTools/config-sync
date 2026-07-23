@@ -161,26 +161,30 @@ func main() {
 	})
 	setupLog.Info("RootSync controller registration scheduled")
 
-	otelCredentialProvider := &auth.CachingCredentialProvider{
-		Scopes: traceapi.DefaultAuthScopes(),
-	}
+	if os.Getenv("DISABLE_MONITORING") != "true" {
+		otelCredentialProvider := &auth.CachingCredentialProvider{
+			Scopes: traceapi.DefaultAuthScopes(),
+		}
 
-	otel := controllers.NewOtelReconciler(mgr.GetClient(),
-		logger.WithName("controllers").WithName("Otel"),
-		otelCredentialProvider)
-	if err := otel.Register(mgr); err != nil {
-		setupLog.Error(err, "failed to register controller", "controller", "Otel")
-		os.Exit(1)
-	}
-	setupLog.Info("Otel controller registration successful")
+		otel := controllers.NewOtelReconciler(mgr.GetClient(),
+			logger.WithName("controllers").WithName("Otel"),
+			otelCredentialProvider)
+		if err := otel.Register(mgr); err != nil {
+			setupLog.Error(err, "failed to register controller", "controller", "Otel")
+			os.Exit(1)
+		}
+		setupLog.Info("Otel controller registration successful")
 
-	otelSA := controllers.NewOtelSAReconciler(*clusterName, mgr.GetClient(),
-		logger.WithName("controllers").WithName(controllers.OtelSALoggerName))
-	if err := otelSA.Register(mgr); err != nil {
-		setupLog.Error(err, "failed to register controller", "controller", "OtelSA")
-		os.Exit(1)
+		otelSA := controllers.NewOtelSAReconciler(*clusterName, mgr.GetClient(),
+			logger.WithName("controllers").WithName(controllers.OtelSALoggerName))
+		if err := otelSA.Register(mgr); err != nil {
+			setupLog.Error(err, "failed to register controller", "controller", "OtelSA")
+			os.Exit(1)
+		}
+		setupLog.Info("OtelSA controller registration successful")
+	} else {
+		setupLog.Info("Otel and OtelSA controller registration skipped (DISABLE_MONITORING=true)")
 	}
-	setupLog.Info("OtelSA controller registration successful")
 
 	// Register the OTLP metrics exporter and metrics instruments
 	ctx := context.Background()
@@ -190,13 +194,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	defer func() {
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), metrics.ShutdownTimeout)
-		defer cancel()
-		if err := oce.Shutdown(shutdownCtx); err != nil {
-			setupLog.Error(err, "failed to stop the OTLP metrics exporter")
-		}
-	}()
+	if oce != nil {
+		defer func() {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), metrics.ShutdownTimeout)
+			defer cancel()
+			if err := oce.Shutdown(shutdownCtx); err != nil {
+				setupLog.Error(err, "failed to stop the OTLP metrics exporter")
+			}
+		}()
+	}
 
 	// +kubebuilder:scaffold:builder
 
@@ -204,10 +210,12 @@ func main() {
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
 		// os.Exit(1) does not run deferred functions so explicitly stopping the OTLP metrics exporter.
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), metrics.ShutdownTimeout)
-		defer cancel()
-		if err := oce.Shutdown(shutdownCtx); err != nil {
-			setupLog.Error(err, "failed to stop the OTLP metrics exporter")
+		if oce != nil {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), metrics.ShutdownTimeout)
+			defer cancel()
+			if err := oce.Shutdown(shutdownCtx); err != nil {
+				setupLog.Error(err, "failed to stop the OTLP metrics exporter")
+			}
 		}
 		os.Exit(1)
 	}

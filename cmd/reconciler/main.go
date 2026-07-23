@@ -148,13 +148,15 @@ func main() {
 		klog.Fatalf("Failed to register the OTLP metrics exporter: %v", err)
 	}
 
-	defer func() {
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), ocmetrics.ShutdownTimeout)
-		defer cancel()
-		if err := oce.Shutdown(shutdownCtx); err != nil {
-			klog.Fatalf("Unable to stop the OTLP metrics exporter: %v", err)
-		}
-	}()
+	if oce != nil {
+		defer func() {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), ocmetrics.ShutdownTimeout)
+			defer cancel()
+			if err := oce.Shutdown(shutdownCtx); err != nil {
+				klog.Fatalf("Unable to stop the OTLP metrics exporter: %v", err)
+			}
+		}()
+	}
 
 	absRepoRoot, err := cmpath.AbsoluteOS(*repoRootDir)
 	if err != nil {
