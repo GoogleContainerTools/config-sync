@@ -27,7 +27,7 @@ require (
 	github.com/jstemmer/go-junit-report/v2 v2.1.0
 	github.com/kylelemons/godebug v1.1.0
 	github.com/open-policy-agent/cert-controller v0.16.0
-	github.com/prometheus/client_golang v1.24.0
+	github.com/prometheus/client_golang v1.24.1
 	github.com/prometheus/common v0.70.1
 	github.com/spf13/cobra v1.10.2
 	github.com/spyzhov/ajson v0.9.6
@@ -113,7 +113,7 @@ require (
 	github.com/jonboulle/clockwork v0.5.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.19.0 // indirect
+	github.com/klauspost/compress v1.19.1 // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
