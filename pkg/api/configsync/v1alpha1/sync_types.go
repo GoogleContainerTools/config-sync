@@ -249,3 +249,14 @@ type ResourceRef struct {
 	// +optional
 	GVK metav1.GroupVersionKind `json:"gvk,omitempty"`
 }
+
+// MonitoringSpec controls the inclusion of observational components for the reconciler.
+type MonitoringSpec struct {
+	// enabled controls whether the OpenTelemetry (otel-agent) sidecar is deployed
+	// alongside the reconciler container. When enabled, the sidecar intercepts
+	// and exports metrics.
+	// Default: true.
+	// +optional
+	// +kubebuilder:default:=true
+	Enabled *bool `json:"enabled,omitempty"`
+}

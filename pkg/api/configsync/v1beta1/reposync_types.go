@@ -81,6 +81,10 @@ type RepoSyncSpec struct {
 	// +nullable
 	// +optional
 	Override *RepoSyncOverrideSpec `json:"override,omitempty"`
+
+	// monitoring specifies the observability configuration for the reconciler.
+	// +optional
+	Monitoring *MonitoringSpec `json:"monitoring,omitempty"`
 }
 
 // RepoSyncStatus defines the observed state of a RepoSync.

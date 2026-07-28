@@ -81,6 +81,10 @@ type RootSyncSpec struct {
 	// +nullable
 	// +optional
 	Override *RootSyncOverrideSpec `json:"override,omitempty"`
+
+	// monitoring specifies the observability configuration for the reconciler.
+	// +optional
+	Monitoring *MonitoringSpec `json:"monitoring,omitempty"`
 }
 
 // RootSyncStatus defines the observed state of RootSync

@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"slices"
 	"strings"
 	"sync"
@@ -832,6 +833,16 @@ func (r *RootSyncReconciler) populateContainerEnvs(ctx context.Context, rs *v1be
 			caCertSecretRef:  v1beta1.GetSecretName(rs.Spec.Helm.CACertSecretRef),
 		})
 	}
+
+	if !IsMonitoringEnabled(rs.Spec.Monitoring) {
+		for containerName, envs := range result {
+			result[containerName] = append(envs, corev1.EnvVar{
+				Name:  "DISABLE_MONITORING",
+				Value: "true",
+			})
+		}
+	}
+
 	return result, nil
 }
 
@@ -1164,7 +1175,7 @@ func (r *RootSyncReconciler) mutationsFor(ctx context.Context, rs *v1beta1.RootS
 		// Secret reference is the name of the secret used by git-sync or helm-sync container to
 		// authenticate with the git or helm repository using the authorization method specified
 		// in the RootSync CR.
-		templateSpec.Volumes = filterVolumes(templateSpec.Volumes, auth, secretRefName, caCertSecretRefName, rs.Spec.SourceType, r.membership)
+		templateSpec.Volumes = filterVolumes(templateSpec.Volumes, auth, secretRefName, caCertSecretRefName, rs.Spec.SourceType, r.membership, rs.Spec.Monitoring)
 
 		autopilot, err := r.isAutopilot()
 		if err != nil {
@@ -1251,7 +1262,11 @@ func (r *RootSyncReconciler) mutationsFor(ctx context.Context, rs *v1beta1.RootS
 					// TODO: enable resource/logLevel overrides for gcenode-askpass-sidecar
 				}
 			case metrics.OtelAgentName:
-				container.Env = append(container.Env, containerEnvs[container.Name]...)
+				if !IsMonitoringEnabled(rs.Spec.Monitoring) {
+					addContainer = false
+				} else {
+					container.Env = append(container.Env, containerEnvs[container.Name]...)
+				}
 			default:
 				return fmt.Errorf("unknown container in reconciler deployment template: %q", container.Name)
 			}

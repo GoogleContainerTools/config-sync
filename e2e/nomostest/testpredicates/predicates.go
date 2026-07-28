@@ -1669,3 +1669,41 @@ func ConfigMapHasData(key string, value string) Predicate {
 		return fmt.Errorf("%s: %s is not in the ConfigMap", key, value)
 	}
 }
+
+// DeploymentMissingVolume returns a predicate that ensures a Deployment does not have a specific volume.
+func DeploymentMissingVolume(volumeName string) Predicate {
+	return func(o client.Object) error {
+		if o == nil {
+			return ErrObjectNotFound
+		}
+		d, ok := o.(*appsv1.Deployment)
+		if !ok {
+			return WrongTypeErr(o, d)
+		}
+		for _, volume := range d.Spec.Template.Spec.Volumes {
+			if volume.Name == volumeName {
+				return fmt.Errorf("Deployment %s should not have volume %s", core.ObjectNamespacedName(o), volumeName)
+			}
+		}
+		return nil
+	}
+}
+
+// DeploymentHasVolume returns a predicate that ensures a Deployment has a specific volume.
+func DeploymentHasVolume(volumeName string) Predicate {
+	return func(o client.Object) error {
+		if o == nil {
+			return ErrObjectNotFound
+		}
+		d, ok := o.(*appsv1.Deployment)
+		if !ok {
+			return WrongTypeErr(o, d)
+		}
+		for _, volume := range d.Spec.Template.Spec.Volumes {
+			if volume.Name == volumeName {
+				return nil
+			}
+		}
+		return fmt.Errorf("Deployment %s should have volume %s", core.ObjectNamespacedName(o), volumeName)
+	}
+}

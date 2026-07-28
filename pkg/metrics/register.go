@@ -33,6 +33,14 @@ const (
 
 // RegisterOTelExporter creates the OTLP metrics exporter.
 func RegisterOTelExporter(ctx context.Context, containerName string) (*otlpmetricgrpc.Exporter, error) {
+	if os.Getenv("DISABLE_MONITORING") == "true" {
+		// We must initialize the global metrics instruments even if monitoring is disabled.
+		// Since we skip registering an exporter, these instruments fall back to a safe Noop provider.
+		// Skipping this would leave the interfaces nil, causing panic on the first .Record() call.
+		klog.V(5).Infof("METRIC DEBUG: Monitoring is disabled via DISABLE_MONITORING env var")
+		err := InitializeOTelMetrics()
+		return nil, err
+	}
 
 	klog.V(5).Infof("METRIC DEBUG: Registering OTLP exporter for container: %q", containerName)
 	err := os.Setenv(
