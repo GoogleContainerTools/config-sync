@@ -46,6 +46,26 @@ type ClusterState struct {
 	isMulti *bool
 }
 
+// allSynced reports whether every reachable cluster has at least one repository
+// and every repository has completed successfully. A cluster or repository
+// error keeps polling active so callers can observe a later successful state.
+func allSynced(states map[string]*ClusterState) bool {
+	if len(states) == 0 {
+		return false
+	}
+	for _, state := range states {
+		if state == nil || state.Error != "" || len(state.repos) == 0 {
+			return false
+		}
+		for _, repo := range state.repos {
+			if repo == nil || repo.status != syncedMsg || len(repo.errors) > 0 {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 func (c *ClusterState) printRows(writer io.Writer) {
 	util.MustFprintf(writer, "\n")
 	util.MustFprintf(writer, "%s\n", c.Ref)

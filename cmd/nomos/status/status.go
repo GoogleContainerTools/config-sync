@@ -34,14 +34,17 @@ import (
 )
 
 const (
-	pendingMsg     = "PENDING"
-	syncedMsg      = "SYNCED"
-	stalledMsg     = "STALLED"
-	reconcilingMsg = "RECONCILING"
+	pendingMsg          = "PENDING"
+	syncedMsg           = "SYNCED"
+	stalledMsg          = "STALLED"
+	reconcilingMsg      = "RECONCILING"
+	pollUntilComplete   = "complete"
+	defaultPollInterval = 5 * time.Second
 )
 
 var (
 	pollingInterval time.Duration
+	pollUntil      string
 	namespace       string
 	resourceStatus  bool
 	name            string
@@ -51,6 +54,7 @@ func init() {
 	flags.AddContexts(Cmd)
 	Cmd.Flags().DurationVar(&flags.ClientTimeout, "timeout", restconfig.DefaultTimeout, "Sets the timeout for connecting to each cluster. Defaults to 15 seconds. Example: --timeout=30s")
 	Cmd.Flags().DurationVar(&pollingInterval, "poll", 0*time.Second, "Continuously polls for status updates at the specified interval. If not provided, the command runs only once. Example: --poll=30s for polling every 30 seconds")
+	Cmd.Flags().StringVar(&pollUntil, "poll-until", "", "Continues polling until the requested state is reached. Supported value: complete. Defaults to a 5-second polling interval when --poll is not set.")
 	Cmd.Flags().StringVar(&namespace, "namespace", "", "Filters the status output by the specified RootSync or RepoSync namespace. If not provided, displays status for all RootSync and RepoSync objects.")
 	Cmd.Flags().BoolVar(&resourceStatus, "resources", true, "Displays detailed status for individual resources managed by RootSync or RepoSync objects. Defaults to true.")
 	Cmd.Flags().StringVar(&name, "name", "", "Filters the status output by the specified RootSync or RepoSync name.")
@@ -97,6 +101,9 @@ var Cmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		// Don't show usage on error, as argument validation passed.
 		cmd.SilenceUsage = true
+		if err := validatePollUntil(pollUntil); err != nil {
+			return err
+		}
 
 		fmt.Println("Connecting to clusters...")
 
@@ -116,9 +123,15 @@ var Cmd = &cobra.Command{
 		names := clusterNames(clientMap)
 
 		writer := util.NewWriter(os.Stdout)
+		if pollUntil != "" && pollingInterval == 0 {
+			pollingInterval = defaultPollInterval
+		}
 		if pollingInterval > 0 {
 			for {
-				printStatus(cmd.Context(), writer, clientMap, names)
+				complete := printStatus(cmd.Context(), writer, clientMap, names)
+				if pollUntil == pollUntilComplete && complete {
+					return nil
+				}
 				time.Sleep(pollingInterval)
 			}
 		} else {
@@ -161,7 +174,7 @@ func clusterStates(ctx context.Context, clientMap map[string]*ClusterClient) (ma
 // and then prints a formatted status row for each one. If there are any errors reported by either
 // object, those are printed in a second table under the status table.
 // nolint:errcheck
-func printStatus(ctx context.Context, writer *tabwriter.Writer, clientMap map[string]*ClusterClient, names []string) {
+func printStatus(ctx context.Context, writer *tabwriter.Writer, clientMap map[string]*ClusterClient, names []string) bool {
 	// First build up a map of all the states to display.
 	stateMap, monoRepoClusters := clusterStates(ctx, clientMap)
 
@@ -192,6 +205,14 @@ func printStatus(ctx context.Context, writer *tabwriter.Writer, clientMap map[st
 	}
 
 	writer.Flush()
+	return allSynced(stateMap)
+}
+
+func validatePollUntil(value string) error {
+	if value != "" && value != pollUntilComplete {
+		return fmt.Errorf("unsupported --poll-until value %q; supported value is %q", value, pollUntilComplete)
+	}
+	return nil
 }
 
 // clearTerminal executes an OS-specific command to clear all output on the terminal.
