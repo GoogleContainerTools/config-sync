@@ -61,6 +61,11 @@ func allSynced(states map[string]*ClusterState) bool {
 			if repo == nil || repo.status != syncedMsg || len(repo.errors) > 0 {
 				return false
 			}
+			for _, resource := range repo.resources {
+				if resource.Status != kptv1alpha1.Current {
+					return false
+				}
+			}
 		}
 	}
 	return true

@@ -9,7 +9,8 @@
 Add `--poll-until=complete` to `nomos status` so automation can wait for every
 reachable RootSync and RepoSync to finish successfully. The command prints the
 initial status immediately, then refreshes it until all repositories report
-`SYNCED` or the caller's external timeout terminates the process.
+`SYNCED` and every reported managed resource is `Current`, or the caller's
+external timeout terminates the process.
 
 ## Motivation
 
@@ -30,6 +31,10 @@ fail before any cluster request.
 An explicit `--poll` interval continues to take precedence. Existing commands
 without `--poll-until` retain their current one-shot or indefinite polling
 behavior.
+
+Completion checks managed-resource status independently of the `--resources`
+display flag. A repository with no managed resources is complete once its sync
+status is `SYNCED`; any reported resource in a non-`Current` state keeps polling.
 
 ## User Guide
 

@@ -14,7 +14,11 @@
 
 package status
 
-import "testing"
+import (
+	"testing"
+
+	kptv1alpha1 "github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
+)
 
 func TestAllSynced(t *testing.T) {
 	tests := []struct {
@@ -34,6 +38,16 @@ func TestAllSynced(t *testing.T) {
 			states: map[string]*ClusterState{
 				"cluster": {repos: []*RepoState{{status: pendingMsg}}},
 			},
+		},
+		{
+			name: "repository with non-current resource",
+			states: map[string]*ClusterState{
+				"cluster": {repos: []*RepoState{{
+					status: syncedMsg,
+					resources: []kptv1alpha1.ResourceStatus{{
+						Status: kptv1alpha1.Failed,
+					}},
+				}}},
 		},
 		{
 			name: "cluster error",
