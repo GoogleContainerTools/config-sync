@@ -3,7 +3,7 @@ module github.com/GoogleContainerTools/config-sync
 go 1.26.0
 
 require (
-	cloud.google.com/go/auth v0.22.0
+	cloud.google.com/go/auth v0.23.0
 	cloud.google.com/go/compute/metadata v0.9.0
 	cloud.google.com/go/logging v1.19.0
 	cloud.google.com/go/monitoring v1.30.0
