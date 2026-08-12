@@ -52,6 +52,17 @@ const (
 )
 
 var (
+	// DistributionBounds defines the bounds for a histogram distribution measuring short durations.
+	DistributionBounds = []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10}
+
+	// LongDistributionBounds defines the bounds for a histogram distribution measuring long durations.
+	// These must match the pre-registered Monarch metric descriptor for
+	// parser_duration_seconds and apply_duration_seconds; changing them causes
+	// the exporter to fail with a bucket options mismatch.
+	LongDistributionBounds = []float64{1, 5, 10, 30, 60, 300, 600, 1200, 1800, 3600, 5400}
+)
+
+var (
 	// APICallDuration metric measures the latency of API server calls.
 	APICallDuration metric.Float64Histogram
 
@@ -112,6 +123,7 @@ func InitializeOTelMetrics() error {
 		APICallDurationName,
 		metric.WithDescription("The duration of API server calls in seconds"),
 		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(DistributionBounds...),
 	)
 	if err != nil {
 		klog.V(5).ErrorS(err, "METRIC DEBUG: Failed to create APICallDuration histogram")
@@ -123,6 +135,7 @@ func InitializeOTelMetrics() error {
 		ReconcileDurationName,
 		metric.WithDescription("The duration of reconcile events in seconds"),
 		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(DistributionBounds...),
 	)
 	if err != nil {
 		return err
@@ -132,6 +145,7 @@ func InitializeOTelMetrics() error {
 		ParserDurationName,
 		metric.WithDescription("The duration of the parse-apply-watch loop in seconds"),
 		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(LongDistributionBounds...),
 	)
 	if err != nil {
 		return err
@@ -141,6 +155,7 @@ func InitializeOTelMetrics() error {
 		ApplyDurationName,
 		metric.WithDescription("The duration of applier events in seconds"),
 		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(LongDistributionBounds...),
 	)
 	if err != nil {
 		return err
@@ -150,6 +165,7 @@ func InitializeOTelMetrics() error {
 		RemediateDurationName,
 		metric.WithDescription("The duration of remediator reconciliation events"),
 		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(DistributionBounds...),
 	)
 	if err != nil {
 		return err
