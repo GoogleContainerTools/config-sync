@@ -31,7 +31,7 @@ require (
 	github.com/prometheus/common v0.70.1
 	github.com/spf13/cobra v1.10.2
 	github.com/spyzhov/ajson v0.9.6
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.0
 	go.opentelemetry.io/otel v1.45.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.45.0
 	go.opentelemetry.io/otel/metric v1.45.0
