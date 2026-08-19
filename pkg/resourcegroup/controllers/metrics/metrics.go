@@ -82,6 +82,11 @@ var (
 	PipelineError metric.Int64Gauge
 )
 
+var (
+	// RGReconcileDurationBounds defines the bounds for ResourceGroup reconcile duration histogram.
+	RGReconcileDurationBounds = []float64{0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10}
+)
+
 // InitializeOTelResourceGroupMetrics initializes OpenTelemetry Resource Group metrics instruments
 func InitializeOTelResourceGroupMetrics() error {
 	meter := otel.Meter("config-sync-resourcegroup")
@@ -93,6 +98,7 @@ func InitializeOTelResourceGroupMetrics() error {
 		RGReconcileDurationName,
 		metric.WithDescription("Time duration in seconds of reconciling a ResourceGroup CR by the ResourceGroup controller"),
 		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(RGReconcileDurationBounds...),
 	)
 	if err != nil {
 		return err

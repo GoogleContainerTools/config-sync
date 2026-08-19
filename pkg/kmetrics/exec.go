@@ -120,7 +120,7 @@ func runKustomizeBuild(ctx context.Context, sendMetrics bool, inputDir string, c
 		resourceCount, err := kustomizeResourcesGenerated(output)
 		if err == nil && sendMetrics {
 			RecordKustomizeResourceCount(ctx, resourceCount)
-			RecordKustomizeExecutionTime(ctx, float64(executionTime))
+			RecordKustomizeExecutionTime(ctx, float64(executionTime.Milliseconds()))
 		}
 		outputs <- output
 		errors <- kustomizeErr
@@ -139,14 +139,14 @@ func runKustomizeBuild(ctx context.Context, sendMetrics bool, inputDir string, c
 	return <-outputs, <-errors
 }
 
-func runCommand(cmd *exec.Cmd) (int64, string, error) {
+func runCommand(cmd *exec.Cmd) (time.Duration, string, error) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	now := time.Now()
 	err := cmd.Run()
-	executionTime := time.Since(now).Nanoseconds()
+	executionTime := time.Since(now)
 	if err != nil {
 		return executionTime, stdout.String(), errors.New(stderr.String())
 	}
