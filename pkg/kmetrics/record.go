@@ -48,7 +48,7 @@ func RecordKustomizeResourceCount(ctx context.Context, resourceCount int) {
 
 // RecordKustomizeExecutionTime produces measurement for KustomizeExecutionTime view
 func RecordKustomizeExecutionTime(ctx context.Context, executionTime float64) {
-	klog.V(5).Infof("METRIC DEBUG: Recording KustomizeExecutionTime: executionTime=%.3fs", executionTime)
+	klog.V(5).Infof("METRIC DEBUG: Recording KustomizeExecutionTime: executionTime=%.0fms", executionTime)
 	KustomizeExecutionTime.Record(ctx, executionTime)
 }
 
