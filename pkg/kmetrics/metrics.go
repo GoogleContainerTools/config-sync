@@ -67,6 +67,15 @@ var (
 	KustomizeExecutionTime metric.Float64Histogram
 )
 
+var (
+	// KustomizeBuildLatencyBounds defines the millisecond bounds for the kustomize
+	// build latency histogram. These must match the pre-OTel-migration view
+	// aggregation (view.Distribution(0, 10, 20, ..., 10240)) that the Monarch
+	// metric descriptor was registered with; changing the bounds or the unit
+	// causes the exporter to fail with a bucket options mismatch.
+	KustomizeBuildLatencyBounds = []float64{0, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240}
+)
+
 // InitializeOTelKustomizeMetrics initializes OpenTelemetry Kustomize metrics instruments
 func InitializeOTelKustomizeMetrics() error {
 	klog.V(5).Infof("METRIC DEBUG: Initializing OpenTelemetry kustomize metrics instruments")
@@ -152,8 +161,9 @@ func InitializeOTelKustomizeMetrics() error {
 	// Initialize histogram instrument
 	KustomizeExecutionTime, err = meter.Float64Histogram(
 		"kustomize_build_latency",
-		metric.WithDescription("Kustomize build latency"),
+		metric.WithDescription("Kustomize build latency in milliseconds"),
 		metric.WithUnit("ms"),
+		metric.WithExplicitBucketBoundaries(KustomizeBuildLatencyBounds...),
 	)
 	if err != nil {
 		klog.V(5).ErrorS(err, "METRIC DEBUG: Failed to create KustomizeExecutionTime histogram")
