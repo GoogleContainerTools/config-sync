@@ -32,7 +32,7 @@ ARG GCLOUD_IMAGE
 FROM ${GCLOUD_IMAGE} as gcloud-install
 
 RUN apt-get update && apt-get install -y \
-  kubectl google-cloud-sdk-gke-gcloud-auth-plugin
+  kubectl google-cloud-cli-gke-gcloud-auth-plugin
 
 # Environment to build the helper binaries from.
 FROM ${GOLANG_IMAGE} AS tools-base
