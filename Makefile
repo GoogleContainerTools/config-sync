@@ -86,7 +86,7 @@ KUSTOMIZE_STAGING_DIR := $(OUTPUT_DIR)/third_party/kustomize
 
 # To automatically update, run this command:
 # UPDATE_TYPE=<latest-version|latest-build> make update-helm-image
-HELM_VERSION := v3.21.1-gke.6
+HELM_VERSION := v3.21.1-gke.7
 HELM := $(BIN_DIR)/helm
 HELM_STAGING_DIR := $(OUTPUT_DIR)/third_party/helm
 
@@ -95,7 +95,7 @@ COSIGN := $(BIN_DIR)/cosign
 
 # To automatically update, run this command:
 # UPDATE_TYPE=<latest-version|latest-build> make update-git-sync-image
-GIT_SYNC_VERSION := v4.4.2-gke.33__linux_amd64
+GIT_SYNC_VERSION := v4.4.2-gke.35__linux_amd64
 GIT_SYNC_IMAGE_NAME := gcr.io/config-management-release/git-sync:$(GIT_SYNC_VERSION)
 
 # To automatically update, run this command:
