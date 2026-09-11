@@ -44,7 +44,7 @@ const (
 
 var (
 	pollingInterval time.Duration
-	pollUntil      string
+	pollUntil       string
 	namespace       string
 	resourceStatus  bool
 	name            string
