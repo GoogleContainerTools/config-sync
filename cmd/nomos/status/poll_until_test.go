@@ -29,9 +29,9 @@ func TestAllSynced(t *testing.T) {
 		{
 			name: "all repositories synced",
 			states: map[string]*ClusterState{
-				"cluster": &ClusterState{
+				"cluster": {
 					repos: []*RepoState{
-						&RepoState{status: syncedMsg},
+						{status: syncedMsg},
 					},
 				},
 			},
@@ -40,9 +40,9 @@ func TestAllSynced(t *testing.T) {
 		{
 			name: "pending repository",
 			states: map[string]*ClusterState{
-				"cluster": &ClusterState{
+				"cluster": {
 					repos: []*RepoState{
-						&RepoState{status: pendingMsg},
+						{status: pendingMsg},
 					},
 				},
 			},
@@ -50,9 +50,9 @@ func TestAllSynced(t *testing.T) {
 		{
 			name: "repository with non-current resource",
 			states: map[string]*ClusterState{
-				"cluster": &ClusterState{
+				"cluster": {
 					repos: []*RepoState{
-						&RepoState{
+						{
 							status: syncedMsg,
 							resources: []kptv1alpha1.ResourceStatus{
 								{Status: kptv1alpha1.Failed},
@@ -65,10 +65,10 @@ func TestAllSynced(t *testing.T) {
 		{
 			name: "cluster error",
 			states: map[string]*ClusterState{
-				"cluster": &ClusterState{
+				"cluster": {
 					Error: "unavailable",
 					repos: []*RepoState{
-						&RepoState{status: syncedMsg},
+						{status: syncedMsg},
 					},
 				},
 			},
@@ -76,7 +76,7 @@ func TestAllSynced(t *testing.T) {
 		{
 			name: "empty state",
 			states: map[string]*ClusterState{
-				"cluster": &ClusterState{},
+				"cluster": {},
 			},
 		},
 	}
