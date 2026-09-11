@@ -29,36 +29,54 @@ func TestAllSynced(t *testing.T) {
 		{
 			name: "all repositories synced",
 			states: map[string]*ClusterState{
-				"cluster": {repos: []*RepoState{{status: syncedMsg}}},
+				"cluster": &ClusterState{
+					repos: []*RepoState{
+						&RepoState{status: syncedMsg},
+					},
+				},
 			},
 			want: true,
 		},
 		{
 			name: "pending repository",
 			states: map[string]*ClusterState{
-				"cluster": {repos: []*RepoState{{status: pendingMsg}}},
+				"cluster": &ClusterState{
+					repos: []*RepoState{
+						&RepoState{status: pendingMsg},
+					},
+				},
 			},
 		},
 		{
 			name: "repository with non-current resource",
 			states: map[string]*ClusterState{
-				"cluster": {repos: []*RepoState{{
-					status: syncedMsg,
-					resources: []kptv1alpha1.ResourceStatus{{
-						Status: kptv1alpha1.Failed,
-					}},
-				}}},
+				"cluster": &ClusterState{
+					repos: []*RepoState{
+						&RepoState{
+							status: syncedMsg,
+							resources: []kptv1alpha1.ResourceStatus{
+								{Status: kptv1alpha1.Failed},
+							},
+						},
+					},
+				},
+			},
 		},
 		{
 			name: "cluster error",
 			states: map[string]*ClusterState{
-				"cluster": {Error: "unavailable", repos: []*RepoState{{status: syncedMsg}}},
+				"cluster": &ClusterState{
+					Error: "unavailable",
+					repos: []*RepoState{
+						&RepoState{status: syncedMsg},
+					},
+				},
 			},
 		},
 		{
 			name: "empty state",
 			states: map[string]*ClusterState{
-				"cluster": {},
+				"cluster": &ClusterState{},
 			},
 		},
 	}
