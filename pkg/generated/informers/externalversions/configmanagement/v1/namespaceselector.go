@@ -12,16 +12,45 @@ import (
 	configmanagementv1 "github.com/GoogleContainerTools/config-sync/pkg/generated/listers/configmanagement/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
+	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
 )
 
 // NamespaceSelectorInformer provides access to a shared informer and lister for
-// NamespaceSelectors.
+// NamespaceSelectors. Prefer using the type-safe variant (see [TypedNamespaceSelectorInformer]).
 type NamespaceSelectorInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() configmanagementv1.NamespaceSelectorLister
 }
+
+// TypedNamespaceSelectorInformer provides access to a shared informer and lister for
+// NamespaceSelectors, including the type-safe TypedInformer variant.
+// It is a superset of NamespaceSelectorInformer.
+type TypedNamespaceSelectorInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() NamespaceSelectorIndexInformer
+	Lister() configmanagementv1.NamespaceSelectorLister
+}
+
+// NamespaceSelectorIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type NamespaceSelectorIndexInformer cache.TypedSharedIndexInformer[*apiconfigmanagementv1.NamespaceSelector]
+
+// NamespaceSelectorHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for NamespaceSelector.
+type NamespaceSelectorHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apiconfigmanagementv1.NamespaceSelector]
+
+// NamespaceSelectorDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for NamespaceSelector.
+type NamespaceSelectorDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apiconfigmanagementv1.NamespaceSelector]
+
+// NamespaceSelectorFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for NamespaceSelector.
+type NamespaceSelectorFilteringHandler = cache.TypedFilteringResourceEventHandler[*apiconfigmanagementv1.NamespaceSelector]
+
+// NamespaceSelectorIndexers is a specialization of [cache.TypedIndexers] for NamespaceSelector.
+type NamespaceSelectorIndexers = cache.TypedIndexers[*apiconfigmanagementv1.NamespaceSelector]
+
+// DeletedNamespaceSelector is a specialization of [cache.DeletedObject] for NamespaceSelector.
+type DeletedNamespaceSelector = cache.DeletedObject[*apiconfigmanagementv1.NamespaceSelector]
 
 type namespaceSelectorInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -31,55 +60,132 @@ type namespaceSelectorInformer struct {
 // NewNamespaceSelectorInformer constructs a new informer for NamespaceSelector type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedNamespaceSelectorInformer]).
 func NewNamespaceSelectorInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredNamespaceSelectorInformer(client, resyncPeriod, indexers, nil)
+	return NewNamespaceSelectorInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedNamespaceSelectorInformer constructs a new informer for NamespaceSelector type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedNamespaceSelectorInformer(client versioned.Interface, resyncPeriod time.Duration, indexers NamespaceSelectorIndexers) NamespaceSelectorIndexInformer {
+	return NewTypedNamespaceSelectorInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredNamespaceSelectorInformer constructs a new informer for NamespaceSelector type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredNamespaceSelectorInformer]).
 func NewFilteredNamespaceSelectorInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return cache.NewSharedIndexInformer(
+	return NewTypedNamespaceSelectorInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredNamespaceSelectorInformer constructs a new informer for NamespaceSelector type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredNamespaceSelectorInformer(client versioned.Interface, resyncPeriod time.Duration, indexers NamespaceSelectorIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) NamespaceSelectorIndexInformer {
+	return NewTypedNamespaceSelectorInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
+}
+
+// NewNamespaceSelectorInformerWithOptions constructs a new informer for NamespaceSelector type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedNamespaceSelectorInformerWithOptions]).
+func NewNamespaceSelectorInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedNamespaceSelectorInformerWithOptions(client, options)
+}
+
+// NewTypedNamespaceSelectorInformerWithOptions constructs a new informer for NamespaceSelector type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedNamespaceSelectorInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) NamespaceSelectorIndexInformer {
+	gvr := schema.GroupVersionResource{Group: "configmanagement.gke.io", Version: "v1", Resource: "namespaceselectors"}
+	identifier := options.InformerName.WithResource(gvr)
+	tweakListOptions := options.TweakListOptions
+	return cache.NewTypedSharedIndexInformer[*apiconfigmanagementv1.NamespaceSelector](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ConfigmanagementV1().NamespaceSelectors().List(context.Background(), options)
+				return client.ConfigmanagementV1().NamespaceSelectors().List(context.Background(), opts)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ConfigmanagementV1().NamespaceSelectors().Watch(context.Background(), options)
+				return client.ConfigmanagementV1().NamespaceSelectors().Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ConfigmanagementV1().NamespaceSelectors().List(ctx, options)
+				return client.ConfigmanagementV1().NamespaceSelectors().List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ConfigmanagementV1().NamespaceSelectors().Watch(ctx, options)
+				return client.ConfigmanagementV1().NamespaceSelectors().Watch(ctx, opts)
 			},
 		}, client),
 		&apiconfigmanagementv1.NamespaceSelector{},
-		resyncPeriod,
-		indexers,
-	)
+		cache.SharedIndexInformerOptions{
+			ResyncPeriod: options.ResyncPeriod,
+			Indexers:     options.Indexers,
+			Identifier:   identifier,
+		},
+	))
 }
 
 func (f *namespaceSelectorInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredNamespaceSelectorInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+	return NewTypedNamespaceSelectorInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *namespaceSelectorInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apiconfigmanagementv1.NamespaceSelector{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *namespaceSelectorInformer) TypedInformer() NamespaceSelectorIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apiconfigmanagementv1.NamespaceSelector](f.factory.InformerFor(&apiconfigmanagementv1.NamespaceSelector{}, f.defaultInformer))
 }
 
 func (f *namespaceSelectorInformer) Lister() configmanagementv1.NamespaceSelectorLister {
 	return configmanagementv1.NewNamespaceSelectorLister(f.Informer().GetIndexer())
+}
+
+// ToTypedNamespaceSelectorInformer converts an untyped informer into a TypedNamespaceSelectorInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *NamespaceSelector. If that is not the case, calling type-safe methods of the returned
+// TypedNamespaceSelectorInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedNamespaceSelectorInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedNamespaceSelectorInformer(informer NamespaceSelectorInformer) TypedNamespaceSelectorInformer {
+	if informer, ok := informer.(TypedNamespaceSelectorInformer); ok {
+		return informer
+	}
+	return &namespaceSelectorTypedInformerAdapter{informer}
+}
+
+type namespaceSelectorTypedInformerAdapter struct {
+	NamespaceSelectorInformer
+}
+
+func (a *namespaceSelectorTypedInformerAdapter) TypedInformer() NamespaceSelectorIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apiconfigmanagementv1.NamespaceSelector](a.Informer())
+}
+
+// ToNamespaceSelectorIndexInformer converts an untyped informer into a NamespaceSelectorIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *NamespaceSelector. If that is not the case, calling type-safe methods of the returned
+// NamespaceSelectorIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a NamespaceSelectorIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToNamespaceSelectorIndexInformer(informer cache.SharedIndexInformer) NamespaceSelectorIndexInformer {
+	if informer, ok := informer.(NamespaceSelectorIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apiconfigmanagementv1.NamespaceSelector](informer)
 }

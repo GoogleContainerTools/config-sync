@@ -11,7 +11,6 @@ import (
 	configsync "github.com/GoogleContainerTools/config-sync/pkg/api/configsync"
 	v1beta1 "github.com/GoogleContainerTools/config-sync/pkg/api/configsync/v1beta1"
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	conversion "k8s.io/apimachinery/pkg/conversion"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -367,9 +366,7 @@ func RegisterConversions(s *runtime.Scheme) error {
 }
 
 func autoConvert_v1alpha1_ConfigSyncError_To_v1beta1_ConfigSyncError(in *ConfigSyncError, out *v1beta1.ConfigSyncError, s conversion.Scope) error {
-	out.Code = in.Code
-	out.ErrorMessage = in.ErrorMessage
-	out.Resources = *(*[]v1beta1.ResourceRef)(unsafe.Pointer(&in.Resources))
+	*out = *(*v1beta1.ConfigSyncError)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -379,9 +376,7 @@ func Convert_v1alpha1_ConfigSyncError_To_v1beta1_ConfigSyncError(in *ConfigSyncE
 }
 
 func autoConvert_v1beta1_ConfigSyncError_To_v1alpha1_ConfigSyncError(in *v1beta1.ConfigSyncError, out *ConfigSyncError, s conversion.Scope) error {
-	out.Code = in.Code
-	out.ErrorMessage = in.ErrorMessage
-	out.Resources = *(*[]ResourceRef)(unsafe.Pointer(&in.Resources))
+	*out = *(*ConfigSyncError)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -391,8 +386,7 @@ func Convert_v1beta1_ConfigSyncError_To_v1alpha1_ConfigSyncError(in *v1beta1.Con
 }
 
 func autoConvert_v1alpha1_ContainerLogLevelOverride_To_v1beta1_ContainerLogLevelOverride(in *ContainerLogLevelOverride, out *v1beta1.ContainerLogLevelOverride, s conversion.Scope) error {
-	out.ContainerName = in.ContainerName
-	out.LogLevel = in.LogLevel
+	*out = *(*v1beta1.ContainerLogLevelOverride)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -402,8 +396,7 @@ func Convert_v1alpha1_ContainerLogLevelOverride_To_v1beta1_ContainerLogLevelOver
 }
 
 func autoConvert_v1beta1_ContainerLogLevelOverride_To_v1alpha1_ContainerLogLevelOverride(in *v1beta1.ContainerLogLevelOverride, out *ContainerLogLevelOverride, s conversion.Scope) error {
-	out.ContainerName = in.ContainerName
-	out.LogLevel = in.LogLevel
+	*out = *(*ContainerLogLevelOverride)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -413,11 +406,7 @@ func Convert_v1beta1_ContainerLogLevelOverride_To_v1alpha1_ContainerLogLevelOver
 }
 
 func autoConvert_v1alpha1_ContainerResourcesSpec_To_v1beta1_ContainerResourcesSpec(in *ContainerResourcesSpec, out *v1beta1.ContainerResourcesSpec, s conversion.Scope) error {
-	out.ContainerName = in.ContainerName
-	out.CPURequest = in.CPURequest
-	out.MemoryRequest = in.MemoryRequest
-	out.CPULimit = in.CPULimit
-	out.MemoryLimit = in.MemoryLimit
+	*out = *(*v1beta1.ContainerResourcesSpec)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -427,11 +416,7 @@ func Convert_v1alpha1_ContainerResourcesSpec_To_v1beta1_ContainerResourcesSpec(i
 }
 
 func autoConvert_v1beta1_ContainerResourcesSpec_To_v1alpha1_ContainerResourcesSpec(in *v1beta1.ContainerResourcesSpec, out *ContainerResourcesSpec, s conversion.Scope) error {
-	out.ContainerName = in.ContainerName
-	out.CPURequest = in.CPURequest
-	out.MemoryRequest = in.MemoryRequest
-	out.CPULimit = in.CPULimit
-	out.MemoryLimit = in.MemoryLimit
+	*out = *(*ContainerResourcesSpec)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -441,9 +426,7 @@ func Convert_v1beta1_ContainerResourcesSpec_To_v1alpha1_ContainerResourcesSpec(i
 }
 
 func autoConvert_v1alpha1_ErrorSummary_To_v1beta1_ErrorSummary(in *ErrorSummary, out *v1beta1.ErrorSummary, s conversion.Scope) error {
-	out.TotalCount = in.TotalCount
-	out.Truncated = in.Truncated
-	out.ErrorCountAfterTruncation = in.ErrorCountAfterTruncation
+	*out = *(*v1beta1.ErrorSummary)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -453,9 +436,7 @@ func Convert_v1alpha1_ErrorSummary_To_v1beta1_ErrorSummary(in *ErrorSummary, out
 }
 
 func autoConvert_v1beta1_ErrorSummary_To_v1alpha1_ErrorSummary(in *v1beta1.ErrorSummary, out *ErrorSummary, s conversion.Scope) error {
-	out.TotalCount = in.TotalCount
-	out.Truncated = in.Truncated
-	out.ErrorCountAfterTruncation = in.ErrorCountAfterTruncation
+	*out = *(*ErrorSummary)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -465,17 +446,7 @@ func Convert_v1beta1_ErrorSummary_To_v1alpha1_ErrorSummary(in *v1beta1.ErrorSumm
 }
 
 func autoConvert_v1alpha1_Git_To_v1beta1_Git(in *Git, out *v1beta1.Git, s conversion.Scope) error {
-	out.Repo = in.Repo
-	out.Branch = in.Branch
-	out.Revision = in.Revision
-	out.Dir = in.Dir
-	out.Period = in.Period
-	out.Auth = configsync.AuthType(in.Auth)
-	out.GCPServiceAccountEmail = in.GCPServiceAccountEmail
-	out.Proxy = in.Proxy
-	out.SecretRef = (*v1beta1.SecretReference)(unsafe.Pointer(in.SecretRef))
-	out.NoSSLVerify = in.NoSSLVerify
-	out.CACertSecretRef = (*v1beta1.SecretReference)(unsafe.Pointer(in.CACertSecretRef))
+	*out = *(*v1beta1.Git)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -485,17 +456,7 @@ func Convert_v1alpha1_Git_To_v1beta1_Git(in *Git, out *v1beta1.Git, s conversion
 }
 
 func autoConvert_v1beta1_Git_To_v1alpha1_Git(in *v1beta1.Git, out *Git, s conversion.Scope) error {
-	out.Repo = in.Repo
-	out.Branch = in.Branch
-	out.Revision = in.Revision
-	out.Dir = in.Dir
-	out.Period = in.Period
-	out.Auth = configsync.AuthType(in.Auth)
-	out.GCPServiceAccountEmail = in.GCPServiceAccountEmail
-	out.Proxy = in.Proxy
-	out.SecretRef = (*SecretReference)(unsafe.Pointer(in.SecretRef))
-	out.NoSSLVerify = in.NoSSLVerify
-	out.CACertSecretRef = (*SecretReference)(unsafe.Pointer(in.CACertSecretRef))
+	*out = *(*Git)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -505,10 +466,7 @@ func Convert_v1beta1_Git_To_v1alpha1_Git(in *v1beta1.Git, out *Git, s conversion
 }
 
 func autoConvert_v1alpha1_GitStatus_To_v1beta1_GitStatus(in *GitStatus, out *v1beta1.GitStatus, s conversion.Scope) error {
-	out.Repo = in.Repo
-	out.Revision = in.Revision
-	out.Branch = in.Branch
-	out.Dir = in.Dir
+	*out = *(*v1beta1.GitStatus)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -518,10 +476,7 @@ func Convert_v1alpha1_GitStatus_To_v1beta1_GitStatus(in *GitStatus, out *v1beta1
 }
 
 func autoConvert_v1beta1_GitStatus_To_v1alpha1_GitStatus(in *v1beta1.GitStatus, out *GitStatus, s conversion.Scope) error {
-	out.Repo = in.Repo
-	out.Revision = in.Revision
-	out.Branch = in.Branch
-	out.Dir = in.Dir
+	*out = *(*GitStatus)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -615,9 +570,7 @@ func autoConvert_v1beta1_HelmRootSync_To_v1alpha1_HelmRootSync(in *v1beta1.HelmR
 }
 
 func autoConvert_v1alpha1_HelmStatus_To_v1beta1_HelmStatus(in *HelmStatus, out *v1beta1.HelmStatus, s conversion.Scope) error {
-	out.Repo = in.Repo
-	out.Version = in.Version
-	out.Chart = in.Chart
+	*out = *(*v1beta1.HelmStatus)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -627,9 +580,7 @@ func Convert_v1alpha1_HelmStatus_To_v1beta1_HelmStatus(in *HelmStatus, out *v1be
 }
 
 func autoConvert_v1beta1_HelmStatus_To_v1alpha1_HelmStatus(in *v1beta1.HelmStatus, out *HelmStatus, s conversion.Scope) error {
-	out.Repo = in.Repo
-	out.Version = in.Version
-	out.Chart = in.Chart
+	*out = *(*HelmStatus)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -639,7 +590,7 @@ func Convert_v1beta1_HelmStatus_To_v1alpha1_HelmStatus(in *v1beta1.HelmStatus, o
 }
 
 func autoConvert_v1alpha1_MonitoringSpec_To_v1beta1_MonitoringSpec(in *MonitoringSpec, out *v1beta1.MonitoringSpec, s conversion.Scope) error {
-	out.Enabled = (*bool)(unsafe.Pointer(in.Enabled))
+	*out = *(*v1beta1.MonitoringSpec)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -649,7 +600,7 @@ func Convert_v1alpha1_MonitoringSpec_To_v1beta1_MonitoringSpec(in *MonitoringSpe
 }
 
 func autoConvert_v1beta1_MonitoringSpec_To_v1alpha1_MonitoringSpec(in *v1beta1.MonitoringSpec, out *MonitoringSpec, s conversion.Scope) error {
-	out.Enabled = (*bool)(unsafe.Pointer(in.Enabled))
+	*out = *(*MonitoringSpec)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -659,13 +610,7 @@ func Convert_v1beta1_MonitoringSpec_To_v1alpha1_MonitoringSpec(in *v1beta1.Monit
 }
 
 func autoConvert_v1alpha1_Oci_To_v1beta1_Oci(in *Oci, out *v1beta1.Oci, s conversion.Scope) error {
-	out.Image = in.Image
-	out.Dir = in.Dir
-	out.Period = in.Period
-	out.Auth = configsync.AuthType(in.Auth)
-	out.GCPServiceAccountEmail = in.GCPServiceAccountEmail
-	out.CACertSecretRef = (*v1beta1.SecretReference)(unsafe.Pointer(in.CACertSecretRef))
-	out.SecretRef = (*v1beta1.SecretReference)(unsafe.Pointer(in.SecretRef))
+	*out = *(*v1beta1.Oci)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -675,13 +620,7 @@ func Convert_v1alpha1_Oci_To_v1beta1_Oci(in *Oci, out *v1beta1.Oci, s conversion
 }
 
 func autoConvert_v1beta1_Oci_To_v1alpha1_Oci(in *v1beta1.Oci, out *Oci, s conversion.Scope) error {
-	out.Image = in.Image
-	out.Dir = in.Dir
-	out.Period = in.Period
-	out.Auth = configsync.AuthType(in.Auth)
-	out.GCPServiceAccountEmail = in.GCPServiceAccountEmail
-	out.CACertSecretRef = (*SecretReference)(unsafe.Pointer(in.CACertSecretRef))
-	out.SecretRef = (*SecretReference)(unsafe.Pointer(in.SecretRef))
+	*out = *(*Oci)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -691,8 +630,7 @@ func Convert_v1beta1_Oci_To_v1alpha1_Oci(in *v1beta1.Oci, out *Oci, s conversion
 }
 
 func autoConvert_v1alpha1_OciStatus_To_v1beta1_OciStatus(in *OciStatus, out *v1beta1.OciStatus, s conversion.Scope) error {
-	out.Image = in.Image
-	out.Dir = in.Dir
+	*out = *(*v1beta1.OciStatus)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -702,8 +640,7 @@ func Convert_v1alpha1_OciStatus_To_v1beta1_OciStatus(in *OciStatus, out *v1beta1
 }
 
 func autoConvert_v1beta1_OciStatus_To_v1alpha1_OciStatus(in *v1beta1.OciStatus, out *OciStatus, s conversion.Scope) error {
-	out.Image = in.Image
-	out.Dir = in.Dir
+	*out = *(*OciStatus)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -713,13 +650,7 @@ func Convert_v1beta1_OciStatus_To_v1alpha1_OciStatus(in *v1beta1.OciStatus, out 
 }
 
 func autoConvert_v1alpha1_OverrideSpec_To_v1beta1_OverrideSpec(in *OverrideSpec, out *v1beta1.OverrideSpec, s conversion.Scope) error {
-	out.Resources = *(*[]v1beta1.ContainerResourcesSpec)(unsafe.Pointer(&in.Resources))
-	out.GitSyncDepth = (*int64)(unsafe.Pointer(in.GitSyncDepth))
-	out.StatusMode = in.StatusMode
-	out.ReconcileTimeout = (*metav1.Duration)(unsafe.Pointer(in.ReconcileTimeout))
-	out.APIServerTimeout = (*metav1.Duration)(unsafe.Pointer(in.APIServerTimeout))
-	out.EnableShellInRendering = (*bool)(unsafe.Pointer(in.EnableShellInRendering))
-	out.LogLevels = *(*[]v1beta1.ContainerLogLevelOverride)(unsafe.Pointer(&in.LogLevels))
+	*out = *(*v1beta1.OverrideSpec)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -729,13 +660,7 @@ func Convert_v1alpha1_OverrideSpec_To_v1beta1_OverrideSpec(in *OverrideSpec, out
 }
 
 func autoConvert_v1beta1_OverrideSpec_To_v1alpha1_OverrideSpec(in *v1beta1.OverrideSpec, out *OverrideSpec, s conversion.Scope) error {
-	out.Resources = *(*[]ContainerResourcesSpec)(unsafe.Pointer(&in.Resources))
-	out.GitSyncDepth = (*int64)(unsafe.Pointer(in.GitSyncDepth))
-	out.StatusMode = in.StatusMode
-	out.ReconcileTimeout = (*metav1.Duration)(unsafe.Pointer(in.ReconcileTimeout))
-	out.APIServerTimeout = (*metav1.Duration)(unsafe.Pointer(in.APIServerTimeout))
-	out.EnableShellInRendering = (*bool)(unsafe.Pointer(in.EnableShellInRendering))
-	out.LogLevels = *(*[]ContainerLogLevelOverride)(unsafe.Pointer(&in.LogLevels))
+	*out = *(*OverrideSpec)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -811,16 +736,7 @@ func Convert_v1beta1_RepoSync_To_v1alpha1_RepoSync(in *v1beta1.RepoSync, out *Re
 }
 
 func autoConvert_v1alpha1_RepoSyncCondition_To_v1beta1_RepoSyncCondition(in *RepoSyncCondition, out *v1beta1.RepoSyncCondition, s conversion.Scope) error {
-	out.Type = v1beta1.RepoSyncConditionType(in.Type)
-	out.Status = metav1.ConditionStatus(in.Status)
-	out.LastUpdateTime = in.LastUpdateTime
-	out.LastTransitionTime = in.LastTransitionTime
-	out.Reason = in.Reason
-	out.Message = in.Message
-	out.Commit = in.Commit
-	out.Errors = *(*[]v1beta1.ConfigSyncError)(unsafe.Pointer(&in.Errors))
-	out.ErrorSourceRefs = *(*[]v1beta1.ErrorSource)(unsafe.Pointer(&in.ErrorSourceRefs))
-	out.ErrorSummary = (*v1beta1.ErrorSummary)(unsafe.Pointer(in.ErrorSummary))
+	*out = *(*v1beta1.RepoSyncCondition)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -830,16 +746,7 @@ func Convert_v1alpha1_RepoSyncCondition_To_v1beta1_RepoSyncCondition(in *RepoSyn
 }
 
 func autoConvert_v1beta1_RepoSyncCondition_To_v1alpha1_RepoSyncCondition(in *v1beta1.RepoSyncCondition, out *RepoSyncCondition, s conversion.Scope) error {
-	out.Type = RepoSyncConditionType(in.Type)
-	out.Status = metav1.ConditionStatus(in.Status)
-	out.LastUpdateTime = in.LastUpdateTime
-	out.LastTransitionTime = in.LastTransitionTime
-	out.Reason = in.Reason
-	out.Message = in.Message
-	out.Commit = in.Commit
-	out.Errors = *(*[]ConfigSyncError)(unsafe.Pointer(&in.Errors))
-	out.ErrorSourceRefs = *(*[]ErrorSource)(unsafe.Pointer(&in.ErrorSourceRefs))
-	out.ErrorSummary = (*ErrorSummary)(unsafe.Pointer(in.ErrorSummary))
+	*out = *(*RepoSyncCondition)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -891,9 +798,7 @@ func Convert_v1beta1_RepoSyncList_To_v1alpha1_RepoSyncList(in *v1beta1.RepoSyncL
 }
 
 func autoConvert_v1alpha1_RepoSyncOverrideSpec_To_v1beta1_RepoSyncOverrideSpec(in *RepoSyncOverrideSpec, out *v1beta1.RepoSyncOverrideSpec, s conversion.Scope) error {
-	if err := Convert_v1alpha1_OverrideSpec_To_v1beta1_OverrideSpec(&in.OverrideSpec, &out.OverrideSpec, s); err != nil {
-		return err
-	}
+	*out = *(*v1beta1.RepoSyncOverrideSpec)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -903,9 +808,7 @@ func Convert_v1alpha1_RepoSyncOverrideSpec_To_v1beta1_RepoSyncOverrideSpec(in *R
 }
 
 func autoConvert_v1beta1_RepoSyncOverrideSpec_To_v1alpha1_RepoSyncOverrideSpec(in *v1beta1.RepoSyncOverrideSpec, out *RepoSyncOverrideSpec, s conversion.Scope) error {
-	if err := Convert_v1beta1_OverrideSpec_To_v1alpha1_OverrideSpec(&in.OverrideSpec, &out.OverrideSpec, s); err != nil {
-		return err
-	}
+	*out = *(*RepoSyncOverrideSpec)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -989,10 +892,7 @@ func Convert_v1beta1_RepoSyncStatus_To_v1alpha1_RepoSyncStatus(in *v1beta1.RepoS
 }
 
 func autoConvert_v1alpha1_ResourceRef_To_v1beta1_ResourceRef(in *ResourceRef, out *v1beta1.ResourceRef, s conversion.Scope) error {
-	out.SourcePath = in.SourcePath
-	out.Name = in.Name
-	out.Namespace = in.Namespace
-	out.GVK = in.GVK
+	*out = *(*v1beta1.ResourceRef)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -1002,10 +902,7 @@ func Convert_v1alpha1_ResourceRef_To_v1beta1_ResourceRef(in *ResourceRef, out *v
 }
 
 func autoConvert_v1beta1_ResourceRef_To_v1alpha1_ResourceRef(in *v1beta1.ResourceRef, out *ResourceRef, s conversion.Scope) error {
-	out.SourcePath = in.SourcePath
-	out.Name = in.Name
-	out.Namespace = in.Namespace
-	out.GVK = in.GVK
+	*out = *(*ResourceRef)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -1047,16 +944,7 @@ func Convert_v1beta1_RootSync_To_v1alpha1_RootSync(in *v1beta1.RootSync, out *Ro
 }
 
 func autoConvert_v1alpha1_RootSyncCondition_To_v1beta1_RootSyncCondition(in *RootSyncCondition, out *v1beta1.RootSyncCondition, s conversion.Scope) error {
-	out.Type = v1beta1.RootSyncConditionType(in.Type)
-	out.Status = metav1.ConditionStatus(in.Status)
-	out.LastUpdateTime = in.LastUpdateTime
-	out.LastTransitionTime = in.LastTransitionTime
-	out.Reason = in.Reason
-	out.Message = in.Message
-	out.Commit = in.Commit
-	out.Errors = *(*[]v1beta1.ConfigSyncError)(unsafe.Pointer(&in.Errors))
-	out.ErrorSourceRefs = *(*[]v1beta1.ErrorSource)(unsafe.Pointer(&in.ErrorSourceRefs))
-	out.ErrorSummary = (*v1beta1.ErrorSummary)(unsafe.Pointer(in.ErrorSummary))
+	*out = *(*v1beta1.RootSyncCondition)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -1066,16 +954,7 @@ func Convert_v1alpha1_RootSyncCondition_To_v1beta1_RootSyncCondition(in *RootSyn
 }
 
 func autoConvert_v1beta1_RootSyncCondition_To_v1alpha1_RootSyncCondition(in *v1beta1.RootSyncCondition, out *RootSyncCondition, s conversion.Scope) error {
-	out.Type = RootSyncConditionType(in.Type)
-	out.Status = metav1.ConditionStatus(in.Status)
-	out.LastUpdateTime = in.LastUpdateTime
-	out.LastTransitionTime = in.LastTransitionTime
-	out.Reason = in.Reason
-	out.Message = in.Message
-	out.Commit = in.Commit
-	out.Errors = *(*[]ConfigSyncError)(unsafe.Pointer(&in.Errors))
-	out.ErrorSourceRefs = *(*[]ErrorSource)(unsafe.Pointer(&in.ErrorSourceRefs))
-	out.ErrorSummary = (*ErrorSummary)(unsafe.Pointer(in.ErrorSummary))
+	*out = *(*RootSyncCondition)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -1127,11 +1006,7 @@ func Convert_v1beta1_RootSyncList_To_v1alpha1_RootSyncList(in *v1beta1.RootSyncL
 }
 
 func autoConvert_v1alpha1_RootSyncOverrideSpec_To_v1beta1_RootSyncOverrideSpec(in *RootSyncOverrideSpec, out *v1beta1.RootSyncOverrideSpec, s conversion.Scope) error {
-	if err := Convert_v1alpha1_OverrideSpec_To_v1beta1_OverrideSpec(&in.OverrideSpec, &out.OverrideSpec, s); err != nil {
-		return err
-	}
-	out.NamespaceStrategy = configsync.NamespaceStrategy(in.NamespaceStrategy)
-	out.RoleRefs = *(*[]v1beta1.RootSyncRoleRef)(unsafe.Pointer(&in.RoleRefs))
+	*out = *(*v1beta1.RootSyncOverrideSpec)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -1141,11 +1016,7 @@ func Convert_v1alpha1_RootSyncOverrideSpec_To_v1beta1_RootSyncOverrideSpec(in *R
 }
 
 func autoConvert_v1beta1_RootSyncOverrideSpec_To_v1alpha1_RootSyncOverrideSpec(in *v1beta1.RootSyncOverrideSpec, out *RootSyncOverrideSpec, s conversion.Scope) error {
-	if err := Convert_v1beta1_OverrideSpec_To_v1alpha1_OverrideSpec(&in.OverrideSpec, &out.OverrideSpec, s); err != nil {
-		return err
-	}
-	out.NamespaceStrategy = configsync.NamespaceStrategy(in.NamespaceStrategy)
-	out.RoleRefs = *(*[]RootSyncRoleRef)(unsafe.Pointer(&in.RoleRefs))
+	*out = *(*RootSyncOverrideSpec)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -1155,9 +1026,7 @@ func Convert_v1beta1_RootSyncOverrideSpec_To_v1alpha1_RootSyncOverrideSpec(in *v
 }
 
 func autoConvert_v1alpha1_RootSyncRoleRef_To_v1beta1_RootSyncRoleRef(in *RootSyncRoleRef, out *v1beta1.RootSyncRoleRef, s conversion.Scope) error {
-	out.Kind = in.Kind
-	out.Name = in.Name
-	out.Namespace = in.Namespace
+	*out = *(*v1beta1.RootSyncRoleRef)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -1167,9 +1036,7 @@ func Convert_v1alpha1_RootSyncRoleRef_To_v1beta1_RootSyncRoleRef(in *RootSyncRol
 }
 
 func autoConvert_v1beta1_RootSyncRoleRef_To_v1alpha1_RootSyncRoleRef(in *v1beta1.RootSyncRoleRef, out *RootSyncRoleRef, s conversion.Scope) error {
-	out.Kind = in.Kind
-	out.Name = in.Name
-	out.Namespace = in.Namespace
+	*out = *(*RootSyncRoleRef)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -1253,7 +1120,7 @@ func Convert_v1beta1_RootSyncStatus_To_v1alpha1_RootSyncStatus(in *v1beta1.RootS
 }
 
 func autoConvert_v1alpha1_SecretReference_To_v1beta1_SecretReference(in *SecretReference, out *v1beta1.SecretReference, s conversion.Scope) error {
-	out.Name = in.Name
+	*out = *(*v1beta1.SecretReference)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -1263,7 +1130,7 @@ func Convert_v1alpha1_SecretReference_To_v1beta1_SecretReference(in *SecretRefer
 }
 
 func autoConvert_v1beta1_SecretReference_To_v1alpha1_SecretReference(in *v1beta1.SecretReference, out *SecretReference, s conversion.Scope) error {
-	out.Name = in.Name
+	*out = *(*SecretReference)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -1273,13 +1140,7 @@ func Convert_v1beta1_SecretReference_To_v1alpha1_SecretReference(in *v1beta1.Sec
 }
 
 func autoConvert_v1alpha1_SourceStatus_To_v1beta1_SourceStatus(in *SourceStatus, out *v1beta1.SourceStatus, s conversion.Scope) error {
-	out.Git = (*v1beta1.GitStatus)(unsafe.Pointer(in.Git))
-	out.Oci = (*v1beta1.OciStatus)(unsafe.Pointer(in.Oci))
-	out.Helm = (*v1beta1.HelmStatus)(unsafe.Pointer(in.Helm))
-	out.Commit = in.Commit
-	out.LastUpdate = in.LastUpdate
-	out.Errors = *(*[]v1beta1.ConfigSyncError)(unsafe.Pointer(&in.Errors))
-	out.ErrorSummary = (*v1beta1.ErrorSummary)(unsafe.Pointer(in.ErrorSummary))
+	*out = *(*v1beta1.SourceStatus)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -1289,13 +1150,7 @@ func Convert_v1alpha1_SourceStatus_To_v1beta1_SourceStatus(in *SourceStatus, out
 }
 
 func autoConvert_v1beta1_SourceStatus_To_v1alpha1_SourceStatus(in *v1beta1.SourceStatus, out *SourceStatus, s conversion.Scope) error {
-	out.Git = (*GitStatus)(unsafe.Pointer(in.Git))
-	out.Oci = (*OciStatus)(unsafe.Pointer(in.Oci))
-	out.Helm = (*HelmStatus)(unsafe.Pointer(in.Helm))
-	out.Commit = in.Commit
-	out.LastUpdate = in.LastUpdate
-	out.Errors = *(*[]ConfigSyncError)(unsafe.Pointer(&in.Errors))
-	out.ErrorSummary = (*ErrorSummary)(unsafe.Pointer(in.ErrorSummary))
+	*out = *(*SourceStatus)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -1347,13 +1202,7 @@ func Convert_v1beta1_Status_To_v1alpha1_Status(in *v1beta1.Status, out *Status, 
 }
 
 func autoConvert_v1alpha1_SyncStatus_To_v1beta1_SyncStatus(in *SyncStatus, out *v1beta1.SyncStatus, s conversion.Scope) error {
-	out.Git = (*v1beta1.GitStatus)(unsafe.Pointer(in.Git))
-	out.Oci = (*v1beta1.OciStatus)(unsafe.Pointer(in.Oci))
-	out.Helm = (*v1beta1.HelmStatus)(unsafe.Pointer(in.Helm))
-	out.Commit = in.Commit
-	out.LastUpdate = in.LastUpdate
-	out.Errors = *(*[]v1beta1.ConfigSyncError)(unsafe.Pointer(&in.Errors))
-	out.ErrorSummary = (*v1beta1.ErrorSummary)(unsafe.Pointer(in.ErrorSummary))
+	*out = *(*v1beta1.SyncStatus)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -1363,13 +1212,7 @@ func Convert_v1alpha1_SyncStatus_To_v1beta1_SyncStatus(in *SyncStatus, out *v1be
 }
 
 func autoConvert_v1beta1_SyncStatus_To_v1alpha1_SyncStatus(in *v1beta1.SyncStatus, out *SyncStatus, s conversion.Scope) error {
-	out.Git = (*GitStatus)(unsafe.Pointer(in.Git))
-	out.Oci = (*OciStatus)(unsafe.Pointer(in.Oci))
-	out.Helm = (*HelmStatus)(unsafe.Pointer(in.Helm))
-	out.Commit = in.Commit
-	out.LastUpdate = in.LastUpdate
-	out.Errors = *(*[]ConfigSyncError)(unsafe.Pointer(&in.Errors))
-	out.ErrorSummary = (*ErrorSummary)(unsafe.Pointer(in.ErrorSummary))
+	*out = *(*SyncStatus)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -1379,8 +1222,7 @@ func Convert_v1beta1_SyncStatus_To_v1alpha1_SyncStatus(in *v1beta1.SyncStatus, o
 }
 
 func autoConvert_v1alpha1_ValuesFileRef_To_v1beta1_ValuesFileRef(in *ValuesFileRef, out *v1beta1.ValuesFileRef, s conversion.Scope) error {
-	out.Name = in.Name
-	out.DataKey = in.DataKey
+	*out = *(*v1beta1.ValuesFileRef)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -1390,8 +1232,7 @@ func Convert_v1alpha1_ValuesFileRef_To_v1beta1_ValuesFileRef(in *ValuesFileRef, 
 }
 
 func autoConvert_v1beta1_ValuesFileRef_To_v1alpha1_ValuesFileRef(in *v1beta1.ValuesFileRef, out *ValuesFileRef, s conversion.Scope) error {
-	out.Name = in.Name
-	out.DataKey = in.DataKey
+	*out = *(*ValuesFileRef)(unsafe.Pointer(in))
 	return nil
 }
 

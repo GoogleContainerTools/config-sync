@@ -12,16 +12,45 @@ import (
 	configmanagementv1 "github.com/GoogleContainerTools/config-sync/pkg/generated/listers/configmanagement/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
+	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
 )
 
 // HierarchyConfigInformer provides access to a shared informer and lister for
-// HierarchyConfigs.
+// HierarchyConfigs. Prefer using the type-safe variant (see [TypedHierarchyConfigInformer]).
 type HierarchyConfigInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() configmanagementv1.HierarchyConfigLister
 }
+
+// TypedHierarchyConfigInformer provides access to a shared informer and lister for
+// HierarchyConfigs, including the type-safe TypedInformer variant.
+// It is a superset of HierarchyConfigInformer.
+type TypedHierarchyConfigInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() HierarchyConfigIndexInformer
+	Lister() configmanagementv1.HierarchyConfigLister
+}
+
+// HierarchyConfigIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type HierarchyConfigIndexInformer cache.TypedSharedIndexInformer[*apiconfigmanagementv1.HierarchyConfig]
+
+// HierarchyConfigHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for HierarchyConfig.
+type HierarchyConfigHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apiconfigmanagementv1.HierarchyConfig]
+
+// HierarchyConfigDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for HierarchyConfig.
+type HierarchyConfigDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apiconfigmanagementv1.HierarchyConfig]
+
+// HierarchyConfigFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for HierarchyConfig.
+type HierarchyConfigFilteringHandler = cache.TypedFilteringResourceEventHandler[*apiconfigmanagementv1.HierarchyConfig]
+
+// HierarchyConfigIndexers is a specialization of [cache.TypedIndexers] for HierarchyConfig.
+type HierarchyConfigIndexers = cache.TypedIndexers[*apiconfigmanagementv1.HierarchyConfig]
+
+// DeletedHierarchyConfig is a specialization of [cache.DeletedObject] for HierarchyConfig.
+type DeletedHierarchyConfig = cache.DeletedObject[*apiconfigmanagementv1.HierarchyConfig]
 
 type hierarchyConfigInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -31,55 +60,132 @@ type hierarchyConfigInformer struct {
 // NewHierarchyConfigInformer constructs a new informer for HierarchyConfig type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedHierarchyConfigInformer]).
 func NewHierarchyConfigInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredHierarchyConfigInformer(client, resyncPeriod, indexers, nil)
+	return NewHierarchyConfigInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedHierarchyConfigInformer constructs a new informer for HierarchyConfig type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedHierarchyConfigInformer(client versioned.Interface, resyncPeriod time.Duration, indexers HierarchyConfigIndexers) HierarchyConfigIndexInformer {
+	return NewTypedHierarchyConfigInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredHierarchyConfigInformer constructs a new informer for HierarchyConfig type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredHierarchyConfigInformer]).
 func NewFilteredHierarchyConfigInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return cache.NewSharedIndexInformer(
+	return NewTypedHierarchyConfigInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredHierarchyConfigInformer constructs a new informer for HierarchyConfig type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredHierarchyConfigInformer(client versioned.Interface, resyncPeriod time.Duration, indexers HierarchyConfigIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) HierarchyConfigIndexInformer {
+	return NewTypedHierarchyConfigInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
+}
+
+// NewHierarchyConfigInformerWithOptions constructs a new informer for HierarchyConfig type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedHierarchyConfigInformerWithOptions]).
+func NewHierarchyConfigInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedHierarchyConfigInformerWithOptions(client, options)
+}
+
+// NewTypedHierarchyConfigInformerWithOptions constructs a new informer for HierarchyConfig type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedHierarchyConfigInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) HierarchyConfigIndexInformer {
+	gvr := schema.GroupVersionResource{Group: "configmanagement.gke.io", Version: "v1", Resource: "hierarchyconfigs"}
+	identifier := options.InformerName.WithResource(gvr)
+	tweakListOptions := options.TweakListOptions
+	return cache.NewTypedSharedIndexInformer[*apiconfigmanagementv1.HierarchyConfig](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ConfigmanagementV1().HierarchyConfigs().List(context.Background(), options)
+				return client.ConfigmanagementV1().HierarchyConfigs().List(context.Background(), opts)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ConfigmanagementV1().HierarchyConfigs().Watch(context.Background(), options)
+				return client.ConfigmanagementV1().HierarchyConfigs().Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ConfigmanagementV1().HierarchyConfigs().List(ctx, options)
+				return client.ConfigmanagementV1().HierarchyConfigs().List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ConfigmanagementV1().HierarchyConfigs().Watch(ctx, options)
+				return client.ConfigmanagementV1().HierarchyConfigs().Watch(ctx, opts)
 			},
 		}, client),
 		&apiconfigmanagementv1.HierarchyConfig{},
-		resyncPeriod,
-		indexers,
-	)
+		cache.SharedIndexInformerOptions{
+			ResyncPeriod: options.ResyncPeriod,
+			Indexers:     options.Indexers,
+			Identifier:   identifier,
+		},
+	))
 }
 
 func (f *hierarchyConfigInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredHierarchyConfigInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+	return NewTypedHierarchyConfigInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *hierarchyConfigInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apiconfigmanagementv1.HierarchyConfig{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *hierarchyConfigInformer) TypedInformer() HierarchyConfigIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apiconfigmanagementv1.HierarchyConfig](f.factory.InformerFor(&apiconfigmanagementv1.HierarchyConfig{}, f.defaultInformer))
 }
 
 func (f *hierarchyConfigInformer) Lister() configmanagementv1.HierarchyConfigLister {
 	return configmanagementv1.NewHierarchyConfigLister(f.Informer().GetIndexer())
+}
+
+// ToTypedHierarchyConfigInformer converts an untyped informer into a TypedHierarchyConfigInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *HierarchyConfig. If that is not the case, calling type-safe methods of the returned
+// TypedHierarchyConfigInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedHierarchyConfigInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedHierarchyConfigInformer(informer HierarchyConfigInformer) TypedHierarchyConfigInformer {
+	if informer, ok := informer.(TypedHierarchyConfigInformer); ok {
+		return informer
+	}
+	return &hierarchyConfigTypedInformerAdapter{informer}
+}
+
+type hierarchyConfigTypedInformerAdapter struct {
+	HierarchyConfigInformer
+}
+
+func (a *hierarchyConfigTypedInformerAdapter) TypedInformer() HierarchyConfigIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apiconfigmanagementv1.HierarchyConfig](a.Informer())
+}
+
+// ToHierarchyConfigIndexInformer converts an untyped informer into a HierarchyConfigIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *HierarchyConfig. If that is not the case, calling type-safe methods of the returned
+// HierarchyConfigIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a HierarchyConfigIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToHierarchyConfigIndexInformer(informer cache.SharedIndexInformer) HierarchyConfigIndexInformer {
+	if informer, ok := informer.(HierarchyConfigIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apiconfigmanagementv1.HierarchyConfig](informer)
 }

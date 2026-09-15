@@ -12,16 +12,45 @@ import (
 	configmanagementv1 "github.com/GoogleContainerTools/config-sync/pkg/generated/listers/configmanagement/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
+	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
 )
 
 // RepoInformer provides access to a shared informer and lister for
-// Repos.
+// Repos. Prefer using the type-safe variant (see [TypedRepoInformer]).
 type RepoInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() configmanagementv1.RepoLister
 }
+
+// TypedRepoInformer provides access to a shared informer and lister for
+// Repos, including the type-safe TypedInformer variant.
+// It is a superset of RepoInformer.
+type TypedRepoInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() RepoIndexInformer
+	Lister() configmanagementv1.RepoLister
+}
+
+// RepoIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type RepoIndexInformer cache.TypedSharedIndexInformer[*apiconfigmanagementv1.Repo]
+
+// RepoHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for Repo.
+type RepoHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apiconfigmanagementv1.Repo]
+
+// RepoDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for Repo.
+type RepoDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apiconfigmanagementv1.Repo]
+
+// RepoFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for Repo.
+type RepoFilteringHandler = cache.TypedFilteringResourceEventHandler[*apiconfigmanagementv1.Repo]
+
+// RepoIndexers is a specialization of [cache.TypedIndexers] for Repo.
+type RepoIndexers = cache.TypedIndexers[*apiconfigmanagementv1.Repo]
+
+// DeletedRepo is a specialization of [cache.DeletedObject] for Repo.
+type DeletedRepo = cache.DeletedObject[*apiconfigmanagementv1.Repo]
 
 type repoInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -31,55 +60,132 @@ type repoInformer struct {
 // NewRepoInformer constructs a new informer for Repo type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedRepoInformer]).
 func NewRepoInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredRepoInformer(client, resyncPeriod, indexers, nil)
+	return NewRepoInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedRepoInformer constructs a new informer for Repo type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedRepoInformer(client versioned.Interface, resyncPeriod time.Duration, indexers RepoIndexers) RepoIndexInformer {
+	return NewTypedRepoInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredRepoInformer constructs a new informer for Repo type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredRepoInformer]).
 func NewFilteredRepoInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return cache.NewSharedIndexInformer(
+	return NewTypedRepoInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredRepoInformer constructs a new informer for Repo type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredRepoInformer(client versioned.Interface, resyncPeriod time.Duration, indexers RepoIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) RepoIndexInformer {
+	return NewTypedRepoInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
+}
+
+// NewRepoInformerWithOptions constructs a new informer for Repo type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedRepoInformerWithOptions]).
+func NewRepoInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedRepoInformerWithOptions(client, options)
+}
+
+// NewTypedRepoInformerWithOptions constructs a new informer for Repo type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedRepoInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) RepoIndexInformer {
+	gvr := schema.GroupVersionResource{Group: "configmanagement.gke.io", Version: "v1", Resource: "repos"}
+	identifier := options.InformerName.WithResource(gvr)
+	tweakListOptions := options.TweakListOptions
+	return cache.NewTypedSharedIndexInformer[*apiconfigmanagementv1.Repo](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ConfigmanagementV1().Repos().List(context.Background(), options)
+				return client.ConfigmanagementV1().Repos().List(context.Background(), opts)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ConfigmanagementV1().Repos().Watch(context.Background(), options)
+				return client.ConfigmanagementV1().Repos().Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ConfigmanagementV1().Repos().List(ctx, options)
+				return client.ConfigmanagementV1().Repos().List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ConfigmanagementV1().Repos().Watch(ctx, options)
+				return client.ConfigmanagementV1().Repos().Watch(ctx, opts)
 			},
 		}, client),
 		&apiconfigmanagementv1.Repo{},
-		resyncPeriod,
-		indexers,
-	)
+		cache.SharedIndexInformerOptions{
+			ResyncPeriod: options.ResyncPeriod,
+			Indexers:     options.Indexers,
+			Identifier:   identifier,
+		},
+	))
 }
 
 func (f *repoInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredRepoInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+	return NewTypedRepoInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *repoInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apiconfigmanagementv1.Repo{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *repoInformer) TypedInformer() RepoIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apiconfigmanagementv1.Repo](f.factory.InformerFor(&apiconfigmanagementv1.Repo{}, f.defaultInformer))
 }
 
 func (f *repoInformer) Lister() configmanagementv1.RepoLister {
 	return configmanagementv1.NewRepoLister(f.Informer().GetIndexer())
+}
+
+// ToTypedRepoInformer converts an untyped informer into a TypedRepoInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *Repo. If that is not the case, calling type-safe methods of the returned
+// TypedRepoInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedRepoInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedRepoInformer(informer RepoInformer) TypedRepoInformer {
+	if informer, ok := informer.(TypedRepoInformer); ok {
+		return informer
+	}
+	return &repoTypedInformerAdapter{informer}
+}
+
+type repoTypedInformerAdapter struct {
+	RepoInformer
+}
+
+func (a *repoTypedInformerAdapter) TypedInformer() RepoIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apiconfigmanagementv1.Repo](a.Informer())
+}
+
+// ToRepoIndexInformer converts an untyped informer into a RepoIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *Repo. If that is not the case, calling type-safe methods of the returned
+// RepoIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a RepoIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToRepoIndexInformer(informer cache.SharedIndexInformer) RepoIndexInformer {
+	if informer, ok := informer.(RepoIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apiconfigmanagementv1.Repo](informer)
 }

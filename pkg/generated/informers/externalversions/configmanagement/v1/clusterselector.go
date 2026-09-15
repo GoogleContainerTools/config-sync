@@ -12,16 +12,45 @@ import (
 	configmanagementv1 "github.com/GoogleContainerTools/config-sync/pkg/generated/listers/configmanagement/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
+	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
 )
 
 // ClusterSelectorInformer provides access to a shared informer and lister for
-// ClusterSelectors.
+// ClusterSelectors. Prefer using the type-safe variant (see [TypedClusterSelectorInformer]).
 type ClusterSelectorInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() configmanagementv1.ClusterSelectorLister
 }
+
+// TypedClusterSelectorInformer provides access to a shared informer and lister for
+// ClusterSelectors, including the type-safe TypedInformer variant.
+// It is a superset of ClusterSelectorInformer.
+type TypedClusterSelectorInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() ClusterSelectorIndexInformer
+	Lister() configmanagementv1.ClusterSelectorLister
+}
+
+// ClusterSelectorIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type ClusterSelectorIndexInformer cache.TypedSharedIndexInformer[*apiconfigmanagementv1.ClusterSelector]
+
+// ClusterSelectorHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for ClusterSelector.
+type ClusterSelectorHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apiconfigmanagementv1.ClusterSelector]
+
+// ClusterSelectorDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for ClusterSelector.
+type ClusterSelectorDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apiconfigmanagementv1.ClusterSelector]
+
+// ClusterSelectorFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for ClusterSelector.
+type ClusterSelectorFilteringHandler = cache.TypedFilteringResourceEventHandler[*apiconfigmanagementv1.ClusterSelector]
+
+// ClusterSelectorIndexers is a specialization of [cache.TypedIndexers] for ClusterSelector.
+type ClusterSelectorIndexers = cache.TypedIndexers[*apiconfigmanagementv1.ClusterSelector]
+
+// DeletedClusterSelector is a specialization of [cache.DeletedObject] for ClusterSelector.
+type DeletedClusterSelector = cache.DeletedObject[*apiconfigmanagementv1.ClusterSelector]
 
 type clusterSelectorInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -31,55 +60,132 @@ type clusterSelectorInformer struct {
 // NewClusterSelectorInformer constructs a new informer for ClusterSelector type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedClusterSelectorInformer]).
 func NewClusterSelectorInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredClusterSelectorInformer(client, resyncPeriod, indexers, nil)
+	return NewClusterSelectorInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedClusterSelectorInformer constructs a new informer for ClusterSelector type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedClusterSelectorInformer(client versioned.Interface, resyncPeriod time.Duration, indexers ClusterSelectorIndexers) ClusterSelectorIndexInformer {
+	return NewTypedClusterSelectorInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredClusterSelectorInformer constructs a new informer for ClusterSelector type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredClusterSelectorInformer]).
 func NewFilteredClusterSelectorInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return cache.NewSharedIndexInformer(
+	return NewTypedClusterSelectorInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredClusterSelectorInformer constructs a new informer for ClusterSelector type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredClusterSelectorInformer(client versioned.Interface, resyncPeriod time.Duration, indexers ClusterSelectorIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) ClusterSelectorIndexInformer {
+	return NewTypedClusterSelectorInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
+}
+
+// NewClusterSelectorInformerWithOptions constructs a new informer for ClusterSelector type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedClusterSelectorInformerWithOptions]).
+func NewClusterSelectorInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedClusterSelectorInformerWithOptions(client, options)
+}
+
+// NewTypedClusterSelectorInformerWithOptions constructs a new informer for ClusterSelector type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedClusterSelectorInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) ClusterSelectorIndexInformer {
+	gvr := schema.GroupVersionResource{Group: "configmanagement.gke.io", Version: "v1", Resource: "clusterselectors"}
+	identifier := options.InformerName.WithResource(gvr)
+	tweakListOptions := options.TweakListOptions
+	return cache.NewTypedSharedIndexInformer[*apiconfigmanagementv1.ClusterSelector](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ConfigmanagementV1().ClusterSelectors().List(context.Background(), options)
+				return client.ConfigmanagementV1().ClusterSelectors().List(context.Background(), opts)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ConfigmanagementV1().ClusterSelectors().Watch(context.Background(), options)
+				return client.ConfigmanagementV1().ClusterSelectors().Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ConfigmanagementV1().ClusterSelectors().List(ctx, options)
+				return client.ConfigmanagementV1().ClusterSelectors().List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ConfigmanagementV1().ClusterSelectors().Watch(ctx, options)
+				return client.ConfigmanagementV1().ClusterSelectors().Watch(ctx, opts)
 			},
 		}, client),
 		&apiconfigmanagementv1.ClusterSelector{},
-		resyncPeriod,
-		indexers,
-	)
+		cache.SharedIndexInformerOptions{
+			ResyncPeriod: options.ResyncPeriod,
+			Indexers:     options.Indexers,
+			Identifier:   identifier,
+		},
+	))
 }
 
 func (f *clusterSelectorInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredClusterSelectorInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+	return NewTypedClusterSelectorInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *clusterSelectorInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apiconfigmanagementv1.ClusterSelector{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *clusterSelectorInformer) TypedInformer() ClusterSelectorIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apiconfigmanagementv1.ClusterSelector](f.factory.InformerFor(&apiconfigmanagementv1.ClusterSelector{}, f.defaultInformer))
 }
 
 func (f *clusterSelectorInformer) Lister() configmanagementv1.ClusterSelectorLister {
 	return configmanagementv1.NewClusterSelectorLister(f.Informer().GetIndexer())
+}
+
+// ToTypedClusterSelectorInformer converts an untyped informer into a TypedClusterSelectorInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *ClusterSelector. If that is not the case, calling type-safe methods of the returned
+// TypedClusterSelectorInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedClusterSelectorInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedClusterSelectorInformer(informer ClusterSelectorInformer) TypedClusterSelectorInformer {
+	if informer, ok := informer.(TypedClusterSelectorInformer); ok {
+		return informer
+	}
+	return &clusterSelectorTypedInformerAdapter{informer}
+}
+
+type clusterSelectorTypedInformerAdapter struct {
+	ClusterSelectorInformer
+}
+
+func (a *clusterSelectorTypedInformerAdapter) TypedInformer() ClusterSelectorIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apiconfigmanagementv1.ClusterSelector](a.Informer())
+}
+
+// ToClusterSelectorIndexInformer converts an untyped informer into a ClusterSelectorIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *ClusterSelector. If that is not the case, calling type-safe methods of the returned
+// ClusterSelectorIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a ClusterSelectorIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToClusterSelectorIndexInformer(informer cache.SharedIndexInformer) ClusterSelectorIndexInformer {
+	if informer, ok := informer.(ClusterSelectorIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apiconfigmanagementv1.ClusterSelector](informer)
 }

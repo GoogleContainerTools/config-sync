@@ -91,7 +91,7 @@ func newScheme(t testing.NTB) *runtime.Scheme {
 		networkingv1.SchemeBuilder,
 		rbacv1.SchemeBuilder,
 		rbacv1beta1.SchemeBuilder,
-		resourcegroupv1alpha1.SchemeBuilder.SchemeBuilder,
+		resourcegroupv1alpha1.SchemeBuilder,
 		apiregistrationv1.SchemeBuilder,
 		hubv1.SchemeBuilder,
 	}
