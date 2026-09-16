@@ -15,16 +15,18 @@
 package status
 
 import (
+	"strings"
 	"testing"
 
 	kptv1alpha1 "github.com/GoogleContainerTools/config-sync/pkg/api/kpt.dev/v1alpha1"
 )
 
-func TestAllSynced(t *testing.T) {
+func TestPollUntilReached(t *testing.T) {
 	tests := []struct {
-		name   string
-		states map[string]*ClusterState
-		want   bool
+		name    string
+		states  map[string]*ClusterState
+		want    bool
+		wantErr bool
 	}{
 		{
 			name: "all repositories synced",
@@ -61,6 +63,7 @@ func TestAllSynced(t *testing.T) {
 					},
 				},
 			},
+			wantErr: true,
 		},
 		{
 			name: "cluster error",
@@ -74,19 +77,136 @@ func TestAllSynced(t *testing.T) {
 			},
 		},
 		{
-			name: "empty state",
+			name: "empty reachable cluster has nothing to wait for",
 			states: map[string]*ClusterState{
 				"cluster": {},
 			},
+			want: true,
+		},
+		{
+			name: "cluster without sync objects does not block another cluster",
+			states: map[string]*ClusterState{
+				"empty-cluster":  {Error: "No RootSync resources found\nNo RepoSync resources found", noSyncObjects: true},
+				"active-cluster": {repos: []*RepoState{{status: syncedMsg}}},
+			},
+			want: true,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if got := allSynced(test.states); got != test.want {
-				t.Fatalf("allSynced() = %v, want %v", got, test.want)
+			got, err := pollUntilReached(test.states, "", pollUntilCurrent)
+			if (err != nil) != test.wantErr {
+				t.Fatalf("pollUntilReached() error = %v, want error %v", err, test.wantErr)
+			}
+			if got != test.want {
+				t.Fatalf("pollUntilReached() = %v, want %v", got, test.want)
 			}
 		})
+	}
+}
+
+func TestPollUntilReachedRequiresCurrentResourceForCurrentMode(t *testing.T) {
+	tests := []struct {
+		name          string
+		resourceState kptv1alpha1.Status
+		want          bool
+		wantErr       bool
+	}{
+		{name: "current resource", resourceState: kptv1alpha1.Current, want: true},
+		{name: "unknown resource", resourceState: kptv1alpha1.Unknown, want: false},
+		{name: "failed resource", resourceState: kptv1alpha1.Failed, want: false, wantErr: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			states := map[string]*ClusterState{
+				"cluster": {repos: []*RepoState{{
+					status:    syncedMsg,
+					resources: []kptv1alpha1.ResourceStatus{{Status: test.resourceState}},
+				}}},
+			}
+			got, err := pollUntilReached(states, "", pollUntilCurrent)
+			if (err != nil) != test.wantErr {
+				t.Fatalf("pollUntilReached() error = %v, want error %v", err, test.wantErr)
+			}
+			if got != test.want {
+				t.Fatalf("pollUntilReached() = %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestPollUntilReachedFailsForFailedResourceInCurrentMode(t *testing.T) {
+	states := map[string]*ClusterState{
+		"cluster": {repos: []*RepoState{{
+			scope:    "apps",
+			syncName: "payments",
+			status:   syncedMsg,
+			resources: []kptv1alpha1.ResourceStatus{{
+				ObjMetadata: kptv1alpha1.ObjMetadata{
+					GroupKind: kptv1alpha1.GroupKind{Group: "apps", Kind: "Deployment"},
+					Name:      "checkout",
+				},
+				Status: kptv1alpha1.Failed,
+			}},
+		}}},
+	}
+
+	done, err := pollUntilReached(states, "", pollUntilCurrent)
+	if err == nil {
+		t.Fatal("pollUntilReached() returned no error for a failed resource")
+	}
+	if done {
+		t.Fatal("pollUntilReached() reported completion for a failed resource")
+	}
+	if !strings.Contains(err.Error(), "deployment.apps/checkout") {
+		t.Fatalf("pollUntilReached() error = %q, want the failed resource identified", err)
+	}
+}
+
+func TestPollUntilReachedUsesNameFilter(t *testing.T) {
+	states := map[string]*ClusterState{
+		"cluster": {
+			repos: []*RepoState{
+				{syncName: "selected", status: syncedMsg},
+				{syncName: "other", status: pendingMsg},
+			},
+		},
+	}
+	got, err := pollUntilReached(states, "selected", pollUntilCurrent)
+	if err != nil {
+		t.Fatalf("pollUntilReached() returned unexpected error: %v", err)
+	}
+	if !got {
+		t.Fatal("pollUntilReached() = false, want true when the selected repo is synced")
+	}
+}
+
+func TestPollUntilReachedWaitsForNamedRepoToAppear(t *testing.T) {
+	states := map[string]*ClusterState{"cluster": {repos: []*RepoState{{syncName: "other", status: syncedMsg}}}}
+	if got, err := pollUntilReached(states, "selected", pollUntilCurrent); err != nil || got {
+		t.Fatalf("pollUntilReached() = (%v, %v), want (false, nil) when no repo matches", got, err)
+	}
+}
+
+func TestPollUntilReachedSyncedTargetIgnoresResourceReadiness(t *testing.T) {
+	states := map[string]*ClusterState{
+		"cluster": {
+			repos: []*RepoState{{
+				syncName: "selected",
+				status:   syncedMsg,
+				resources: []kptv1alpha1.ResourceStatus{
+					{Status: kptv1alpha1.Unknown},
+				},
+			}},
+		},
+	}
+	got, err := pollUntilReached(states, "", pollUntilSynced)
+	if err != nil {
+		t.Fatalf("pollUntilReached() returned unexpected error: %v", err)
+	}
+	if !got {
+		t.Fatal("pollUntilReached() = false, want true when sync completed and mode is synced")
 	}
 }
 
@@ -96,6 +216,11 @@ func TestValidatePollUntil(t *testing.T) {
 	}
 	if err := validatePollUntil(pollUntilComplete); err != nil {
 		t.Fatalf("validatePollUntil(%q) returned error: %v", pollUntilComplete, err)
+	}
+	for _, value := range []string{pollUntilSynced, pollUntilCurrent} {
+		if err := validatePollUntil(value); err != nil {
+			t.Errorf("validatePollUntil(%q) returned error: %v", value, err)
+		}
 	}
 	if err := validatePollUntil("ready"); err == nil {
 		t.Fatal("validatePollUntil(\"ready\") returned nil")
