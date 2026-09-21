@@ -47,8 +47,8 @@ case "${COMPONENT}" in
   debian-base)
     VAR_NAME="DEBIAN_BASE_IMAGE"
     IMAGE_PATH="gcr.io/gke-release/debian-base"
-    FILTER_LATEST_VERSION="tags:bookworm*"
-    GREP_PATTERN_LATEST_VERSION="^bookworm"
+    FILTER_LATEST_VERSION="tags:trixie*"
+    GREP_PATTERN_LATEST_VERSION="^trixie"
     STRIP_BASE_PATTERN="-gke\.[0-9]+$"
     QUERY_TYPE="gcloud"
     ;;

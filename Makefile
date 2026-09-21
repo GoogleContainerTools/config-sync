@@ -42,9 +42,9 @@ GOLANG_IMAGE_VERSION := 1.26.4
 GOLANG_IMAGE := google-go.pkg.dev/golang:$(GOLANG_IMAGE_VERSION)
 # Base image used for debian containers
 # When updating you can use this command:
-# gcloud container images list-tags gcr.io/gke-release/debian-base --filter="tags:bookworm*"
+# gcloud container images list-tags gcr.io/gke-release/debian-base --filter="tags:trixie*"
 # Or run: UPDATE_TYPE=<latest-version|latest-build> make update-debian-base-image
-DEBIAN_BASE_IMAGE := gcr.io/gke-release/debian-base:bookworm-v1.0.8-gke.12
+DEBIAN_BASE_IMAGE := gcr.io/gke-release/debian-base:trixie-v1.0.0-gke.2
 # Base image used for gcloud install, primarily for test images.
 # We use -slim for a smaller base image where we can choose which components to install.
 # https://cloud.google.com/sdk/docs/downloads-docker#docker_image_options
