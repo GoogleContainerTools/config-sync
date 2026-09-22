@@ -97,7 +97,7 @@ func TestCACertSecretRefV1Alpha1(t *testing.T) {
 	rootSyncHTTPS := "https://test-git-server.config-management-system-test/git/config-management-system/root-sync"
 	nt.MustMergePatch(rootSync, syncURLHTTPSPatch(rootSyncHTTPS))
 	// RootSync should fail without caCertSecret
-	nt.Must(nt.Watcher.WatchForRootSyncSourceError(configsync.RootSyncName, status.SourceErrorCode, "server certificate verification failed"))
+	nt.Must(nt.Watcher.WatchForRootSyncSourceError(configsync.RootSyncName, status.SourceErrorCode, "server verification failed"))
 	err = nt.Validate(rootSyncReconcilerName, configsync.ControllerNamespace, &appsv1.Deployment{}, testpredicates.DeploymentHasEnvVar(reconcilermanager.GitSync, controllers.GitSyncRepo, rootSyncHTTPS))
 	if err != nil {
 		nt.T.Fatal(err)
@@ -120,7 +120,7 @@ func TestCACertSecretRefV1Alpha1(t *testing.T) {
 	nt.Must(rootSyncGitRepo.Add(nomostest.StructuredNSPath(repoSyncID.Namespace, repoSyncID.Name), repoSyncBackend))
 	nt.Must(rootSyncGitRepo.CommitAndPush("Update backend RepoSync use HTTPS"))
 	// RepoSync should fail without caCertSecret
-	nt.Must(nt.Watcher.WatchForRepoSyncSourceError(repoSyncID.Namespace, repoSyncID.Name, status.SourceErrorCode, "server certificate verification failed"))
+	nt.Must(nt.Watcher.WatchForRepoSyncSourceError(repoSyncID.Namespace, repoSyncID.Name, status.SourceErrorCode, "server verification failed"))
 	err = nt.Validate(repoSyncReconcilerName, configsync.ControllerNamespace, &appsv1.Deployment{}, testpredicates.DeploymentHasEnvVar(reconcilermanager.GitSync, controllers.GitSyncRepo, repoSyncHTTPS))
 	if err != nil {
 		nt.T.Fatal(err)
@@ -139,7 +139,7 @@ func TestCACertSecretRefV1Alpha1(t *testing.T) {
 	// Unset caCertSecret for RootSync
 	nt.MustMergePatch(rootSync, caCertSecretPatch(configsync.GitSource, ""))
 	// RootSync should fail without caCertSecret
-	nt.Must(nt.Watcher.WatchForRootSyncSourceError(configsync.RootSyncName, status.SourceErrorCode, "server certificate verification failed"))
+	nt.Must(nt.Watcher.WatchForRootSyncSourceError(configsync.RootSyncName, status.SourceErrorCode, "server verification failed"))
 	err = nt.Validate(rootSyncReconcilerName, configsync.ControllerNamespace, &appsv1.Deployment{}, testpredicates.DeploymentMissingEnvVar(reconcilermanager.GitSync, key))
 	if err != nil {
 		nt.T.Fatal(err)
@@ -159,7 +159,7 @@ func TestCACertSecretRefV1Alpha1(t *testing.T) {
 	nt.Must(rootSyncGitRepo.Add(nomostest.StructuredNSPath(repoSyncID.Namespace, repoSyncID.Name), repoSyncBackend))
 	nt.Must(rootSyncGitRepo.CommitAndPush("Update backend RepoSync unset caCertSecret"))
 	// RepoSync should fail without caCertSecret
-	nt.Must(nt.Watcher.WatchForRepoSyncSourceError(repoSyncID.Namespace, repoSyncID.Name, status.SourceErrorCode, "server certificate verification failed"))
+	nt.Must(nt.Watcher.WatchForRepoSyncSourceError(repoSyncID.Namespace, repoSyncID.Name, status.SourceErrorCode, "server verification failed"))
 	err = nt.Validate(repoSyncReconcilerName, configsync.ControllerNamespace, &appsv1.Deployment{}, testpredicates.DeploymentMissingEnvVar(reconcilermanager.GitSync, key))
 	if err != nil {
 		nt.T.Fatal(err)
@@ -211,7 +211,7 @@ func TestCACertSecretRefV1Beta1(t *testing.T) {
 	rootSyncHTTPS := "https://test-git-server.config-management-system-test/git/config-management-system/root-sync"
 	nt.MustMergePatch(rootSync, syncURLHTTPSPatch(rootSyncHTTPS))
 	// RootSync should fail without caCertSecret
-	nt.Must(nt.Watcher.WatchForRootSyncSourceError(configsync.RootSyncName, status.SourceErrorCode, "server certificate verification failed"))
+	nt.Must(nt.Watcher.WatchForRootSyncSourceError(configsync.RootSyncName, status.SourceErrorCode, "server verification failed"))
 	err = nt.Validate(rootSyncReconcilerName, configsync.ControllerNamespace, &appsv1.Deployment{}, testpredicates.DeploymentHasEnvVar(reconcilermanager.GitSync, controllers.GitSyncRepo, rootSyncHTTPS))
 	if err != nil {
 		nt.T.Fatal(err)
@@ -233,7 +233,7 @@ func TestCACertSecretRefV1Beta1(t *testing.T) {
 	nt.Must(rootSyncGitRepo.Add(nomostest.StructuredNSPath(repoSyncID.Namespace, repoSyncID.Name), repoSyncBackend))
 	nt.Must(rootSyncGitRepo.CommitAndPush("Update backend RepoSync use HTTPS"))
 	// RepoSync should fail without caCertSecret
-	nt.Must(nt.Watcher.WatchForRepoSyncSourceError(repoSyncID.Namespace, repoSyncID.Name, status.SourceErrorCode, "server certificate verification failed"))
+	nt.Must(nt.Watcher.WatchForRepoSyncSourceError(repoSyncID.Namespace, repoSyncID.Name, status.SourceErrorCode, "server verification failed"))
 	err = nt.Validate(reconcilerName, configsync.ControllerNamespace, &appsv1.Deployment{}, testpredicates.DeploymentHasEnvVar(reconcilermanager.GitSync, controllers.GitSyncRepo, repoSyncHTTPS))
 	if err != nil {
 		nt.T.Fatal(err)
@@ -258,7 +258,7 @@ func TestCACertSecretRefV1Beta1(t *testing.T) {
 	// Unset caCertSecret for RootSync
 	nt.MustMergePatch(rootSync, caCertSecretPatch(configsync.GitSource, ""))
 	// RootSync should fail without caCertSecret
-	nt.Must(nt.Watcher.WatchForRootSyncSourceError(configsync.RootSyncName, status.SourceErrorCode, "server certificate verification failed"))
+	nt.Must(nt.Watcher.WatchForRootSyncSourceError(configsync.RootSyncName, status.SourceErrorCode, "server verification failed"))
 	err = nt.Validate(rootSyncReconcilerName, configsync.ControllerNamespace, &appsv1.Deployment{}, testpredicates.DeploymentMissingEnvVar(reconcilermanager.GitSync, key))
 	if err != nil {
 		nt.T.Fatal(err)
@@ -278,7 +278,7 @@ func TestCACertSecretRefV1Beta1(t *testing.T) {
 	nt.Must(rootSyncGitRepo.Add(nomostest.StructuredNSPath(repoSyncID.Namespace, repoSyncID.Name), repoSyncBackend))
 	nt.Must(rootSyncGitRepo.CommitAndPush("Update backend RepoSync unset caCertSecret"))
 	// RepoSync should fail without caCertSecret
-	nt.Must(nt.Watcher.WatchForRepoSyncSourceError(repoSyncID.Namespace, repoSyncID.Name, status.SourceErrorCode, "server certificate verification failed"))
+	nt.Must(nt.Watcher.WatchForRepoSyncSourceError(repoSyncID.Namespace, repoSyncID.Name, status.SourceErrorCode, "server verification failed"))
 	err = nt.Validate(reconcilerName, configsync.ControllerNamespace, &appsv1.Deployment{}, testpredicates.DeploymentMissingEnvVar(reconcilermanager.GitSync, key))
 	if err != nil {
 		nt.T.Fatal(err)
