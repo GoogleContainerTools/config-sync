@@ -291,8 +291,3 @@ type ResourceGroupList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []ResourceGroup `json:"items"`
 }
-
-//nolint:gochecknoinits // kubebuilder convention for api packages
-func init() {
-	SchemeBuilder.Register(&ResourceGroup{}, &ResourceGroupList{})
-}

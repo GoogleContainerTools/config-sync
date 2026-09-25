@@ -22,6 +22,7 @@ import (
 
 	"github.com/GoogleContainerTools/config-sync/pkg/reconcilermanager/controllers"
 	"github.com/go-logr/logr"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
@@ -41,7 +42,7 @@ type TypeResolver struct {
 // Refresh refreshes the type mapping by querying the api server
 func (r *TypeResolver) Refresh(ctx context.Context) error {
 	mapping := make(map[schema.GroupKind]schema.GroupVersionKind)
-	apiResourcesList, err := discovery.ServerPreferredResources(r.dc)
+	apiResourcesList, err := serverPreferredResources(ctx, r.dc)
 	if err != nil {
 		if isStaleGroupDiscoveryError(err) {
 			// Log and continue, using the cached APIs.
@@ -150,4 +151,20 @@ func ForManager(mgr ctrl.Manager, logger logr.Logger) (*TypeResolver, error) {
 		For(uObj).
 		Build(reconciler)
 	return reconciler, err
+}
+
+func serverPreferredResources(ctx context.Context, d discovery.DiscoveryInterface) ([]*metav1.APIResourceList, error) {
+	if d == nil {
+		return nil, nil
+	}
+	if ad, ok := d.(discovery.AggregatedDiscoveryInterfaceWithContext); ok {
+		return discovery.ServerPreferredResourcesWithContext(ctx, ad)
+	}
+	if ad, ok := d.(discovery.AggregatedDiscoveryInterface); ok {
+		return discovery.ServerPreferredResourcesWithContext(ctx, discovery.ToAggregatedDiscoveryInterfaceWithContext(ad))
+	}
+	if dc, ok := d.(discovery.DiscoveryInterfaceWithContext); ok {
+		return discovery.ServerPreferredResourcesWithContext(ctx, dc)
+	}
+	return discovery.ServerPreferredResourcesWithContext(ctx, discovery.ToDiscoveryInterfaceWithContext(d))
 }

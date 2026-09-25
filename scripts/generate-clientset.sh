@@ -37,6 +37,11 @@ set -euo pipefail
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 CODEGEN_PKG=${CODEGEN_PKG:-"${SCRIPT_ROOT}/vendor/k8s.io/code-generator"}
 
+# Pin code-generator to v0.35.8 to preserve backward-compatible public client and informer APIs
+# and avoid unsafe pointer conversions in generated conversion code.
+KUBE_CODEGEN_TAG="${KUBE_CODEGEN_TAG:-v0.35.8}"
+export KUBE_CODEGEN_TAG
+
 # Helper script is vendored from k8s.io/code-generator
 # shellcheck source=vendor/k8s.io/code-generator/kube_codegen.sh
 source "${CODEGEN_PKG}/kube_codegen.sh"

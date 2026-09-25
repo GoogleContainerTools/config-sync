@@ -18,6 +18,7 @@ package process
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -128,6 +129,8 @@ func (ps *State) Init(name string) error {
 
 type stopChannel chan struct{}
 
+var signalProcess = signalProcessImpl
+
 // CheckFlag checks the help output of this command for the presence of the given flag, specified
 // without the leading `--` (e.g. `CheckFlag("insecure-port")` checks for `--insecure-port`),
 // returning true if the flag is present.
@@ -193,7 +196,7 @@ func (ps *State) Start(stdout, stderr io.Writer) (err error) {
 		close(pollerStopCh)
 		if ps.Cmd != nil {
 			// intentionally ignore this -- we might've crashed, failed to start, etc
-			ps.Cmd.Process.Signal(syscall.SIGTERM) //nolint:errcheck
+			_ = signalProcess(ps.Cmd.Process, syscall.SIGTERM)
 		}
 		return fmt.Errorf("timeout waiting for process %s to start", path.Base(ps.Path))
 	}
@@ -256,7 +259,7 @@ func (ps *State) Stop() error {
 	if done, _ := ps.Exited(); done {
 		return nil
 	}
-	if err := ps.Cmd.Process.Signal(syscall.SIGTERM); err != nil {
+	if err := signalProcess(ps.Cmd.Process, syscall.SIGTERM); err != nil {
 		return fmt.Errorf("unable to signal for process %s to stop: %w", ps.Path, err)
 	}
 
@@ -266,10 +269,11 @@ func (ps *State) Stop() error {
 	case <-ps.waitDone:
 		break
 	case <-timedOut:
-		if err := ps.Cmd.Process.Signal(syscall.SIGKILL); err != nil {
-			return fmt.Errorf("unable to kill process %s: %w", ps.Path, err)
+		timeoutErr := fmt.Errorf("timeout waiting for process %s to stop", path.Base(ps.Path))
+		if err := signalProcess(ps.Cmd.Process, syscall.SIGKILL); err != nil {
+			return errors.Join(timeoutErr, fmt.Errorf("unable to kill process %s: %w", ps.Path, err))
 		}
-		return fmt.Errorf("timeout waiting for process %s to stop", path.Base(ps.Path))
+		return timeoutErr
 	}
 	ps.ready = false
 	return nil
