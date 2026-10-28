@@ -16,6 +16,7 @@ package e2e
 
 import (
 	"archive/zip"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -1164,6 +1165,41 @@ func TestNomosStatus(t *testing.T) {
 
 	if !strings.Contains(string(out), "SYNCED") {
 		nt.T.Fatalf("Expected to find sync status in string output:\n%s\n", string(out))
+	}
+}
+
+// TestNomosStatusPollUntil verifies that `nomos status --poll-until` exits once
+// the selected RootSyncs and RepoSyncs reach the requested state, rejects
+// unsupported values, and keeps polling while nothing matches.
+func TestNomosStatusPollUntil(t *testing.T) {
+	nt := nomostest.New(t, nomostesting.NomosCLI)
+
+	// The root-sync is synced and its managed resources are Current, so both
+	// targets exit successfully.
+	for _, target := range []string{"synced", "current"} {
+		out, err := nt.Shell.Command("timeout", "2m", "nomos", "status",
+			"--poll=2s", "--poll-until="+target).CombinedOutput()
+		if err != nil {
+			nt.T.Fatalf("nomos status --poll-until=%s failed: %v\n%s", target, err, out)
+		}
+		if !strings.Contains(string(out), "SYNCED") {
+			nt.T.Fatalf("Expected to find sync status in output for --poll-until=%s:\n%s", target, out)
+		}
+	}
+
+	// Unsupported values, including the dropped `complete` alias, fail fast.
+	out, err := nt.Shell.Command("nomos", "status", "--poll-until=complete").CombinedOutput()
+	if err == nil || !strings.Contains(string(out), "unsupported --poll-until value") {
+		nt.T.Fatalf("Expected an unsupported --poll-until value error, got err=%v:\n%s", err, out)
+	}
+
+	// A name that matches no RootSync or RepoSync keeps polling until the
+	// external timeout stops the command.
+	out, err = nt.Shell.Command("timeout", "20s", "nomos", "status",
+		"--poll=2s", "--poll-until=synced", "--name=does-not-exist").CombinedOutput()
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 124 {
+		nt.T.Fatalf("Expected the timeout to stop polling (exit code 124), got err=%v:\n%s", err, out)
 	}
 }
 
