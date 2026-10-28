@@ -23,16 +23,17 @@ scripts to parse repeated status output.
 The existing `--poll` loop is extended with optional completion targets:
 `--poll-until=synced` waits until each selected repository reports `SYNCED`
 without errors; `--poll-until=current` adds the requirement that every reported
-managed resource is `Current`. `complete` remains an alias for `current`.
+managed resource is `Current`.
 A stalled, pending, reconciling, unavailable, or errored repository keeps
 polling. A `Failed` managed resource stops `current` polling with an error
 instead of waiting indefinitely. An `Unknown` resource does not count as
 current; callers that only need successful Config Sync application can use
 `synced` instead. Invalid values fail before any cluster request.
 
-The `--name` filter also scopes the completion check. A requested name must be
-present in at least one queried cluster before polling can succeed. Reachable
-clusters with no sync objects do not block other clusters from completing.
+The `--name` filter also scopes the completion check. At least one selected
+RootSync or RepoSync must be present in a queried cluster before polling can
+succeed. Reachable clusters with no sync objects do not block other clusters
+from completing.
 
 Either completion target uses a five-second interval when `--poll` is omitted.
 An explicit `--poll` interval continues to take precedence. Existing commands
@@ -75,7 +76,7 @@ the caller can treat that as a reconciliation timeout.
 | Risk | Mitigation |
 | --- | --- |
 | Polling can increase API traffic. | Require an explicit completion mode and use a conservative five-second default; callers can choose a longer interval. |
-| A cluster with no sync objects could hold multi-cluster polling open. | Ignore empty clusters while checking other clusters; require a requested `--name` to appear before success. |
+| A cluster with no sync objects could hold multi-cluster polling open. | Ignore empty clusters while checking other clusters; require at least one selected RootSync or RepoSync before success. |
 | A resource may never report kstatus `Current`. | Offer `synced` for apply completion and `current` for resource readiness; fail fast for `Failed` resources. |
 | Existing users depend on indefinite `--poll`. | Preserve the existing loop unless `--poll-until` is provided. |
 
@@ -91,8 +92,7 @@ collection.
 ### Should more completion states be supported?
 
 Resolution: Yes. `synced` covers Config Sync application, and `current` covers
-managed-resource readiness. `complete` is retained as a compatibility alias for
-`current`.
+managed-resource readiness.
 
 ## Alternatives Considered
 

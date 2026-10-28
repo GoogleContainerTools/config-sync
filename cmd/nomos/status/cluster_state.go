@@ -48,8 +48,9 @@ type ClusterState struct {
 }
 
 // pollUntilReached checks the selected repositories against the requested sync
-// or resource-readiness target. Empty clusters do not block polling, but a
-// requested name must appear before it can be considered complete.
+// or resource-readiness target. Empty clusters do not block polling, but at
+// least one selected RootSync or RepoSync must be found before it can be
+// considered complete.
 func pollUntilReached(states map[string]*ClusterState, syncName, target string) (bool, error) {
 	matchedRepo := false
 	for _, state := range states {
@@ -82,7 +83,7 @@ func pollUntilReached(states map[string]*ClusterState, syncName, target string) 
 			}
 		}
 	}
-	return syncName == "" || matchedRepo, nil
+	return matchedRepo, nil
 }
 
 func (c *ClusterState) printRows(writer io.Writer) {

@@ -40,7 +40,6 @@ const (
 	reconcilingMsg      = "RECONCILING"
 	pollUntilSynced     = "synced"
 	pollUntilCurrent    = "current"
-	pollUntilComplete   = "complete"
 	defaultPollInterval = 5 * time.Second
 )
 
@@ -56,7 +55,7 @@ func init() {
 	flags.AddContexts(Cmd)
 	Cmd.Flags().DurationVar(&flags.ClientTimeout, "timeout", restconfig.DefaultTimeout, "Sets the timeout for connecting to each cluster. Defaults to 15 seconds. Example: --timeout=30s")
 	Cmd.Flags().DurationVar(&pollingInterval, "poll", 0*time.Second, "Continuously polls for status updates at the specified interval. If not provided, the command runs only once. Example: --poll=30s for polling every 30 seconds")
-	Cmd.Flags().StringVar(&pollUntil, "poll-until", "", "Continues polling until the requested state is reached. Supported values: synced, current (complete is an alias for current). Defaults to a 5-second polling interval when --poll is not set.")
+	Cmd.Flags().StringVar(&pollUntil, "poll-until", "", "Continues polling until the requested state is reached. Supported values: synced, current. Defaults to a 5-second polling interval when --poll is not set.")
 	Cmd.Flags().StringVar(&namespace, "namespace", "", "Filters the status output by the specified RootSync or RepoSync namespace. If not provided, displays status for all RootSync and RepoSync objects.")
 	Cmd.Flags().BoolVar(&resourceStatus, "resources", true, "Displays detailed status for individual resources managed by RootSync or RepoSync objects. Defaults to true.")
 	Cmd.Flags().StringVar(&name, "name", "", "Filters the status output by the specified RootSync or RepoSync name.")
@@ -216,8 +215,8 @@ func printStatus(writer *tabwriter.Writer, stateMap map[string]*ClusterState, mo
 }
 
 func validatePollUntil(value string) error {
-	if value != "" && value != pollUntilSynced && value != pollUntilCurrent && value != pollUntilComplete {
-		return fmt.Errorf("unsupported --poll-until value %q; supported values are %q, %q, and %q", value, pollUntilSynced, pollUntilCurrent, pollUntilComplete)
+	if value != "" && value != pollUntilSynced && value != pollUntilCurrent {
+		return fmt.Errorf("unsupported --poll-until value %q; supported values are %q and %q", value, pollUntilSynced, pollUntilCurrent)
 	}
 	return nil
 }

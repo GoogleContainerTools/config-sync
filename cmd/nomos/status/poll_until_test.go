@@ -77,11 +77,16 @@ func TestPollUntilReached(t *testing.T) {
 			},
 		},
 		{
-			name: "empty reachable cluster has nothing to wait for",
+			name: "empty reachable cluster keeps polling",
 			states: map[string]*ClusterState{
 				"cluster": {},
 			},
-			want: true,
+		},
+		{
+			name: "no sync objects on any cluster keeps polling",
+			states: map[string]*ClusterState{
+				"empty-cluster": {Error: "No RootSync resources found\nNo RepoSync resources found", noSyncObjects: true},
+			},
 		},
 		{
 			name: "cluster without sync objects does not block another cluster",
@@ -214,15 +219,14 @@ func TestValidatePollUntil(t *testing.T) {
 	if err := validatePollUntil(""); err != nil {
 		t.Fatalf("validatePollUntil(\"\") returned error: %v", err)
 	}
-	if err := validatePollUntil(pollUntilComplete); err != nil {
-		t.Fatalf("validatePollUntil(%q) returned error: %v", pollUntilComplete, err)
-	}
 	for _, value := range []string{pollUntilSynced, pollUntilCurrent} {
 		if err := validatePollUntil(value); err != nil {
 			t.Errorf("validatePollUntil(%q) returned error: %v", value, err)
 		}
 	}
-	if err := validatePollUntil("ready"); err == nil {
-		t.Fatal("validatePollUntil(\"ready\") returned nil")
+	for _, value := range []string{"complete", "ready"} {
+		if err := validatePollUntil(value); err == nil {
+			t.Errorf("validatePollUntil(%q) returned nil, want error", value)
+		}
 	}
 }
