@@ -532,7 +532,7 @@ func TestAddIgnoreMutationAnnotationDirectly(t *testing.T) {
 		testwatcher.WatchPredicates(
 			testpredicates.MissingAnnotation(metadata.LifecycleMutationAnnotation),
 		),
-		testwatcher.WatchTimeout(30*time.Second)))
+		testwatcher.WatchTimeout(nt.DefaultWaitTimeout)))
 }
 
 // TestKubectlAddAnnotation adds a new field with kubectl into a resource managed
