@@ -42,11 +42,10 @@ const (
 
 // BitbucketClient is the client that calls the Bitbucket REST APIs.
 type BitbucketClient struct {
-	oauthKey     string
-	oauthSecret  string
-	refreshToken string
-	logger       *testlogger.TestLogger
-	workspace    string
+	oauthKey    string
+	oauthSecret string
+	logger      *testlogger.TestLogger
+	workspace   string
 	// repoSuffix is used to avoid overlap
 	repoSuffix string
 	httpClient *http.Client
@@ -71,9 +70,6 @@ func newBitbucketClient(repoSuffix string, logger *testlogger.TestLogger) (*Bitb
 	if client.oauthSecret, err = FetchCloudSecret("bitbucket-oauth-secret"); err != nil {
 		return client, err
 	}
-	if client.refreshToken, err = FetchCloudSecret("bitbucket-refresh-token"); err != nil {
-		return client, err
-	}
 	return client, nil
 }
 
@@ -96,7 +92,7 @@ func (b *BitbucketClient) RemoteURL(name string) (string, error) {
 // name refers to the repo name in the format of <NAMESPACE>/<NAME> of RootSync|RepoSync.
 // The Bitbucket Rest API doesn't allow slash in the repository name, so slash has to be replaced with dash in the name.
 func (b *BitbucketClient) SyncURL(name string) string {
-	return fmt.Sprintf("git@bitbucket.org:%s/%s", b.workspace, strings.ReplaceAll(name, "/", "-"))
+	return fmt.Sprintf("git@ssh.bitbucket.org:%s/%s", b.workspace, strings.ReplaceAll(name, "/", "-"))
 }
 
 // CreateRepository calls the POST API to create a remote repository on Bitbucket.
@@ -202,8 +198,7 @@ func (b *BitbucketClient) DeleteObsoleteRepos() error {
 func (b *BitbucketClient) refreshAccessToken() (string, error) {
 	tokenURL := "https://bitbucket.org/site/oauth2/access_token"
 	data := url.Values{}
-	data.Set("grant_type", "refresh_token")
-	data.Set("refresh_token", b.refreshToken)
+	data.Set("grant_type", "client_credentials")
 
 	req, err := http.NewRequest(http.MethodPost, tokenURL, strings.NewReader(data.Encode()))
 	if err != nil {
@@ -228,7 +223,7 @@ func (b *BitbucketClient) refreshAccessToken() (string, error) {
 		return "", fmt.Errorf("reading token refresh response body: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("refresh token failed with status %d", resp.StatusCode)
+		return "", fmt.Errorf("refresh token failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
 	var output map[string]interface{}
