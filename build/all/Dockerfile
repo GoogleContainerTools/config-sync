@@ -54,7 +54,7 @@ ARG USER_UID=65532
 ARG USER_GID=$USER_UID
 RUN groupadd --gid $USER_GID $USERNAME && \
   useradd --uid $USER_UID --gid $USER_GID -m $USERNAME
-RUN apt-get update && apt-get install -y bash git
+RUN apt-get update && apt-get upgrade -y && apt-get install -y bash git
 USER nonroot:nonroot
 
 # Hydration controller image
