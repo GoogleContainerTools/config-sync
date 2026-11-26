@@ -105,7 +105,7 @@ func (v *Validator) Handle(_ context.Context, req admission.Request) admission.R
 
 	// Handle the requests for ResourceGroup CRs.
 	if isResourceGroupRequest(req) {
-		return handleResourceGroupRequest(req)
+		return handleResourceGroupRequest(req, oldObj, newObj)
 	}
 
 	username := req.UserInfo.Username
