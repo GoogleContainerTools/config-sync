@@ -36,6 +36,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/cli-utils/pkg/common"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // TestNamespaceStrategy focuses on the behavior of switching between modes
@@ -262,9 +263,12 @@ func TestNamespaceStrategyMultipleRootSyncs(t *testing.T) {
 // implicit Namespaces which another RootSync later declares explicitly.
 //   - sync-x declares ConfigMaps in namespace-a and namespace-b, but not the
 //     Namespaces, so it creates them implicitly.
-//   - sync-a declares namespace-a and namespace-b, and takes them over.
+//   - sync-a declares namespace-a and namespace-b (without the deletion: detach
+//     annotation), takes them over, and adds a ConfigMap in namespace-a.
 //   - sync-x re-parses. It no longer declares any Namespace, but still has
 //     objects in them, so it must not report KNV2006 and must keep syncing.
+//   - sync-x removes its ConfigMaps. It must not delete the Namespaces that
+//     sync-a now owns, or anything sync-a has in them.
 func TestImplicitNamespaceHandoffBetweenRootSyncs(t *testing.T) {
 	rootSyncID := nomostest.DefaultRootSyncID
 	rootSyncAID := core.RootSyncID("sync-a")
@@ -300,16 +304,18 @@ func TestImplicitNamespaceHandoffBetweenRootSyncs(t *testing.T) {
 	nt.Must(rootSyncXGitRepo.CommitAndPush("Add ConfigMaps in namespace-a and namespace-b"))
 	nt.Must(nt.WatchForAllSyncs())
 
-	// sync-a declares both Namespaces and takes them over. The Namespaces keep
-	// the deletion: detach annotation, so sync-x releases them instead of
-	// trying to delete them.
-	namespaces := []*corev1.Namespace{
-		k8sobjects.NamespaceObject("namespace-a", core.Annotation(common.LifecycleDeleteAnnotation, common.PreventDeletion)),
-		k8sobjects.NamespaceObject("namespace-b", core.Annotation(common.LifecycleDeleteAnnotation, common.PreventDeletion)),
+	// sync-a declares both Namespaces and takes them over. Without the
+	// deletion: detach annotation, sync-x has nothing stopping it from pruning
+	// the Namespaces other than releasing them from its inventory.
+	namespaces := []client.Object{
+		k8sobjects.NamespaceObject("namespace-a"),
+		k8sobjects.NamespaceObject("namespace-b"),
 	}
 	for _, ns := range namespaces {
-		nt.Must(rootSyncAGitRepo.Add(fmt.Sprintf("acme/%s.yaml", ns.Name), ns))
+		nt.Must(rootSyncAGitRepo.Add(fmt.Sprintf("acme/%s.yaml", ns.GetName()), ns))
 	}
+	cmSyncA := k8sobjects.ConfigMapObject(core.Name("cm-a"), core.Namespace("namespace-a"))
+	nt.Must(rootSyncAGitRepo.Add("acme/cm-sync-a.yaml", cmSyncA))
 	nt.Must(rootSyncAGitRepo.CommitAndPush("Declare namespace-a and namespace-b"))
 	nt.Must(nt.WatchForAllSyncs())
 
@@ -323,7 +329,7 @@ func TestImplicitNamespaceHandoffBetweenRootSyncs(t *testing.T) {
 	tg := taskgroup.New()
 	for _, ns := range namespaces {
 		tg.Go(func() error {
-			return nt.Watcher.WatchObject(kinds.Namespace(), ns.Name, "",
+			return nt.Watcher.WatchObject(kinds.Namespace(), ns.GetName(), "",
 				testwatcher.WatchPredicates(
 					testpredicates.HasAnnotation(metadata.ResourceManagerKey, declared.ResourceManager(declared.RootScope, rootSyncA.Name)),
 				))
@@ -342,5 +348,24 @@ func TestImplicitNamespaceHandoffBetweenRootSyncs(t *testing.T) {
 				testpredicates.HasAnnotation(metadata.ResourceManagerKey, declared.ResourceManager(declared.RootScope, rootSyncX.Name)),
 			))
 	})
+	tg.Go(func() error {
+		return nt.Watcher.WatchObject(kinds.ResourceGroup(), rootSyncX.Name, configsync.ControllerNamespace,
+			testwatcher.WatchPredicates(
+				testpredicates.ResourceGroupMissingObjects(namespaces),
+			))
+	})
 	nt.Must(tg.Wait())
+
+	// sync-x removes its ConfigMaps. The Namespaces and sync-a's ConfigMap
+	// must survive.
+	nt.Must(rootSyncXGitRepo.Remove("acme/cm-a.yaml"))
+	nt.Must(rootSyncXGitRepo.Remove("acme/cm-b.yaml"))
+	nt.Must(rootSyncXGitRepo.CommitAndPush("Remove ConfigMaps from namespace-a and namespace-b"))
+	nt.Must(nt.WatchForAllSyncs())
+	nt.Must(nt.Watcher.WatchForNotFound(kinds.ConfigMap(), cmA.Name, cmA.Namespace))
+	nt.Must(nt.Watcher.WatchForNotFound(kinds.ConfigMap(), cmB.Name, cmB.Namespace))
+	for _, ns := range namespaces {
+		nt.Must(nt.Validate(ns.GetName(), "", &corev1.Namespace{}))
+	}
+	nt.Must(nt.Validate(cmSyncA.Name, cmSyncA.Namespace, &corev1.ConfigMap{}))
 }
