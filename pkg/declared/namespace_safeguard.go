@@ -28,11 +28,18 @@ import (
 // Returns an error if:
 // 1) previous contains more than 1 Namespace.
 // 2) current contains zero Namespaces.
+// 3) current contains no objects in any of the previous Namespaces.
 //
 // Otherwise returns nil.
+//
+// Condition 3 avoids a false positive when Namespaces are no longer declared
+// but are still in use, e.g. implicit Namespaces taken over by another
+// reconciler. A misread or empty source has no objects in them, so it is still
+// caught.
 func deletesAllNamespaces(previous, current *orderedmap.OrderedMap[core.ID, *unstructured.Unstructured]) status.Error {
 	var previousNamespaces []string
 	var currentNamespaces []string
+	namespacesInUse := make(map[string]struct{})
 
 	if previous != nil {
 		for pair := previous.Front(); pair != nil; pair = pair.Next() {
@@ -45,14 +52,21 @@ func deletesAllNamespaces(previous, current *orderedmap.OrderedMap[core.ID, *uns
 		for pair := current.Front(); pair != nil; pair = pair.Next() {
 			if pair.Key.GroupKind == kinds.Namespace().GroupKind() {
 				currentNamespaces = append(currentNamespaces, pair.Key.Name)
+			} else if pair.Key.Namespace != "" {
+				namespacesInUse[pair.Key.Namespace] = struct{}{}
 			}
 		}
 	}
 
-	if len(currentNamespaces) == 0 && len(previousNamespaces) >= 2 {
-		return DeleteAllNamespacesError(previousNamespaces)
+	if len(currentNamespaces) > 0 || len(previousNamespaces) < 2 {
+		return nil
 	}
-	return nil
+	for _, ns := range previousNamespaces {
+		if _, found := namespacesInUse[ns]; found {
+			return nil
+		}
+	}
+	return DeleteAllNamespacesError(previousNamespaces)
 }
 
 // DeleteAllNamespacesError represents a failsafe error we return to ensure we

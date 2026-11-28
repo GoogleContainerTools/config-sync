@@ -36,6 +36,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/cli-utils/pkg/common"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // TestNamespaceStrategy focuses on the behavior of switching between modes
@@ -256,4 +257,115 @@ func TestNamespaceStrategyMultipleRootSyncs(t *testing.T) {
 			))
 	})
 	nt.Must(tg.Wait())
+}
+
+// TestImplicitNamespaceHandoffBetweenRootSyncs covers a RootSync that creates
+// implicit Namespaces which another RootSync later declares explicitly.
+//   - sync-x declares ConfigMaps in namespace-a and namespace-b, but not the
+//     Namespaces, so it creates them implicitly.
+//   - sync-a declares namespace-a and namespace-b (without the deletion: detach
+//     annotation), takes them over, and adds a ConfigMap in namespace-a.
+//   - sync-x re-parses. It no longer declares any Namespace, but still has
+//     objects in them, so it must not report KNV2006 and must keep syncing.
+//   - sync-x removes its ConfigMaps. It must not delete the Namespaces that
+//     sync-a now owns, or anything sync-a has in them.
+func TestImplicitNamespaceHandoffBetweenRootSyncs(t *testing.T) {
+	rootSyncID := nomostest.DefaultRootSyncID
+	rootSyncAID := core.RootSyncID("sync-a")
+	rootSyncXID := core.RootSyncID("sync-x")
+	nt := nomostest.New(t, nomostesting.MultiRepos,
+		ntopts.SyncWithGitSource(rootSyncID, ntopts.Unstructured),
+		ntopts.SyncWithGitSource(rootSyncAID, ntopts.Unstructured), // will declare the Namespaces
+		ntopts.SyncWithGitSource(rootSyncXID, ntopts.Unstructured), // will only declare objects in the Namespaces
+	)
+	rootSyncGitRepo := nt.SyncSourceGitReadWriteRepository(rootSyncID)
+	rootSyncAGitRepo := nt.SyncSourceGitReadWriteRepository(rootSyncAID)
+	rootSyncXGitRepo := nt.SyncSourceGitReadWriteRepository(rootSyncXID)
+
+	rootSyncA := nomostest.RootSyncObjectV1Beta1FromRootRepo(nt, rootSyncAID.Name)
+	rootSyncX := nomostest.RootSyncObjectV1Beta1FromRootRepo(nt, rootSyncXID.Name)
+	nt.Must(rootSyncGitRepo.Add(
+		fmt.Sprintf("acme/namespaces/%s/%s.yaml", configsync.ControllerNamespace, rootSyncA.Name),
+		rootSyncA,
+	))
+	nt.Must(rootSyncGitRepo.Add(
+		fmt.Sprintf("acme/namespaces/%s/%s.yaml", configsync.ControllerNamespace, rootSyncX.Name),
+		rootSyncX,
+	))
+	nt.Must(rootSyncGitRepo.CommitAndPush(
+		fmt.Sprintf("Adding RootSyncs (%s, %s) with the default namespaceStrategy", rootSyncA.Name, rootSyncX.Name)))
+	nt.Must(nt.WatchForAllSyncs())
+
+	// sync-x creates both Namespaces implicitly.
+	cmA := k8sobjects.ConfigMapObject(core.Name("cm-x"), core.Namespace("namespace-a"))
+	cmB := k8sobjects.ConfigMapObject(core.Name("cm-x"), core.Namespace("namespace-b"))
+	nt.Must(rootSyncXGitRepo.Add("acme/cm-a.yaml", cmA))
+	nt.Must(rootSyncXGitRepo.Add("acme/cm-b.yaml", cmB))
+	nt.Must(rootSyncXGitRepo.CommitAndPush("Add ConfigMaps in namespace-a and namespace-b"))
+	nt.Must(nt.WatchForAllSyncs())
+
+	// sync-a declares both Namespaces and takes them over. Without the
+	// deletion: detach annotation, sync-x has nothing stopping it from pruning
+	// the Namespaces other than releasing them from its inventory.
+	namespaces := []client.Object{
+		k8sobjects.NamespaceObject("namespace-a"),
+		k8sobjects.NamespaceObject("namespace-b"),
+	}
+	for _, ns := range namespaces {
+		nt.Must(rootSyncAGitRepo.Add(fmt.Sprintf("acme/%s.yaml", ns.GetName()), ns))
+	}
+	cmSyncA := k8sobjects.ConfigMapObject(core.Name("cm-a"), core.Namespace("namespace-a"))
+	nt.Must(rootSyncAGitRepo.Add("acme/cm-sync-a.yaml", cmSyncA))
+	nt.Must(rootSyncAGitRepo.CommitAndPush("Declare namespace-a and namespace-b"))
+	nt.Must(nt.WatchForAllSyncs())
+
+	// Push a new commit to sync-x so it re-parses after the handoff. Before
+	// the fix, this failed with KNV2006 until the reconciler restarted.
+	cmA.SetLabels(map[string]string{"handoff": "true"})
+	nt.Must(rootSyncXGitRepo.Add("acme/cm-a.yaml", cmA))
+	nt.Must(rootSyncXGitRepo.CommitAndPush("Update cm-x in namespace-a"))
+	nt.Must(nt.WatchForAllSyncs())
+
+	tg := taskgroup.New()
+	for _, ns := range namespaces {
+		tg.Go(func() error {
+			return nt.Watcher.WatchObject(kinds.Namespace(), ns.GetName(), "",
+				testwatcher.WatchPredicates(
+					testpredicates.HasAnnotation(metadata.ResourceManagerKey, declared.ResourceManager(declared.RootScope, rootSyncA.Name)),
+				))
+		})
+	}
+	tg.Go(func() error {
+		return nt.Watcher.WatchObject(kinds.ConfigMap(), cmA.Name, cmA.Namespace,
+			testwatcher.WatchPredicates(
+				testpredicates.HasLabel("handoff", "true"),
+				testpredicates.HasAnnotation(metadata.ResourceManagerKey, declared.ResourceManager(declared.RootScope, rootSyncX.Name)),
+			))
+	})
+	tg.Go(func() error {
+		return nt.Watcher.WatchObject(kinds.ConfigMap(), cmB.Name, cmB.Namespace,
+			testwatcher.WatchPredicates(
+				testpredicates.HasAnnotation(metadata.ResourceManagerKey, declared.ResourceManager(declared.RootScope, rootSyncX.Name)),
+			))
+	})
+	tg.Go(func() error {
+		return nt.Watcher.WatchObject(kinds.ResourceGroup(), rootSyncX.Name, configsync.ControllerNamespace,
+			testwatcher.WatchPredicates(
+				testpredicates.ResourceGroupMissingObjects(namespaces),
+			))
+	})
+	nt.Must(tg.Wait())
+
+	// sync-x removes its ConfigMaps. The Namespaces and sync-a's ConfigMap
+	// must survive.
+	nt.Must(rootSyncXGitRepo.Remove("acme/cm-a.yaml"))
+	nt.Must(rootSyncXGitRepo.Remove("acme/cm-b.yaml"))
+	nt.Must(rootSyncXGitRepo.CommitAndPush("Remove ConfigMaps from namespace-a and namespace-b"))
+	nt.Must(nt.WatchForAllSyncs())
+	nt.Must(nt.Watcher.WatchForNotFound(kinds.ConfigMap(), cmA.Name, cmA.Namespace))
+	nt.Must(nt.Watcher.WatchForNotFound(kinds.ConfigMap(), cmB.Name, cmB.Namespace))
+	for _, ns := range namespaces {
+		nt.Must(nt.Validate(ns.GetName(), "", &corev1.Namespace{}))
+	}
+	nt.Must(nt.Validate(cmSyncA.Name, cmSyncA.Namespace, &corev1.ConfigMap{}))
 }

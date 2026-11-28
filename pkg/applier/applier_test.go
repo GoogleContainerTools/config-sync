@@ -374,6 +374,7 @@ func TestApply(t *testing.T) {
 				KptApplier: newFakeKptApplier(tc.events),
 				Client:     fakeClient,
 				Mapper:     fakeClient.RESTMapper(),
+				InvClient:  inventory.NewFakeClient(nil),
 				// TODO: Add tests to cover status mode
 			}
 			applier := NewSupervisor(cs, syncScope, syncName, 5*time.Minute)
@@ -549,6 +550,52 @@ func TestHandleDisabledObjects(t *testing.T) {
 
 	// Verify the server objects after disabling
 	fakeClient.Check(t, expectedServerObjs...)
+}
+
+func TestReleaseNamespacesOwnedByOthers(t *testing.T) {
+	syncScope := declared.RootScope
+	syncName := configsync.RootSyncName
+	ourInventory := InventoryID(syncName, syncScope.SyncNamespace())
+	otherInventory := InventoryID("other-sync", syncScope.SyncNamespace())
+
+	// Owned by another inventory and no longer declared: released.
+	nsTakenOver := k8sobjects.NamespaceObject("taken-over", core.Annotation(metadata.OwningInventoryKey, otherInventory))
+	// Owned by another inventory but still declared: kept.
+	nsDeclared := k8sobjects.NamespaceObject("declared", core.Annotation(metadata.OwningInventoryKey, otherInventory))
+	// Still owned by this inventory: kept.
+	nsOurs := k8sobjects.NamespaceObject("ours", core.Annotation(metadata.OwningInventoryKey, ourInventory))
+	// No owning inventory: kept.
+	nsUnowned := k8sobjects.NamespaceObject("unowned")
+	// Not found on the server: kept, left to the applier.
+	nsDeleted := k8sobjects.NamespaceObject("deleted")
+	// Not a Namespace: kept.
+	cm := k8sobjects.ConfigMapObject(core.Name("cm"), core.Namespace(nsTakenOver.Name))
+
+	var refs object.ObjMetadataSet
+	for _, obj := range []client.Object{nsTakenOver, nsDeclared, nsOurs, nsUnowned, nsDeleted, cm} {
+		ref, err := object.RuntimeToObjMeta(obj)
+		require.NoError(t, err)
+		refs = append(refs, ref)
+	}
+	fakeInvClient := inventory.NewFakeClient(refs)
+	fakeClient := testingfake.NewClient(t, core.Scheme, nsTakenOver, nsDeclared, nsOurs, nsUnowned, cm)
+	cs := &ClientSet{
+		Client:    fakeClient,
+		Mapper:    fakeClient.RESTMapper(),
+		InvClient: fakeInvClient,
+	}
+	s := NewSupervisor(cs, syncScope, syncName, 5*time.Minute).(*supervisor)
+
+	err := s.releaseNamespacesOwnedByOthers(t.Context(), []client.Object{nsDeclared, cm})
+	require.NoError(t, err)
+
+	var want object.ObjMetadataSet
+	for _, ref := range refs {
+		if ref.Name != nsTakenOver.Name || ref.GroupKind != kinds.Namespace().GroupKind() {
+			want = append(want, ref)
+		}
+	}
+	assert.ElementsMatch(t, want, fakeInvClient.Inv.GetObjectRefs())
 }
 
 func TestUpdateStatusMode(t *testing.T) {

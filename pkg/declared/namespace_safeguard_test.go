@@ -31,7 +31,10 @@ func TestDontDeleteAllNamespaces(t *testing.T) {
 		name     string
 		previous []string
 		current  []string
-		want     status.Error
+		// currentObjectNamespaces are the Namespaces of non-Namespace objects
+		// in the current set (one ConfigMap is added per Namespace).
+		currentObjectNamespaces []string
+		want                    status.Error
 	}{
 		{
 			name:     "zero to zero",
@@ -79,6 +82,27 @@ func TestDontDeleteAllNamespaces(t *testing.T) {
 			previous: []string{"foo", "bar"},
 			current:  []string{"foo", "bar"},
 		},
+		{
+			// Implicit Namespaces taken over by another reconciler are no longer
+			// declared, but this reconciler still manages objects in them.
+			name:                    "two to zero, objects still in both namespaces",
+			previous:                []string{"foo", "bar"},
+			current:                 []string{},
+			currentObjectNamespaces: []string{"foo", "bar"},
+		},
+		{
+			name:                    "two to zero, objects still in one namespace",
+			previous:                []string{"foo", "bar"},
+			current:                 []string{},
+			currentObjectNamespaces: []string{"bar"},
+		},
+		{
+			name:                    "two to zero, objects only in other namespaces",
+			previous:                []string{"foo", "bar"},
+			current:                 []string{},
+			currentObjectNamespaces: []string{"baz"},
+			want:                    DeleteAllNamespacesError([]string{"foo", "bar"}),
+		},
 	}
 
 	for _, tc := range testCases {
@@ -91,6 +115,10 @@ func TestDontDeleteAllNamespaces(t *testing.T) {
 			current := orderedmap.NewOrderedMap[core.ID, *unstructured.Unstructured]()
 			for _, c := range tc.current {
 				u := k8sobjects.UnstructuredObject(kinds.Namespace(), core.Name(c))
+				current.Set(core.IDOf(u), u)
+			}
+			for _, ns := range tc.currentObjectNamespaces {
+				u := k8sobjects.UnstructuredObject(kinds.ConfigMap(), core.Name("cm"), core.Namespace(ns))
 				current.Set(core.IDOf(u), u)
 			}
 

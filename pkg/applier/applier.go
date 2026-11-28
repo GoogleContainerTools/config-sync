@@ -48,6 +48,7 @@ import (
 	"sigs.k8s.io/cli-utils/pkg/apply/filter"
 	"sigs.k8s.io/cli-utils/pkg/common"
 	"sigs.k8s.io/cli-utils/pkg/inventory"
+	"sigs.k8s.io/cli-utils/pkg/object"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -567,6 +568,14 @@ func (s *supervisor) applyInner(ctx context.Context, eventHandler func(Event), d
 		return objStatusMap, syncStats
 	}
 
+	// Release Namespaces that another inventory has taken over, so they are not
+	// pruned. Fail the apply on error (it is retried) rather than risk deleting
+	// a Namespace that another RootSync owns.
+	if err := s.releaseNamespacesOwnedByOthers(ctx, enabledObjs); err != nil {
+		sendErrorEvent(fmt.Errorf("failed to release Namespaces owned by other inventories: %w", err), eventHandler)
+		return objStatusMap, syncStats
+	}
+
 	unknownTypeResources := make(map[core.ID]struct{})
 	options := apply.ApplierOptions{
 		ServerSideOptions: common.ServerSideOptions{
@@ -806,6 +815,65 @@ func (s *supervisor) removeFromInventory(ctx context.Context, objs []client.Obje
 	}
 	newObjs := removeFrom(inv.GetObjectRefs(), objs)
 	inv.SetObjectRefs(newObjs)
+	return s.clientSet.InvClient.CreateOrUpdate(ctx, inv, inventory.UpdateOptions{})
+}
+
+// releaseNamespacesOwnedByOthers removes Namespaces from the inventory when
+// they are no longer declared and are now owned by another inventory.
+//
+// This happens when a reconciler creates an implicit Namespace and another
+// reconciler later declares the same Namespace explicitly and takes it over.
+// Without this, the Namespace stays in this inventory and is pruned: while this
+// reconciler still has objects in it, the prune is skipped and those objects
+// are not applied (KNV2009) on every sync; once it has none, the Namespace,
+// and everything the other reconciler has in it, is deleted.
+func (s *supervisor) releaseNamespacesOwnedByOthers(ctx context.Context, declaredObjs []client.Object) error {
+	inv, err := s.clientSet.InvClient.Get(ctx, s.invInfo, inventory.GetOptions{})
+	if apierrors.IsNotFound(err) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+
+	declaredNamespaces := make(map[string]struct{})
+	for _, obj := range declaredObjs {
+		if obj.GetObjectKind().GroupVersionKind().GroupKind() == kinds.Namespace().GroupKind() {
+			declaredNamespaces[obj.GetName()] = struct{}{}
+		}
+	}
+
+	invID := s.invInfo.GetID().String()
+	refs := inv.GetObjectRefs()
+	keep := make(object.ObjMetadataSet, 0, len(refs))
+	for _, ref := range refs {
+		if ref.GroupKind != kinds.Namespace().GroupKind() {
+			keep = append(keep, ref)
+			continue
+		}
+		if _, found := declaredNamespaces[ref.Name]; found {
+			keep = append(keep, ref)
+			continue
+		}
+		ns := &metav1.PartialObjectMetadata{}
+		ns.SetGroupVersionKind(kinds.Namespace())
+		if err := s.clientSet.Client.Get(ctx, client.ObjectKey{Name: ref.Name}, ns); err != nil {
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
+			keep = append(keep, ref)
+			continue
+		}
+		owner, found := ns.GetAnnotations()[metadata.OwningInventoryKey]
+		if !found || owner == invID {
+			keep = append(keep, ref)
+			continue
+		}
+		klog.Infof("Releasing Namespace %q from inventory %q: now owned by inventory %q", ref.Name, invID, owner)
+	}
+	if len(keep) == len(refs) {
+		return nil
+	}
+	inv.SetObjectRefs(keep)
 	return s.clientSet.InvClient.CreateOrUpdate(ctx, inv, inventory.UpdateOptions{})
 }
 
